@@ -153,6 +153,44 @@ local function attach(bufnr)
       end,
       { desc = 'Forward search with the attached texlab client' },
     },
+    TexToolsCancelBuild = {
+      function()
+        action('lsp', 'cancel_build')
+      end,
+      { desc = 'Cancel builds in the attached texlab client' },
+    },
+    TexToolsCancelAllBuilds = {
+      function()
+        action('lsp', 'cancel_all_builds')
+      end,
+      { desc = 'Cancel builds in all texlab clients' },
+    },
+    TexToolsBuildStatus = {
+      function()
+        action('lsp', 'show_build_status')
+      end,
+      { desc = 'Show compilation status and automatic build setting' },
+    },
+    TexToolsBuildOnSave = {
+      function(args)
+        local enabled
+        if args.args ~= '' and args.args ~= 'toggle' then
+          enabled = args.args == 'on'
+          if args.args ~= 'on' and args.args ~= 'off' then
+            vim.notify('Use on, off, or toggle', vim.log.levels.WARN, { title = 'tex-tools' })
+            return
+          end
+        end
+        action('lsp', 'build_on_save', enabled)
+      end,
+      {
+        nargs = '?',
+        complete = function()
+          return { 'on', 'off', 'toggle' }
+        end,
+        desc = 'Enable, disable or toggle texlab build on save',
+      },
+    },
   }
   for _, kind in ipairs({ 'Section', 'Item', 'Environment', 'Math' }) do
     for _, direction in ipairs({ { 'Next', 1 }, { 'Previous', -1 } }) do
@@ -168,6 +206,30 @@ local function attach(bufnr)
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
   local maps = {
+    {
+      'n',
+      '<localleader>lk',
+      'CancelBuild',
+      function()
+        action('lsp', 'cancel_build')
+      end,
+    },
+    {
+      'n',
+      '<localleader>lK',
+      'CancelAllBuilds',
+      function()
+        action('lsp', 'cancel_all_builds')
+      end,
+    },
+    {
+      'n',
+      '<localleader>lg',
+      'BuildStatus',
+      function()
+        action('lsp', 'show_build_status')
+      end,
+    },
     {
       'n',
       '<localleader>ldm',
@@ -388,6 +450,19 @@ function M.setup(opts)
     error('tex-tools.nvim requires Neovim 0.11 or newer')
   end
   require('tex-tools.config').setup(opts)
+  local lsp_group = vim.api.nvim_create_augroup('TexToolsLsp', { clear = true })
+  vim.api.nvim_create_autocmd('LspAttach', {
+    group = lsp_group,
+    callback = function(event)
+      local client = vim.lsp.get_client_by_id(event.data.client_id)
+      if client and client.name == 'texlab' then
+        require('tex-tools.build').attach(client)
+      end
+    end,
+  })
+  for _, client in ipairs(vim.lsp.get_clients({ name = 'texlab' })) do
+    require('tex-tools.build').attach(client)
+  end
   generation = generation + 1
   local group = vim.api.nvim_create_augroup('TexTools', { clear = true })
   vim.api.nvim_create_autocmd('FileType', {
@@ -500,6 +575,19 @@ function M.build()
 end
 function M.forward_search()
   return require('tex-tools.lsp').forward_search()
+end
+
+function M.cancel_build()
+  return require('tex-tools.lsp').cancel_build()
+end
+function M.cancel_all_builds()
+  return require('tex-tools.lsp').cancel_all_builds()
+end
+function M.build_status()
+  return require('tex-tools.lsp').build_status()
+end
+function M.build_on_save(enabled)
+  return require('tex-tools.lsp').build_on_save(enabled)
 end
 
 return M

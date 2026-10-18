@@ -75,6 +75,9 @@ Normal mode (each <Plug> name corresponds to a command below):
     <LocalLeader>li     <Plug>(TexToolsInsertItem)
     <LocalLeader>ll     <Plug>(TexToolsBuild)
     <LocalLeader>lv     <Plug>(TexToolsForwardSearch)
+    <LocalLeader>lk     <Plug>(TexToolsCancelBuild)
+    <LocalLeader>lK     <Plug>(TexToolsCancelAllBuilds)
+    <LocalLeader>lg     <Plug>(TexToolsBuildStatus)
     ]]                  <Plug>(TexToolsNextSection)
     [[                  <Plug>(TexToolsPreviousSection)
     ]i                  <Plug>(TexToolsNextItem)
@@ -164,6 +167,28 @@ the target buffer while a prompt is open invalidates the pending operation.
 :TexToolsForwardSearch                             *:TexToolsForwardSearch*
     Request texlab PDF forward search at the cursor without saving.
     Both commands require an attached texlab client and configured toolchain.
+
+:TexToolsCancelBuild                               *:TexToolsCancelBuild*
+    Cancel active builds in this buffer's texlab server instance.
+:TexToolsCancelAllBuilds                            *:TexToolsCancelAllBuilds*
+    Send cancellation to every running texlab server instance.
+:TexToolsBuildStatus                               *:TexToolsBuildStatus*
+    Show compilation state, elapsed time and the build-on-save setting.
+:TexToolsBuildOnSave [on|off|toggle]                 *:TexToolsBuildOnSave*
+    Change build.onSave for the attached client's current session. No argument
+    toggles the setting. Other compiler settings remain intact.
+
+Build management subscribes to native LspProgress after texlab attaches. Manual
+builds report the response status; automatic builds report finished when their
+progress ends, without inferring success from the end notification. Other LSP
+progress handlers are preserved. A second manual build is rejected while one is
+active in that client. A save that triggers build.onSave does not also send an
+explicit build request. Cancellation is scoped to a server instance, not a file.
+
+Lua: cancel_build(), cancel_all_builds(), build_on_save([boolean]) return
+boolean[, result_or_error]. build_status() returns a copy with phase, uri,
+on_save, result (when known), elapsed seconds, and error (when available), or
+nil, error if no texlab client is attached. These functions need no setup().
 
 COMMAND EDITING                                         *tex-tools-command-editing*
 

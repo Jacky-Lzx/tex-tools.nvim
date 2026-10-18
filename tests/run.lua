@@ -496,6 +496,7 @@ dofile('tests/navigation_delimiters.lua')({
 dofile('tests/context_details.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
 
 dofile('tests/conceal.lua')({ test = test, eq = eq, buffer = buffer, content = content })
+dofile('tests/build.lua')({ test = test, eq = eq, buffer = buffer, content = content })
 
 for _, entry in ipairs(tests) do
   local input, notify, get_clients, get_parser =

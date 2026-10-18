@@ -51,6 +51,8 @@ and `d` (math brackets). Normal mode unless stated otherwise.
 | `<localleader>ldt` / `ldm` | Toggle `\left`/`\right` sizing / jump to the matching bracket |
 | `<localleader>li` | Insert a sibling `\item` (Normal / Insert) |
 | `<localleader>ll` / `lv` | Build / PDF forward search through texlab |
+| `<localleader>lk` / `lK` | Cancel builds in the current / all texlab clients |
+| `<localleader>lg` | Show build status |
 | `]]` / `[[` | Next / previous section |
 | `]i` / `[i` | Next / previous item at the current list level |
 | `]e` / `[e` | Next / previous environment opening |
@@ -89,6 +91,24 @@ other contexts use native Enter.
 Cursor-based rename, unwrap, and toggle edits support `.` and single-step
 undo. Surrounds and list input do not register structural repeats;
 text-object operators use native repeat behavior.
+
+## Compilation
+
+`:TexToolsBuild` saves the current file and requests a texlab build. A second
+build is rejected while that client has an active compilation. If saving already
+triggers texlab's `build.onSave`, no duplicate build request is sent.
+
+Use `:TexToolsCancelBuild`, `:TexToolsCancelAllBuilds`, and `:TexToolsBuildStatus`
+to control or inspect compilation. Cancellation affects builds in the selected
+texlab server instance, rather than a single buffer. `:TexToolsBuildOnSave
+[on|off|toggle]` changes automatic compilation for that client's current session;
+the compiler and other texlab settings are preserved.
+
+`require("tex-tools").build_status()` returns a snapshot with `phase`, `uri`,
+`on_save`, optional `result` and `elapsed` seconds. Manual builds report the
+compiler's result. Automatic builds without an explicit response report
+`finished`; their diagnostics provide error details. Native LSP progress handling
+remains available to statuslines and progress plugins.
 
 ## Conceal
 
