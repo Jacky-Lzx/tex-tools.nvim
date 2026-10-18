@@ -1,19 +1,27 @@
 local ts = require('tex-tools.treesitter')
 local M = {}
 
-local comments = { line_comment = true, block_comment = true, comment_environment = true, comment = true }
-local literal = {
-  verbatim_environment = true,
-  listing_environment = true,
-  minted_environment = true,
-  asy_environment = true,
-  asydef_environment = true,
-  pycode_environment = true,
-  luacode_environment = true,
-  sageblock_environment = true,
-  sagesilent_environment = true,
-}
+local comments = ts.comment_types
+local literal = ts.literal_types
 local math = { inline_formula = true, displayed_equation = true, math_environment = true }
+
+function M.is_math_environment(node, bufnr)
+  if node:type() == 'math_environment' then
+    return true
+  end
+  if ts.environment(node) then
+    local name = ts.field(ts.field(ts.field(node, 'begin'), 'name'), 'text')
+    if name then
+      local value = ts.text(name, bufnr):gsub('%*$', '')
+      for _, custom in ipairs(require('tex-tools.config').options.math_environments) do
+        if value == custom:gsub('%*$', '') then
+          return true
+        end
+      end
+    end
+  end
+  return false
+end
 
 ---@param opts? {bufnr?: integer, pos?: integer[]}
 ---@return boolean, string?
@@ -47,18 +55,8 @@ function M.in_math(opts)
         result = false
       elseif math[kind] then
         result = true
-      elseif ts.environment(node) then
-        local begin = ts.field(node, 'begin')
-        local name = ts.field(ts.field(begin, 'name'), 'text')
-        if name then
-          local value = ts.text(name, opts and opts.bufnr):gsub('%*$', '')
-          for _, custom in ipairs(require('tex-tools.config').options.math_environments) do
-            if value == custom:gsub('%*$', '') then
-              result = true
-              break
-            end
-          end
-        end
+      elseif M.is_math_environment(node, opts and opts.bufnr) then
+        result = true
       end
     end
     node = node:parent()

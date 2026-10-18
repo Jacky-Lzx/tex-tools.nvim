@@ -40,6 +40,24 @@ COMMANDS                                                *tex-tools-commands*
     Jump from the end marker to begin, or from begin/body to end. Sets the
     previous-context mark so that <C-o> can return.
 
+:[range]TexToolsSurroundEnvironment [name]      *:TexToolsSurroundEnvironment*
+    Wrap the current line or an Ex line range in an environment. Omit the
+    name to prompt with vim.ui.input. Markers use the first line's indentation;
+    body text is preserved without reindentation. A buffer change while the
+    prompt is open cancels the pending edit. One undo restores the original.
+
+:TexToolsUnwrapEnvironment                       *:TexToolsUnwrapEnvironment*
+    Remove both markers and begin options from the innermost environment,
+    preserving the body. Standalone marker lines are removed entirely.
+    Blank body lines and trailing comments are preserved. Supports inline
+    environments and one-step undo; mismatched/incomplete markers are refused.
+
+:TexToolsToggleMathDelimiters                   *:TexToolsToggleMathDelimiters*
+    Switch $...$ <-> \(...\) or $$...$$ <-> \[...\]. Preserve the body and
+    inline/display mode. Refuse incomplete/mismatched delimiters, comments,
+    and literal content. Named math environments use the environment commands.
+    Both delimiter changes belong to one undo operation.
+
 :TexToolsBuild                                             *:TexToolsBuild*
     Save the current file with :update when modified, then send
     textDocument/build to its attached texlab client. A save failure stops
@@ -61,10 +79,23 @@ Default normal-mode mappings:
     <LocalLeader>lm     <Plug>(TexToolsJumpEnvironment)
     <LocalLeader>ll     <Plug>(TexToolsBuild)
     <LocalLeader>lv     <Plug>(TexToolsForwardSearch)
+    <LocalLeader>le     <Plug>(TexToolsSurroundEnvironment)
+    dse                 <Plug>(TexToolsUnwrapEnvironment)
+    ts$                 <Plug>(TexToolsToggleMathDelimiters)
+
+Default Visual mapping:
+    <LocalLeader>le     <Plug>(TexToolsSurroundEnvironment)
+    Surround operates on whole selected lines, also for character/block mode.
 
 Default Visual/operator-pending mappings:
     ae                  <Plug>(TexToolsAroundEnvironment)
     ie                  <Plug>(TexToolsInsideEnvironment)
+    ac                  <Plug>(TexToolsAroundCommand)
+    ic                  <Plug>(TexToolsInsideCommand)
+    aa                  <Plug>(TexToolsAroundArgument)
+    ia                  <Plug>(TexToolsInsideArgument)
+    a$                  <Plug>(TexToolsAroundMath)
+    i$                  <Plug>(TexToolsInsideMath)
 
 <Plug> mappings are always installed in tex/plaintex buffers, even when
 default mappings are disabled. Use |vim.keymap.set()| to choose other keys.
@@ -76,7 +107,25 @@ markers. ie selects its body, excluding begin options and marker lines
 when the markers are on their own lines. An empty body cancels the operator.
 These are characterwise selections; both 'selection' settings and UTF-8
 characters are supported. document is included. Counts to select enclosing
-environments are not implemented yet.
+objects are not implemented yet.
+
+ac selects the innermost command call, including its syntax-owned arguments
+and options. ic selects the name, excluding the backslash and including a
+trailing star. Section/item bodies are excluded from command calls.
+
+aa selects the innermost curly/bracket group, including its delimiters.
+ia selects the contents. Standalone groups are also supported. Only groups
+recognized by the parser are available; custom macro signatures and unknown
+optional arguments are not inferred.
+
+a$ selects the innermost inline/display formula or math environment, including
+its delimiters/markers. i$ selects its body. For named environments, standalone
+marker lines are excluded as with ie. Configured math_environments are included.
+An inner formula in \text{...} is selected before the outer formula.
+
+Command, argument, and formula objects skip comments and literal/code content.
+Incomplete argument/formula nodes are refused. Empty inner objects cancel the
+operator. All text objects support characterwise Visual/operator-pending mode.
 
 LUA API                                                 *tex-tools-api*
 
@@ -109,6 +158,26 @@ jump_environment()                               *tex-tools.jump_environment()*
     Operate on the current cursor's environment. Return true on success or
     false, error. With no name, rename opens an asynchronous prompt;
     true means the prompt was opened, not that an edit has completed.
+
+surround_environment([name [, opts]])         *tex-tools.surround_environment()*
+    Wrap lines in the current buffer. opts.line1/line2 are one-based inclusive
+    line numbers, defaulting to the current line. If name is omitted, prompt
+    asynchronously. A buffer change invalidates the prompt's saved range.
+    Return true or false, error; true for a prompt means it has opened.
+
+unwrap_environment()                           *tex-tools.unwrap_environment()*
+toggle_math_delimiters()                     *tex-tools.toggle_math_delimiters()*
+    Operate at the current cursor. Return true or false, error.
+
+textobject_range(kind, inner [, opts])            *tex-tools.textobject_range()*
+    kind is 'environment', 'command', 'argument', or 'math'. inner is a boolean.
+    Return {start_row, start_byte, end_row, end_byte} or nil, error, without
+    notifying. Coordinates are zero-based and the end is exclusive. opts is
+    the same {bufnr, pos} table accepted by context queries.
+
+select_textobject(kind, inner)                  *tex-tools.select_textobject()*
+    Select the text object in characterwise Visual mode in the current buffer.
+    Return true or false, error. If no object is available, cancel the operator.
 
 build()                                                    *tex-tools.build()*
 forward_search()                                  *tex-tools.forward_search()*

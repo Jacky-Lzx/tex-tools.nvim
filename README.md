@@ -23,6 +23,16 @@ text and nested formulas inside `\text{}`, comments, and verbatim-like
 environments. Editing is refused when an environment cannot be identified,
 has incomplete markers, or has mismatched begin/end names.
 
+## Phase 2: Structural editing
+
+- Command (`ac` / `ic`), argument (`aa` / `ia`), and formula (`a$` / `i$`) text objects.
+- Surround the current line or selected lines with an environment, and unwrap an existing environment while keeping its body.
+- Switch `$...$` ↔ `\(...\)` and `$$...$$` ↔ `\[...\]` without changing math mode or formula content.
+
+Command, argument, and formula objects follow the parser's structure and skip
+comments and literal content. Command objects include only arguments owned by
+the command node; selecting `\section{Title}` never includes its section body.
+
 ## Installation
 
 Requires **Neovim ≥ 0.11** and an installed **`latex` Tree-sitter parser**.
@@ -64,14 +74,34 @@ Set `mappings = false` to disable the defaults.
 - `<localleader>ll` → `:TexToolsBuild`; saves the current file, then requests a texlab build.
 - `<localleader>lv` → `:TexToolsForwardSearch`; asks texlab to locate the current cursor position in the PDF.
 - `ae` / `ie` → selects the whole environment / its body, e.g. `vae`, `yie`, `dae`.
+- `ac` / `ic` → selects the command call / command name, e.g. `dac`, `yic`. The inner name excludes the backslash and includes a trailing star.
+- `aa` / `ia` → selects the innermost brace or bracket group / its contents, e.g. `yaa`, `cia`.
+- `a$` / `i$` → selects the formula including / excluding its delimiters, e.g. `da$`, `yi$`. Named math environments and configured custom math environments are included.
+- `<localleader>le` → `:[range]TexToolsSurroundEnvironment [name]`; wraps the current line in Normal mode or selected lines in Visual mode, prompting for a name.
+- `dse` → `:TexToolsUnwrapEnvironment`; removes both markers and begin options while preserving the body.
+- `ts$` → `:TexToolsToggleMathDelimiters`; switches between dollar and backslash delimiters, preserving inline/display mode.
 
 `ie` excludes the begin marker's optional arguments. When markers occupy their
 own lines, it also excludes the newlines surrounding the body. An empty body
 cancels the operation. `ae` includes the `document` environment. Selecting outer
-environments with a count is not supported in this phase.
+objects with a count is not supported yet. An empty inner text object cancels
+the operator.
 
 Star toggling changes the name only; the document class and packages determine
 whether the resulting environment exists.
+
+Surrounding operates on whole lines, including when a characterwise or blockwise
+Visual selection is used. Markers use the first selected line's indentation;
+the body is preserved without reindentation. For example, `:2,5TexToolsSurroundEnvironment quote`
+wraps lines 2 through 5. Unwrapping removes standalone marker lines entirely,
+preserves blank body lines and comments, and handles inline markers. Each wrap,
+unwrap, and delimiter switch can be undone with one `u`.
+
+Formula delimiter switching leaves named environments such as `equation`
+to the environment commands. Incomplete or mismatched formula delimiters are
+rejected. Arguments and optional groups must be recognized by the parser;
+the plugin does not infer custom macro signatures or parse unrecognized
+optional arguments.
 
 You can also define your own `<Plug>` mappings:
 
@@ -129,11 +159,19 @@ tex.environment()              -- environment table or nil, optional error messa
 tex.rename_environment("align*")
 tex.toggle_environment_star()
 tex.jump_environment()
+tex.surround_environment("quote") -- current line
+tex.surround_environment("quote", { line1 = 2, line2 = 5 }) -- one-based, inclusive
+tex.unwrap_environment()
+tex.toggle_math_delimiters()
 tex.build()
 tex.forward_search()
 
 -- Query a specific buffer and position; rows and byte columns are zero-based.
 tex.in_math({ bufnr = 3, pos = { 9, 4 } })
+
+-- kind: "environment", "command", "argument", or "math"; true selects the inner part.
+tex.textobject_range("argument", true) -- {start_row, start_byte, end_row, end_byte}, end-exclusive
+tex.select_textobject("argument", true) -- enter a characterwise Visual selection
 ```
 
 Context queries do not display notifications and can be called frequently.
@@ -142,6 +180,13 @@ They return `false, error` when the parser is unavailable. `environment()` retur
 `true` or `false, error`; for an asynchronous rename, `true` means the input
 prompt has opened. Build and forward search return `true, request_id` when the
 request is sent, then report the result through a notification.
+
+`surround_environment()` prompts when the name is omitted and defaults to the
+current line when no range is given. A buffer change while the prompt is open
+cancels the pending edit. `textobject_range()` returns a range or `nil, error`
+without notifying, and accepts the same optional `{ bufnr, pos }` query options.
+`select_textobject()` selects in the current buffer and returns `true` or
+`false, error`.
 
 Example LuaSnip condition:
 
@@ -159,7 +204,7 @@ expanded.
 ## Roadmap
 
 1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
-2. **Editing** — Command, argument, and formula text objects; adding and removing surrounding environments; math delimiter switching.
+2. **Implemented: Editing** — Command, argument, and formula text objects; adding and removing surrounding environments; math delimiter switching.
 3. **Input** — Smart `\item` insertion, context-aware Enter behavior, and completion helpers that compose with existing snippet and pairs plugins.
 4. **Navigation** — Section and list-item motions and a table of contents, reusing texlab symbols and definitions where possible.
 
@@ -182,8 +227,9 @@ specify its shared library:
 TEX_TOOLS_TEST_PARSER=/path/to/latex.so nvim --clean --headless -l tests/run.lua
 ```
 
-Tests cover context boundaries, environment editing, undo, UTF-8 text objects,
-actual operator mappings, and texlab request parameter encoding. texlab tests
+Tests cover context boundaries, environment editing, line and Visual surrounds,
+math delimiter round trips, undo, UTF-8 text objects, actual operator mappings,
+stale asynchronous prompts, and texlab request parameter encoding. texlab tests
 use a client double and do not start a LaTeX compiler or PDF viewer. Verify
 actual builds and PDF navigation with your configured local toolchain.
 

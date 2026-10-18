@@ -41,6 +41,29 @@ local function attach(bufnr)
       end,
       { desc = 'Jump between LaTeX begin/end markers' },
     },
+    TexToolsSurroundEnvironment = {
+      function(args)
+        action(
+          'environment',
+          'surround',
+          args.args ~= '' and args.args or nil,
+          { line1 = args.line1, line2 = args.line2 }
+        )
+      end,
+      { nargs = '?', range = true, desc = 'Surround lines with a LaTeX environment' },
+    },
+    TexToolsUnwrapEnvironment = {
+      function()
+        action('environment', 'unwrap')
+      end,
+      { desc = 'Remove the surrounding environment markers, keeping the body' },
+    },
+    TexToolsToggleMathDelimiters = {
+      function()
+        action('math', 'toggle_delimiters')
+      end,
+      { desc = 'Switch between dollar and backslash math delimiters' },
+    },
     TexToolsBuild = {
       function()
         action('lsp', 'build')
@@ -58,6 +81,38 @@ local function attach(bufnr)
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
   local maps = {
+    {
+      'n',
+      'dse',
+      'UnwrapEnvironment',
+      function()
+        action('environment', 'unwrap')
+      end,
+    },
+    {
+      'n',
+      '<localleader>le',
+      'SurroundEnvironment',
+      function()
+        action('environment', 'surround')
+      end,
+    },
+    {
+      'x',
+      '<localleader>le',
+      'SurroundEnvironment',
+      function()
+        action('environment', 'surround_visual')
+      end,
+    },
+    {
+      'n',
+      'ts$',
+      'ToggleMathDelimiters',
+      function()
+        action('math', 'toggle_delimiters')
+      end,
+    },
     {
       'n',
       'cse',
@@ -115,6 +170,18 @@ local function attach(bufnr)
       end,
     },
   }
+  for _, object in ipairs({ { 'command', 'c', 'Command' }, { 'argument', 'a', 'Argument' }, { 'math', '$', 'Math' } }) do
+    for _, variant in ipairs({ { 'a', 'Around', false }, { 'i', 'Inside', true } }) do
+      maps[#maps + 1] = {
+        { 'x', 'o' },
+        variant[1] .. object[2],
+        variant[2] .. object[3],
+        function()
+          action('textobjects', 'select', object[1], variant[3])
+        end,
+      }
+    end
+  end
   for _, map in ipairs(maps) do
     local plug = '<Plug>(TexTools' .. map[3] .. ')'
     vim.keymap.set(map[1], plug, map[4], { buffer = bufnr, silent = true, desc = 'tex-tools: ' .. map[3] })
@@ -180,6 +247,21 @@ function M.toggle_environment_star()
 end
 function M.jump_environment()
   return require('tex-tools.environment').jump()
+end
+function M.surround_environment(name, opts)
+  return require('tex-tools.environment').surround(name, opts)
+end
+function M.unwrap_environment()
+  return require('tex-tools.environment').unwrap()
+end
+function M.toggle_math_delimiters()
+  return require('tex-tools.math').toggle_delimiters()
+end
+function M.textobject_range(kind, inner, opts)
+  return require('tex-tools.textobjects').range(kind, inner, opts)
+end
+function M.select_textobject(kind, inner)
+  return require('tex-tools.textobjects').select(kind, inner)
 end
 function M.build()
   return require('tex-tools.lsp').build()

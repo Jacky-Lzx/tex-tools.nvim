@@ -1,5 +1,18 @@
 local M = {}
 
+M.comment_types = { line_comment = true, block_comment = true, comment_environment = true, comment = true }
+M.literal_types = {
+  verbatim_environment = true,
+  listing_environment = true,
+  minted_environment = true,
+  asy_environment = true,
+  asydef_environment = true,
+  pycode_environment = true,
+  luacode_environment = true,
+  sageblock_environment = true,
+  sagesilent_environment = true,
+}
+
 function M.buffer(bufnr)
   return (bufnr == nil or bufnr == 0) and vim.api.nvim_get_current_buf() or bufnr
 end
@@ -40,6 +53,24 @@ end
 
 function M.field(node, name)
   return node and node:field(name)[1] or nil
+end
+
+function M.editable_node(opts)
+  local node, err = M.node(opts)
+  local ancestor = node
+  while ancestor do
+    local kind = ancestor:type()
+    if M.comment_types[kind] or M.literal_types[kind] then
+      return nil, 'No editable LaTeX structure in comments or literal content'
+    end
+    ancestor = ancestor:parent()
+  end
+  return node, err
+end
+
+function M.contains(range, row, col)
+  local sr, sc, er, ec = unpack(range)
+  return (row > sr or (row == sr and col >= sc)) and (row < er or (row == er and col < ec))
 end
 
 function M.text(node, bufnr)
