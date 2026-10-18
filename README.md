@@ -96,6 +96,20 @@ text-object operators use native repeat behavior.
 
 ## Compilation
 
+`:TexToolsMain` shows the main file; `:TexToolsMain path/to/main.tex` selects it
+for the current texlab client/session. Relative paths use the LSP root.
+`:TexToolsMain select` opens a file prompt; `:TexToolsMain reset` restores
+`build.main_file` or source/root-directive discovery. Selection is shared by
+buffers in that client, and refuses changes during compilation/cleanup.
+`:TexToolsInfo` shows the main file, working directory, compiler and artifact
+paths. Lua: `main_file(path?)` returns `true, path` or `false, error`; pass `false`
+to reset. `project_info()` returns a snapshot or `nil, error`.
+
+Manual builds target the resolved main document and save a modified main buffer
+as well as the current file. Texlab's automatic builds still use its dependency
+graph. With build-on-save enabled, save a modified child first or disable
+automatic compilation before explicitly building a different main document.
+
 `:TexToolsBuild` saves the current file and requests a texlab build. A second
 build is rejected while that client has an active compilation. If saving already
 triggers texlab's `build.onSave`, no duplicate build request is sent.

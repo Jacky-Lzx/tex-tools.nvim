@@ -1,4 +1,5 @@
 local M = {}
+local mains = setmetatable({}, { __mode = 'k' })
 
 function M.backend(build)
   return vim.fs.basename(build.executable or 'latexmk'):lower():gsub('%.exe$', '')
@@ -42,7 +43,10 @@ function M.resolve(client, opts)
   if file == '' or file:match('^%w+://') then
     return nil, 'Open a local .tex file first'
   end
-  local configured = opts.main_file or require('tex-tools.config').options.build.main_file
+  local configured = opts.main_file
+  if configured == nil then
+    configured = mains[client] or require('tex-tools.config').options.build.main_file
+  end
   local explicit = configured and true or false
   local base = (client.config or {}).root_dir or vim.fs.dirname(file)
   if configured then
@@ -131,7 +135,135 @@ function M.resolve(client, opts)
     aux_dir = dir(build.auxDirectory or auxdir or outdir or settings.auxDirectory),
     log_dir = dir(build.logDirectory or auxdir or outdir or settings.auxDirectory),
     pdf_dir = dir(build.pdfDirectory or outdir or settings.auxDirectory),
+    main_source = mains[client] and 'session' or (configured and 'configuration' or 'source'),
   }
+end
+
+function M.explicit(client)
+  return mains[client] or require('tex-tools.config').options.build.main_file or nil
+end
+
+function M.attach(client, path)
+  local bufnr = vim.fn.bufnr(path)
+  if vim.lsp.get_client_by_id(client.id) == client then
+    bufnr = vim.fn.bufadd(path)
+    vim.fn.bufload(bufnr)
+    if not vim.lsp.buf_attach_client(bufnr, client.id) then
+      return nil, 'Could not attach the main document to texlab'
+    end
+  end
+  return bufnr >= 0 and bufnr or nil
+end
+
+local function change(client, path)
+  local manager = require('tex-tools.build')
+  if manager.active(client) or manager.state(client).cleaning then
+    return false, 'Wait for compilation or cleaning to finish before changing the main file'
+  end
+  if path == false then
+    mains[client] = nil
+    local project = M.resolve(client)
+    return true, project and project.main_file or nil
+  end
+  if type(path) ~= 'string' or path == '' or path:find('%z') then
+    return false, 'Provide a nonempty .tex path'
+  end
+  local project, err = M.resolve(client, { main_file = path })
+  if not project then
+    return false, err
+  end
+  mains[client] = project.main_file
+  return true, project.main_file
+end
+
+function M.main_file(path)
+  local client, err = require('tex-tools.lsp').client()
+  if not client then
+    return false, err
+  end
+  if path ~= nil then
+    return change(client, path)
+  end
+  local project
+  project, err = M.resolve(client)
+  return project ~= nil, project and project.main_file or err
+end
+
+function M.command(path)
+  if path == 'select' then
+    local client, err = require('tex-tools.lsp').client()
+    if not client then
+      return false, err
+    end
+    local project = M.resolve(client)
+    vim.ui.input(
+      { prompt = 'Main .tex file: ', default = project and project.main_file or '', completion = 'file' },
+      function(value)
+        if value and value ~= '' then
+          local ok, result = change(client, value)
+          vim.notify(
+            ok and ('Main file: ' .. result) or result,
+            ok and vim.log.levels.INFO or vim.log.levels.WARN,
+            { title = 'tex-tools' }
+          )
+        end
+      end
+    )
+    return true
+  end
+  if path == 'reset' then
+    path = false
+  end
+  local ok, result = M.main_file(path)
+  if ok then
+    vim.notify(
+      result and ('Main file: ' .. result) or 'Main-file override cleared',
+      vim.log.levels.INFO,
+      { title = 'tex-tools' }
+    )
+  end
+  return ok, result
+end
+
+function M.info()
+  local client, err = require('tex-tools.lsp').client()
+  if not client then
+    return nil, err
+  end
+  local project
+  project, err = M.resolve(client)
+  if not project then
+    return nil, err
+  end
+  local compiler = require('tex-tools.compiler').snapshot(client)
+  project.client_id, project.root_dir = client.id, (client.config or {}).root_dir
+  project.compiler, project.profile = compiler.executable, compiler.profile
+  project.build = vim.deepcopy(project.build)
+  project.log_file = vim.fs.joinpath(project.log_dir, project.stem .. '.log')
+  project.pdf_file = vim.fs.joinpath(project.pdf_dir, project.pdf_name)
+  project.synctex_file = vim.fs.joinpath(project.pdf_dir, project.stem .. '.synctex.gz')
+  return project
+end
+
+function M.show_info()
+  local info, err = M.info()
+  if not info then
+    return false, err
+  end
+  local lines = {
+    'texlab client: ' .. info.client_id,
+    'Main: ' .. info.main_file .. ' (' .. info.main_source .. ')',
+    'LSP root: ' .. (info.root_dir or '(unset)'),
+    'Working directory: ' .. info.cwd,
+    'Compiler: ' .. info.compiler .. (info.profile and (' [' .. info.profile .. ']') or ''),
+    'Arguments: ' .. vim.inspect(info.build.args),
+    'Auxiliary directory: ' .. info.aux_dir,
+    'Log: ' .. info.log_file,
+    'PDF: ' .. info.pdf_file,
+    'SyncTeX: ' .. info.synctex_file,
+  }
+  vim.notify(table.concat(lines, '\n'), vim.log.levels.INFO, { title = 'tex-tools' })
+  return true
 end
 
 return M

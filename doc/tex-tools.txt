@@ -168,7 +168,21 @@ the target buffer while a prompt is open invalidates the pending operation.
     Jump to a formula opening or math environment. See |tex-tools-navigation|.
 
 :TexToolsBuild                                             *:TexToolsBuild*
-    Save the current file with :update, then request a texlab build.
+    Save the current file and any modified main buffer with :update, then
+    request a texlab build of the resolved main document.
+:TexToolsMain [path|select|reset]                           *:TexToolsMain*
+    Show, select or reset the main document for this texlab client/session.
+    Paths are relative to the LSP root. select prompts for a file. reset
+    restores build.main_file or source/root-directive discovery. Changes are
+    refused while compiling or cleaning; source files are never rewritten.
+:TexToolsInfo                                              *:TexToolsInfo*
+    Show the main document, compiler, working directory and artifact paths.
+    Lua main_file([path]) returns true, path or false, error; false resets
+    the override (the resulting path may be nil if discovery is ambiguous).
+    project_info() returns a snapshot or nil, error. Settings in it are copies.
+    Manual builds target the selected main. Texlab's automatic builds retain
+    its dependency-graph root selection. Save a modified child first or turn
+    off build.onSave before manually building another main from that child.
 :TexToolsForwardSearch                             *:TexToolsForwardSearch*
     Request texlab PDF forward search at the cursor without saving.
     Both commands require an attached texlab client and configured toolchain.

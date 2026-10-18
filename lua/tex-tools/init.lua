@@ -52,6 +52,18 @@ local function attach(bufnr)
     end)
   end
   local commands = {
+    TexToolsMain = {
+      function(args)
+        action('project', 'command', args.args ~= '' and args.args or nil)
+      end,
+      { nargs = '?', complete = 'file', desc = 'Show, select or reset the main TeX file' },
+    },
+    TexToolsInfo = {
+      function()
+        action('project', 'show_info')
+      end,
+      { desc = 'Show main file, compiler and artifact paths' },
+    },
     TexToolsJumpMathDelimiter = {
       function(args)
         action('delimiter', 'jump', args.count)
@@ -679,6 +691,12 @@ function M.build_on_save(enabled)
 end
 function M.compiler(name)
   return require('tex-tools.compiler').select(name)
+end
+function M.main_file(path)
+  return require('tex-tools.project').main_file(path)
+end
+function M.project_info()
+  return require('tex-tools.project').info()
 end
 function M.build_output()
   return require('tex-tools.build_output').open()

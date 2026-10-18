@@ -48,6 +48,7 @@ local function request(action, method)
     return false, 'Save this buffer to a .tex file first'
   end
   local manager, generation
+  local target = vim.api.nvim_buf_get_name(bufnr)
   if action == 'build' then
     manager = require('tex-tools.build')
     if manager.state(client).cleaning then
@@ -56,8 +57,18 @@ local function request(action, method)
     if manager.active(client) then
       return false, 'A build is already running in this texlab client; cancel it before starting another'
     end
+    local project, project_err = require('tex-tools.project').resolve(client)
+    if project then
+      target = project.main_file
+    elseif require('tex-tools.project').explicit(client) then
+      return false, project_err
+    end
   end
   local modified = vim.bo[bufnr].modified
+  local on_save = ((((client.settings or {}).texlab or {}).build or {}).onSave == true)
+  if action == 'build' and target ~= vim.api.nvim_buf_get_name(bufnr) and modified and on_save then
+    return false, 'Save the child file first or disable build.onSave before explicitly building another main file'
+  end
   if action == 'build' and modified then
     local ok, err = pcall(vim.api.nvim_buf_call, bufnr, function()
       vim.cmd.update()
@@ -67,14 +78,27 @@ local function request(action, method)
     end
   end
   if manager then
-    generation = manager.begin(client, vim.uri_from_bufnr(bufnr))
+    local main_buf, attach_err = require('tex-tools.project').attach(client, target)
+    if attach_err then
+      return false, attach_err
+    end
+    if main_buf and main_buf ~= bufnr and vim.bo[main_buf].modified then
+      local ok, save_err = pcall(vim.api.nvim_buf_call, main_buf, function()
+        vim.cmd.update()
+      end)
+      if not ok then
+        return false, tostring(save_err)
+      end
+      modified = true
+    end
+    generation = manager.begin(client, vim.uri_from_fname(target))
     -- didSave already triggers a build when onSave is enabled. Sending a
     -- second explicit request would queue a duplicate compilation in texlab.
     if modified and manager.snapshot(client).on_save then
       return true
     end
   end
-  local params = action == 'build' and { textDocument = { uri = vim.uri_from_bufnr(bufnr) } }
+  local params = action == 'build' and { textDocument = { uri = vim.uri_from_fname(target) } }
     or vim.lsp.util.make_position_params(0, client.offset_encoding)
   local accepted, id = client:request(method, params, function(err, result)
     if err then

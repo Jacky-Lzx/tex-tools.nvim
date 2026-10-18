@@ -500,6 +500,7 @@ dofile('tests/build.lua')({ test = test, eq = eq, buffer = buffer, content = con
 dofile('tests/build_output.lua')({ test = test, eq = eq, buffer = buffer, content = content })
 dofile('tests/clean.lua')({ test = test, eq = eq, buffer = buffer, content = content })
 dofile('tests/compiler.lua')({ test = test, eq = eq, buffer = buffer, content = content })
+dofile('tests/project.lua')({ test = test, eq = eq, buffer = buffer, content = content })
 
 for _, entry in ipairs(tests) do
   local input, notify, get_clients, get_parser =
