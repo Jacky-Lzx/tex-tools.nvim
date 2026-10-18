@@ -53,6 +53,7 @@ and `d` (math brackets). Normal mode unless stated otherwise.
 | `<localleader>ll` / `lv` | Build / PDF forward search through texlab |
 | `<localleader>lk` / `lK` | Cancel builds in the current / all texlab clients |
 | `<localleader>lg` | Show build status |
+| `<localleader>lo` / `lq` / `le` | Live compiler output / full log / texlab diagnostics |
 | `]]` / `[[` | Next / previous section |
 | `]i` / `[i` | Next / previous item at the current list level |
 | `]e` / `[e` | Next / previous environment opening |
@@ -109,6 +110,30 @@ the compiler and other texlab settings are preserved.
 compiler's result. Automatic builds without an explicit response report
 `finished`; their diagnostics provide error details. Native LSP progress handling
 remains available to statuslines and progress plugins.
+
+`:TexToolsBuildOutput` opens bounded live compiler output without replacing
+existing LSP log handlers. In that window, `q` closes it and `F` toggles following
+new lines. Output is reset for each build; no window opens automatically.
+`:TexToolsLog [path]` opens the full `.log` read-only. Without a path, the main
+file is resolved through `% !TeX root` directives or `build.main_file` (relative
+to the LSP root), with `\\documentclass` identifying a standalone main file.
+Ambiguous child files require one of these explicit roots.
+
+`:TexToolsErrors` fills quickfix with the current texlab client's errors and
+warnings; `:TexToolsErrors!` includes errors only. Other diagnostic providers
+are excluded. The list opens only when requested and nonempty.
+
+```lua
+require("tex-tools").setup({
+  build = { output_lines = 2000, main_file = false },
+})
+```
+
+Log discovery respects texlab's `logDirectory`, common output/jobname arguments,
+and root markers. Complex `.latexmkrc` output paths are not evaluated; configure
+texlab directories explicitly or pass a log path. The Lua APIs are
+`build_output()`, `build_log(path?)`, and
+`build_errors({ errors_only = false, open = false })`.
 
 ## Conceal
 

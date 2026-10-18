@@ -4,6 +4,7 @@ local defaults = {
   mappings = true,
   smart_enter = false,
   conceal = false,
+  build = { output_lines = 2000, main_file = false },
   -- Additional math environments defined by your document class or packages.
   math_environments = {},
 }
@@ -19,6 +20,16 @@ function M.setup(opts)
   local options = vim.tbl_deep_extend('force', vim.deepcopy(defaults), opts)
   vim.validate('mappings', options.mappings, 'boolean')
   vim.validate('smart_enter', options.smart_enter, 'boolean')
+  vim.validate('build', options.build, 'table')
+  vim.validate('build.output_lines', options.build.output_lines, 'number')
+  assert(
+    options.build.output_lines >= 1 and options.build.output_lines % 1 == 0,
+    'build.output_lines must be a positive integer'
+  )
+  assert(
+    options.build.main_file == false or (type(options.build.main_file) == 'string' and options.build.main_file ~= ''),
+    'build.main_file must be false or a nonempty path'
+  )
   vim.validate('conceal', options.conceal, { 'boolean', 'table' })
   if options.conceal ~= false then
     local conceal = type(options.conceal) == 'table' and options.conceal or {}

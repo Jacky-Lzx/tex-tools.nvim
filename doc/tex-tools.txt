@@ -78,6 +78,9 @@ Normal mode (each <Plug> name corresponds to a command below):
     <LocalLeader>lk     <Plug>(TexToolsCancelBuild)
     <LocalLeader>lK     <Plug>(TexToolsCancelAllBuilds)
     <LocalLeader>lg     <Plug>(TexToolsBuildStatus)
+    <LocalLeader>lo     <Plug>(TexToolsBuildOutput)
+    <LocalLeader>lq     <Plug>(TexToolsLog)
+    <LocalLeader>le     <Plug>(TexToolsErrors)
     ]]                  <Plug>(TexToolsNextSection)
     [[                  <Plug>(TexToolsPreviousSection)
     ]i                  <Plug>(TexToolsNextItem)
@@ -189,6 +192,27 @@ Lua: cancel_build(), cancel_all_builds(), build_on_save([boolean]) return
 boolean[, result_or_error]. build_status() returns a copy with phase, uri,
 on_save, result (when known), elapsed seconds, and error (when available), or
 nil, error if no texlab client is attached. These functions need no setup().
+
+:TexToolsBuildOutput                               *:TexToolsBuildOutput*
+    Open a read-only live compiler output split. q closes it; F toggles following
+    new lines. Output resets each build and keeps at most build.output_lines
+    lines (default 2000, positive integer). Existing LSP log handlers still run.
+:TexToolsLog [path]                                *:TexToolsLog*
+    Open a full .log read-only. An explicit path needs no LSP client. Otherwise
+    resolve the main file through % !TeX root directives, build.main_file, or
+    a standalone document's \\documentclass. Ambiguous roots return an error.
+    build.main_file defaults to false; a path is relative to the LSP root.
+    Common output/jobname arguments and texlab logDirectory are respected.
+    Complex .latexmkrc paths require explicit directories or a log path.
+:TexToolsErrors[!]                                 *:TexToolsErrors*
+    Fill quickfix with errors and warnings from this texlab client only.
+    With ! include errors only. Open the list only when nonempty. These output,
+    log and diagnostic windows never open automatically after compilation.
+
+Lua: build_output(), build_log([path]), build_errors([opts]) return
+boolean[, result_or_error]. Results are an output buffer, log path, or diagnostic
+count respectively. build_errors opts: errors_only (default false), open
+(default true). Set open=false to fill quickfix without opening it.
 
 COMMAND EDITING                                         *tex-tools-command-editing*
 

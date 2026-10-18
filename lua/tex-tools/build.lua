@@ -17,8 +17,9 @@ function M.begin(client, uri)
   state.error = nil
   state.started_at, state.finished_at = vim.uv.hrtime(), nil
   state.request_id, state.token, state.cancelling = nil, nil, nil
-  if M.reset_output then
-    M.reset_output(state)
+  state.output_lines = {}
+  if package.loaded['tex-tools.build_output'] then
+    package.loaded['tex-tools.build_output'].changed(state)
   end
   return state.generation
 end
@@ -57,7 +58,26 @@ function M.progress(client, params)
 end
 
 function M.attach(client)
-  M.state(client)
+  local state = M.state(client)
+  client.handlers = client.handlers or {}
+  if not state.output_wrapper then
+    local previous = client.handlers['window/logMessage']
+    state.output_wrapper = function(err, params, ctx, config)
+      if
+        not err
+        and type(params) == 'table'
+        and params.type == vim.lsp.protocol.MessageType.Log
+        and type(params.message) == 'string'
+      then
+        require('tex-tools.build_output').append(state, params.message)
+      end
+      local handler = previous or vim.lsp.handlers['window/logMessage']
+      if handler then
+        return handler(err, params, ctx, config)
+      end
+    end
+    client.handlers['window/logMessage'] = state.output_wrapper
+  end
   if not installed then
     installed = true
     local group = vim.api.nvim_create_augroup('TexToolsBuild', { clear = true })

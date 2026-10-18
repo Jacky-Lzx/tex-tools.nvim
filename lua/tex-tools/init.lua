@@ -171,6 +171,24 @@ local function attach(bufnr)
       end,
       { desc = 'Show compilation status and automatic build setting' },
     },
+    TexToolsBuildOutput = {
+      function()
+        action('build_output', 'open')
+      end,
+      { desc = 'Open live texlab compiler output' },
+    },
+    TexToolsLog = {
+      function(args)
+        action('build_output', 'log', args.args ~= '' and args.args or nil)
+      end,
+      { nargs = '?', complete = 'file', desc = 'View the full compiler log' },
+    },
+    TexToolsErrors = {
+      function(args)
+        action('build_output', 'errors', { errors_only = args.bang })
+      end,
+      { bang = true, desc = 'Show texlab errors and warnings in quickfix (! for errors only)' },
+    },
     TexToolsBuildOnSave = {
       function(args)
         local enabled
@@ -206,6 +224,30 @@ local function attach(bufnr)
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
   local maps = {
+    {
+      'n',
+      '<localleader>lo',
+      'BuildOutput',
+      function()
+        action('build_output', 'open')
+      end,
+    },
+    {
+      'n',
+      '<localleader>lq',
+      'Log',
+      function()
+        action('build_output', 'log')
+      end,
+    },
+    {
+      'n',
+      '<localleader>le',
+      'Errors',
+      function()
+        action('build_output', 'errors')
+      end,
+    },
     {
       'n',
       '<localleader>lk',
@@ -460,8 +502,10 @@ function M.setup(opts)
       end
     end,
   })
-  for _, client in ipairs(vim.lsp.get_clients({ name = 'texlab' })) do
-    require('tex-tools.build').attach(client)
+  if package.loaded['vim.lsp'] then
+    for _, client in ipairs(vim.lsp.get_clients({ name = 'texlab' })) do
+      require('tex-tools.build').attach(client)
+    end
   end
   generation = generation + 1
   local group = vim.api.nvim_create_augroup('TexTools', { clear = true })
@@ -588,6 +632,15 @@ function M.build_status()
 end
 function M.build_on_save(enabled)
   return require('tex-tools.lsp').build_on_save(enabled)
+end
+function M.build_output()
+  return require('tex-tools.build_output').open()
+end
+function M.build_log(path)
+  return require('tex-tools.build_output').log(path)
+end
+function M.build_errors(opts)
+  return require('tex-tools.build_output').errors(opts)
 end
 
 return M
