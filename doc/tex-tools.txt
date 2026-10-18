@@ -300,7 +300,13 @@ compiler([name])                                       *tex-tools.compiler()*
     a standalone document's \documentclass. Ambiguous roots return an error.
     build.main_file defaults to false; a path is relative to the LSP root.
     Common output/jobname arguments and texlab logDirectory are respected.
-    Complex .latexmkrc paths require explicit directories or a log path.
+    Latexmk directories/jobname are queried using -dir-report-only, including
+    computed .latexmkrc values and -r files. Explicit texlab directory overrides
+    take precedence. Discovery is cached until source/configuration files change;
+    cleanup, preview and compilation options are excluded from the probe.
+    Backends without a usable report need explicit directories or a log path.
+    A failed compiler can still produce PDF; its result remains a failure and
+    the notification explains that the existing PDF may be incomplete.
 :TexToolsErrors[!]                                 *:TexToolsErrors*
     Fill quickfix with errors and warnings from this texlab client only.
     With ! include errors only. Open the list only when nonempty. These output,
@@ -582,7 +588,8 @@ supports POSIX systems (macOS/Linux). The viewer and editor must share access
 to the registry and socket. Viewer preferences are never modified automatically.
 
 Forward search normally uses texlab. An explicit main (TexToolsMain or
-build.main_file) instead expands texlab.forwardSearch executable/args directly:
+build.main_file), or effective latexmk artifact discovery, instead expands
+texlab.forwardSearch executable/args directly:
 %p selected PDF, %f current source, %l current line. Configure these texlab
 settings first. Arguments are argv entries, not shell commands. Synchronization
 requires SyncTeX support in the compiler and viewer (Tectonic: --synctex).

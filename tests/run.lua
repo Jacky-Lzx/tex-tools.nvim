@@ -514,6 +514,8 @@ dofile('tests/viewer.lua')({ test = test, eq = eq, buffer = buffer })
 
 dofile('tests/project.lua')({ test = test, eq = eq, buffer = buffer, content = content })
 
+dofile('tests/latexmk.lua')({ test = test, eq = eq, buffer = buffer })
+
 for _, entry in ipairs(tests) do
   local input, notify, get_clients, get_parser =
     vim.ui.input, vim.notify, vim.lsp.get_clients, vim.treesitter.get_parser

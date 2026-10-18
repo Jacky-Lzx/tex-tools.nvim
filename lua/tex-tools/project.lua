@@ -93,7 +93,9 @@ function M.resolve(client, opts)
   local cwd = markers[1] and vim.fs.dirname(markers[1]) or directory
   local settings = (client.settings or {}).texlab or {}
   local build = settings.build or {}
-  local stem = vim.fs.basename(file):sub(1, -5)
+  local layout = M.backend(build) == 'latexmk' and require('tex-tools.latexmk').resolve(build, cwd, file) or nil
+  cwd = layout and layout.cwd or cwd
+  local stem = layout and layout.stem or vim.fs.basename(file):sub(1, -5)
   local jobname = M.argument(build.args, { '-jobname', '--jobname' })
   if jobname then
     if jobname == '' or jobname:find('[/\\]') or jobname == '.' or jobname == '..' then
@@ -132,9 +134,10 @@ function M.resolve(client, opts)
     stem = stem,
     build = build,
     pdf_name = filename or (stem .. '.pdf'),
-    aux_dir = dir(build.auxDirectory or auxdir or outdir or settings.auxDirectory),
-    log_dir = dir(build.logDirectory or auxdir or outdir or settings.auxDirectory),
-    pdf_dir = dir(build.pdfDirectory or outdir or settings.auxDirectory),
+    aux_dir = dir(build.auxDirectory or settings.auxDirectory or (layout and layout.aux_dir) or auxdir or outdir),
+    log_dir = dir(build.logDirectory or settings.auxDirectory or (layout and layout.aux_dir) or auxdir or outdir),
+    pdf_dir = dir(build.pdfDirectory or settings.auxDirectory or (layout and layout.pdf_dir) or outdir),
+    artifact_source = layout and 'latexmk' or 'settings',
     main_source = mains[client] and 'session' or (configured and 'configuration' or 'source'),
   }
 end

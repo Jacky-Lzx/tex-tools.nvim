@@ -47,7 +47,7 @@ local function request(action, method)
   if vim.api.nvim_buf_get_name(bufnr) == '' then
     return false, 'Save this buffer to a .tex file first'
   end
-  local manager, generation
+  local manager, generation, project
   local target = vim.api.nvim_buf_get_name(bufnr)
   if action == 'build' then
     manager = require('tex-tools.build')
@@ -57,7 +57,8 @@ local function request(action, method)
     if manager.active(client) then
       return false, 'A build is already running in this texlab client; cancel it before starting another'
     end
-    local project, project_err = require('tex-tools.project').resolve(client)
+    local project_err
+    project, project_err = require('tex-tools.project').resolve(client)
     if project then
       target = project.main_file
     elseif require('tex-tools.project').explicit(client) then
@@ -113,6 +114,15 @@ local function request(action, method)
       manager.finish(client, generation, code)
     end
     local message = status[action][code] or 'Unexpected response from texlab'
+    if action == 'build' and code == 1 then
+      local pdf = project and vim.fs.joinpath(project.pdf_dir, project.pdf_name)
+      if pdf and vim.fn.filereadable(pdf) == 1 then
+        message = 'Build failed: compiler reported errors; a PDF exists but may be incomplete.'
+      else
+        message = 'Build failed: compiler reported errors.'
+      end
+      message = message .. ' See :TexToolsLog or :TexToolsErrors.'
+    end
     vim.notify(message, code == 0 and vim.log.levels.INFO or vim.log.levels.WARN, { title = 'tex-tools' })
   end, bufnr)
   if not accepted then
@@ -136,7 +146,8 @@ function M.forward_search()
   if not client then
     return false, err
   end
-  if require('tex-tools.project').explicit(client) then
+  local project = require('tex-tools.project').resolve(client)
+  if require('tex-tools.project').explicit(client) or (project and project.artifact_source == 'latexmk') then
     return require('tex-tools.viewer').forward_search(client)
   end
   return request('forward', 'textDocument/forwardSearch')

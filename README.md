@@ -208,9 +208,15 @@ require("tex-tools").setup({
 })
 ```
 
-Log discovery respects texlab's `logDirectory`, common output/jobname arguments,
-and root markers. Complex `.latexmkrc` output paths are not evaluated; configure
-texlab directories explicitly or pass a log path. The Lua APIs are
+Log/PDF discovery respects explicit texlab directory settings and compiler arguments.
+For latexmk, the plugin asks the compiler for its effective directories and jobname
+using `-dir-report-only`, including computed `.latexmkrc` values, `-r` files and
+separate auxiliary/final-output directories. This runs only for explicit project
+operations and caches results until source/configuration files change. It never
+runs compilation, cleanup or preview flags during discovery. With older backends
+that cannot report directories, configure texlab directories explicitly or pass a
+log path. A PDF can be produced despite TeX errors: a nonzero compiler result
+remains a failed build, with the message explaining that the PDF may be incomplete. The Lua APIs are
 `build_output()`, `build_log(path?)`, and
 `build_errors({ errors_only = false, open = false })`.
 
@@ -397,8 +403,9 @@ A viewer process needs to run on the same host with access to the RPC socket.
 Existing PDF windows opened outside the plugin keep their own callback settings.
 The plugin does not modify viewer preferences or your Neovim configuration.
 
-`:TexToolsForwardSearch` continues using texlab normally. When a main file is
-explicitly selected through `:TexToolsMain` or `build.main_file`, it launches
+`:TexToolsForwardSearch` uses texlab normally. When a main file is explicitly
+selected through `:TexToolsMain` or `build.main_file`, or latexmk reports artifact
+paths that texlab cannot discover from its settings, it launches
 texlab's configured `forwardSearch.executable` and `args` directly, replacing
 `%p`, `%f`, and `%l` with the selected PDF, current source and current line.
 This avoids texlab's independent dependency graph choosing another main file.
@@ -509,3 +516,14 @@ with an already parsed tree. The `stress` mode scrolls and edits a large buffer,
 then replaces it with single formula-dense lines of different lengths. Keep the
 headless screen's default dimensions: directly changing `lines`/`columns`
 without an attached UI can crash Neovim's screen redraw on 0.11 and 0.12.
+
+An optional real compiler regression uses `texlab` and `latexmk`, generates only
+temporary documents, and captures viewer arguments in child processes without
+opening a GUI. It verifies failed compilations that still produce PDF, computed
+`.latexmkrc` output directories and changes, log discovery, PDF opening and forward
+search. Set `TEX_TOOLS_LIVE_PROJECT` to copy a failing project containing `test.tex`
+and `.latexmkrc` instead of the built-in error fixture:
+
+```sh
+TMPDIR=/private/tmp nvim --clean --headless -i NONE -l tests/live_latexmk.lua
+```
