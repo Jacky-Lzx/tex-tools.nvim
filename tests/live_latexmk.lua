@@ -34,14 +34,15 @@ local function check()
       texlab = {
         build = {
           executable = 'latexmk',
-          args = { '-pdf', '-interaction=nonstopmode', '-synctex=1', '-file-line-error', '%f' },
+          args = { '-pdf', '-interaction=nonstopmode', '-synctex=1', '%f' },
           onSave = false,
         },
         diagnosticsDelay = 50,
       },
     },
     handlers = {
-      ['textDocument/publishDiagnostics'] = function(err, result)
+      ['textDocument/publishDiagnostics'] = function(err, result, ctx, config)
+        vim.lsp.handlers['textDocument/publishDiagnostics'](err, result, ctx, config)
         if not err and result.uri == vim.uri_from_fname(path) then
           analyzed = true
         end
@@ -67,7 +68,29 @@ local function check()
     )
     assert(tex.build_status().phase == expected, vim.inspect(tex.build_status()))
   end
+  assert(
+    vim.wait(10000, function()
+      return client.settings.texlab.build.logDirectory == directory .. '/build'
+    end, 10),
+    'Discovered log directory was not synchronized'
+  )
   build('failed')
+  local function errors()
+    return vim.diagnostic.get(0, { severity = vim.diagnostic.severity.ERROR })
+  end
+  assert(
+    vim.wait(10000, function()
+      for _, diagnostic in ipairs(errors()) do
+        if diagnostic.message:find('Undefined control sequence', 1, true) then
+          return true
+        end
+      end
+      return false
+    end, 10),
+    'Undefined commands did not reach native diagnostics'
+  )
+  local diagnostic_count = #errors()
+  assert(diagnostic_count > 0)
   assert(vim.fn.filereadable(directory .. '/build/' .. stem .. '.pdf') == 1)
   assert(table.concat(messages, '\n'):find('PDF exists but may be incomplete', 1, true))
   assert(tex.project_info().log_file == directory .. '/build/' .. stem .. '.log')
@@ -113,9 +136,17 @@ local function check()
   assert(info.pdf_file == directory .. '/artifacts/pdf files/' .. stem .. '.pdf', vim.inspect(info))
   assert(vim.fn.filereadable(info.pdf_file) == 1 and vim.fn.filereadable(info.synctex_file) == 1)
   assert(info.log_file == directory .. '/artifacts/pdf files/' .. stem .. '.log')
+  assert(
+    vim.wait(10000, function()
+      return client.settings.texlab.build.logDirectory == directory .. '/artifacts/pdf files' and #errors() == 0
+    end, 10),
+    'Fixed errors were not cleared after the output directory changed: ' .. vim.inspect(errors())
+  )
   viewers(info.pdf_file)
   print(
-    'PASS live latexmk: failed compiler with PDF, correct message, computed/changed rc output, real PDF-open and forward-search argv'
+    ('PASS live latexmk: %d compiler diagnostics, fixed errors cleared, changed rc logs synchronized, PDF-open/forward argv correct'):format(
+      diagnostic_count
+    )
   )
 end
 local ok, err = xpcall(check, debug.traceback)

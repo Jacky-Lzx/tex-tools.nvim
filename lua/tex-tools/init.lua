@@ -730,7 +730,7 @@ function M.setup(opts)
     callback = function(event)
       local client = vim.lsp.get_client_by_id(event.data.client_id)
       if client and client.name == 'texlab' then
-        require('tex-tools.build').attach(client)
+        require('tex-tools.build').attach(client, event.buf)
       end
     end,
   })

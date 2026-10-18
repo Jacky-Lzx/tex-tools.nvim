@@ -245,7 +245,7 @@ Define build.profiles in setup() (default {}): >lua
           latexmk = {
             executable = 'latexmk',
             args = { '-pdf', '-synctex=1', '-interaction=nonstopmode',
-                     '-file-line-error', '%f' },
+                     '%f' },
           },
           tectonic = {
             executable = 'tectonic',
@@ -305,6 +305,11 @@ compiler([name])                                       *tex-tools.compiler()*
     take precedence. Discovery is cached until source/configuration files change;
     cleanup, preview and compilation options are excluded from the probe.
     Backends without a usable report need explicit directories or a log path.
+    Discovered latexmk log directories are synchronized to texlab on attachment,
+    TeX buffer changes and rc saves; explicit logDirectory overrides are kept.
+    Omit -file-line-error so texlab can parse standard !-prefixed TeX errors.
+    Recompile existing logs after removing that flag. Managed directory values
+    are refreshed on rc/profile changes without changing compiler identity.
     A failed compiler can still produce PDF; its result remains a failure and
     the notification explains that the existing PDF may be incomplete.
 :TexToolsErrors[!]                                 *:TexToolsErrors*

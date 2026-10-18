@@ -1,5 +1,6 @@
 -- Ask latexmk for its effective configuration; .latexmkrc is Perl, not a data file.
--- Only explicit project actions call this module, never redraw or cursor handlers.
+-- Called by project actions and coalesced LSP/buffer/configuration events,
+-- never by redraw or cursor handlers.
 local M = {}
 local cache, clock = {}, 0
 local values = {
@@ -140,6 +141,15 @@ function M.resolve(build, cwd, main)
     cache[oldest] = nil
   end
   return layout
+end
+
+function M.config_file(path)
+  for _, entry in pairs(cache) do
+    if entry.files[path] ~= nil then
+      return true
+    end
+  end
+  return false
 end
 
 return M

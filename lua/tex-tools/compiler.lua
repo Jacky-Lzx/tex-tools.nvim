@@ -20,7 +20,7 @@ local function matches(build, profile)
 end
 
 function M.snapshot(client)
-  local build = (((client.settings or {}).texlab or {}).build or {})
+  local build = require('tex-tools.diagnostics').build_settings(client)
   local profiles = require('tex-tools.config').options.build.profiles
   local available = M.names()
   local selected = require('tex-tools.build').state(client).compiler_profile
@@ -93,6 +93,8 @@ function M.select(name)
     client.settings = previous
     return false, ok and 'texlab rejected the configuration change' or tostring(accepted)
   end
+  require('tex-tools.diagnostics').forget(client)
+  require('tex-tools.diagnostics').schedule(client, vim.api.nvim_get_current_buf())
   state.compiler_profile = name
   return true, M.snapshot(client)
 end

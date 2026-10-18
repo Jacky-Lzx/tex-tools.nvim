@@ -92,7 +92,7 @@ function M.resolve(client, opts)
   )
   local cwd = markers[1] and vim.fs.dirname(markers[1]) or directory
   local settings = (client.settings or {}).texlab or {}
-  local build = settings.build or {}
+  local build = require('tex-tools.diagnostics').build_settings(client)
   local layout = M.backend(build) == 'latexmk' and require('tex-tools.latexmk').resolve(build, cwd, file) or nil
   cwd = layout and layout.cwd or cwd
   local stem = layout and layout.stem or vim.fs.basename(file):sub(1, -5)

@@ -57,7 +57,7 @@ function M.progress(client, params)
   end
 end
 
-function M.attach(client)
+function M.attach(client, bufnr)
   local state = M.state(client)
   client.handlers = client.handlers or {}
   if not state.output_wrapper then
@@ -77,6 +77,10 @@ function M.attach(client)
       end
     end
     client.handlers['window/logMessage'] = state.output_wrapper
+  end
+  if not state.diagnostics_attached or bufnr then
+    state.diagnostics_attached = true
+    require('tex-tools.diagnostics').attach(client, bufnr)
   end
   if not installed then
     installed = true
