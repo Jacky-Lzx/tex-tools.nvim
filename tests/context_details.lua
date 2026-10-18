@@ -304,6 +304,33 @@ return function(h)
     eq(true, superscript)
   end)
 
+  test('table snapshots follow cursor movement, edits, and buffer switches', function()
+    local first = buffer('\\begin{tabular}{cc}\na & b \\\\[2pt]\nc & d \\\\\n\\end{tabular}')
+    local environment = require('tex-tools.environment')
+    local original, calls = environment.from_node, 0
+    environment.from_node = function(...)
+      calls = calls + 1
+      return original(...)
+    end
+    local ok, err = pcall(function()
+      eq(true, tex.in_table_cell({ pos = { 1, 0 } }))
+      eq(false, tex.in_table_cell({ pos = { 1, 2 } }))
+      eq(false, tex.in_table_cell({ pos = { 1, 9 } }))
+      eq(true, tex.in_table_cell({ pos = { 2, 4 } }))
+      eq(1, calls)
+      vim.api.nvim_buf_set_lines(first, 1, 2, false, { 'a + b' })
+      eq(true, tex.in_table_cell({ pos = { 1, 2 } }))
+      eq(2, calls)
+      local second = buffer('\\begin{matrix}\nx & y\n\\end{matrix}')
+      eq(false, tex.in_table_cell({ bufnr = second, pos = { 1, 2 } }))
+      eq(true, tex.in_table_cell({ bufnr = first, pos = { 1, 2 } }))
+      vim.api.nvim_buf_set_lines(first, 0, 1, false, { '\\begin{quote}' })
+      eq(false, tex.in_table_cell({ bufnr = first, pos = { 1, 2 } }))
+    end)
+    environment.from_node = original
+    assert(ok, err)
+  end)
+
   test('positions are clamped and missing parsers or invalid positions return errors', function()
     buffer('$x_i$')
     for _, name in ipairs(names) do

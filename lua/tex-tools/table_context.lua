@@ -87,22 +87,11 @@ local function option(tokens, index)
   return nil
 end
 
-function M.in_cell(opts)
-  local query, err = require('tex-tools.context').query(opts)
-  if not query then
-    return false, err
-  end
-  local node = query.node
-  while node and not ts.environment(node) do
-    node = node:parent()
-  end
-  if not node or node:has_error() then
-    return false
-  end
-  local env = environment.from_node(node, query.bufnr)
-  if not env then
-    return false
-  end
+-- Keep only the most recently queried environment, as plain ranges. No syntax
+-- nodes or buffers are retained, and edits invalidate the snapshot lazily.
+local cached
+
+local function index(node, env, bufnr)
   -- Normalize starred variants, except tabular* which has its own width arg.
   local required = headers[env.name] or headers[env.name:gsub('%*$', '')]
   if required == nil then
@@ -113,7 +102,7 @@ function M.in_cell(opts)
   local tokens = {}
   for child in node:iter_children() do
     if child ~= env.begin_node and child ~= env.end_node then
-      collect(child, tokens, query.bufnr)
+      collect(child, tokens, bufnr)
     end
   end
   local index = 1
@@ -135,25 +124,23 @@ function M.in_cell(opts)
       sr, sc, index = ar, ac, index + 1
     end
   end
-  if not ts.contains({ sr, sc, er, ec }, unpack(query.pos)) then
-    return false
-  end
+  local excluded = {}
   for i = index, #tokens do
     local token = tokens[i]
-    if token:type() == 'delimiter' and ts.contains(ts.range(token), unpack(query.pos)) then
-      return false
+    if token:type() == 'delimiter' then
+      excluded[#excluded + 1] = ts.range(token)
     end
     local command = ts.field(token, 'command')
-    if command and rules[ts.text(command, query.bufnr)] and ts.contains(ts.range(token), unpack(query.pos)) then
-      return false
+    if command and rules[ts.text(command, bufnr)] then
+      excluded[#excluded + 1] = ts.range(token)
     end
     -- Flattened row-break command names have no command field of their own.
-    local name = token:type() == 'command_name' and ts.text(token, query.bufnr)
+    local name = token:type() == 'command_name' and ts.text(token, bufnr)
     if name == '\\\\' or name == '\\tabularnewline' or name == '\\tabularnewline*' then
       local range = ts.range(token)
       local next_index = i + 1
       local star = tokens[next_index]
-      if star and ts.text(star, query.bufnr) == '*' then
+      if star and ts.text(star, bufnr) == '*' then
         local tr, tc = star:range()
         if tr == range[3] and tc == range[4] then
           range[3], range[4] = select(3, star:range())
@@ -167,9 +154,59 @@ function M.in_cell(opts)
       if spacing then
         range[3], range[4] = spacing[3], spacing[4]
       end
-      if ts.contains(range, unpack(query.pos)) then
-        return false
+      excluded[#excluded + 1] = range
+    end
+  end
+  table.sort(excluded, function(a, b)
+    return a[1] < b[1] or (a[1] == b[1] and a[2] < b[2])
+  end)
+  local merged = {}
+  for _, range in ipairs(excluded) do
+    local previous = merged[#merged]
+    if previous and (range[1] < previous[3] or (range[1] == previous[3] and range[2] <= previous[4])) then
+      if range[3] > previous[3] or (range[3] == previous[3] and range[4] > previous[4]) then
+        previous[3], previous[4] = range[3], range[4]
       end
+    else
+      merged[#merged + 1] = range
+    end
+  end
+  return { body = { sr, sc, er, ec }, excluded = merged }
+end
+
+function M.in_cell(opts)
+  local query, err = require('tex-tools.context').query(opts)
+  if not query then
+    return false, err
+  end
+  local node = query.node
+  while node and not ts.environment(node) do
+    node = node:parent()
+  end
+  if not node or node:has_error() then
+    return false
+  end
+  local bufnr = query.bufnr
+  local tick, id = vim.api.nvim_buf_get_changedtick(bufnr), node:id()
+  if not cached or cached.bufnr ~= bufnr or cached.tick ~= tick or cached.id ~= id then
+    local env = environment.from_node(node, bufnr)
+    cached = { bufnr = bufnr, tick = tick, id = id, value = env and index(node, env, bufnr) or false }
+  end
+  local value = cached.value
+  if not value or not ts.contains(value.body, unpack(query.pos)) then
+    return false
+  end
+  local row, col = unpack(query.pos)
+  local low, high = 1, #value.excluded
+  while low <= high do
+    local mid = math.floor((low + high) / 2)
+    local range = value.excluded[mid]
+    if row < range[1] or (row == range[1] and col < range[2]) then
+      high = mid - 1
+    elseif ts.contains(range, row, col) then
+      return false
+    else
+      low = mid + 1
     end
   end
   return true
