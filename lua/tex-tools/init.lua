@@ -315,6 +315,14 @@ local function attach(bufnr)
       }
     end
   end
+  for _, entry in ipairs({ { 'PromoteSection', -1 }, { 'DemoteSection', 1 } }) do
+    commands['TexTools' .. entry[1]] = {
+      function(args)
+        action('section', 'shift', entry[2], args.count)
+      end,
+      { count = 1, desc = 'Shift the current section and all its subsections' },
+    }
+  end
   for _, entry in ipairs({ { 'NextCell', 1 }, { 'PreviousCell', -1 } }) do
     commands['TexTools' .. entry[1]] = {
       function(args)
@@ -582,6 +590,16 @@ local function attach(bufnr)
       end,
     },
   }
+  for _, entry in ipairs({ { 'PromoteSection', -1 }, { 'DemoteSection', 1 } }) do
+    maps[#maps + 1] = {
+      'n',
+      false,
+      entry[1],
+      function()
+        action('section', 'shift', entry[2], vim.v.count1)
+      end,
+    }
+  end
   for _, entry in ipairs({ { 'NextCell', ']t', 1 }, { 'PreviousCell', '[t', -1 } }) do
     maps[#maps + 1] = {
       'n',
@@ -827,6 +845,9 @@ function M.jump_environment_start(direction, count)
 end
 function M.jump_math(direction, count)
   return require('tex-tools.navigation').math(direction, count)
+end
+function M.shift_section(direction, count)
+  return require('tex-tools.section').shift(direction, count)
 end
 function M.jump_cell(direction, count)
   return require('tex-tools.table').jump(direction, count)

@@ -493,6 +493,8 @@ dofile('tests/navigation_delimiters.lua')({
   keys = keys,
 })
 
+dofile('tests/section.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
+
 dofile('tests/table.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
 
 dofile('tests/context_details.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })

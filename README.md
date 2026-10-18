@@ -423,3 +423,17 @@ Lua: `jump_cell(direction, count?)`, `table_edit('insert_row'|'delete_row'|
 All actions also have `<Plug>(TexToolsNextCell)`, `PreviousCell`, `InsertRow`,
 `DeleteRow`, `InsertColumn`, `DeleteColumn`, `AroundCell`, and `InsideCell`
 counterparts; editing commands have no default keys.
+
+### Section levels
+
+`:TexToolsPromoteSection` / `:TexToolsDemoteSection` shift the current section
+and all its descendant headings together. A count shifts multiple levels, e.g.
+`:2TexToolsDemoteSection`. The order is `part`, `chapter`, `section`,
+`subsection`, `subsubsection`, `paragraph`, `subparagraph`; choose levels your
+document class supports. Stars, short titles, labels and body text are preserved.
+Comments, verbatim and definitions are skipped. If any heading would exceed the
+level boundaries, the entire edit is refused. Operations affect the current
+buffer, support dot repeat and one-step undo, and have no default keys.
+
+Lua: `shift_section(-1|1, count?)` (promote/demote). Plug mappings:
+`<Plug>(TexToolsPromoteSection)` and `<Plug>(TexToolsDemoteSection)`.
