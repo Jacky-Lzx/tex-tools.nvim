@@ -272,6 +272,38 @@ test('setup attaches existing buffers and is idempotent', function()
   eq(nil, vim.api.nvim_buf_get_commands(0, {}).TexToolsBuild)
 end)
 
+test('FileType replay skips registration until explicit setup reconfigures it', function()
+  local bufnr = buffer('x')
+  vim.keymap.set('n', ',ler', 'USER', { buffer = bufnr })
+  local original, registrations = vim.api.nvim_buf_create_user_command, 0
+  vim.api.nvim_buf_create_user_command = function(...)
+    registrations = registrations + 1
+    return original(...)
+  end
+  local ok, err = pcall(function()
+    local function replay()
+      vim.api.nvim_exec_autocmds('FileType', { group = 'TexTools', buffer = bufnr })
+    end
+    replay()
+    replay()
+    eq(0, registrations)
+    tex.setup({ mappings = false })
+    assert(registrations > 0)
+    eq('', vim.fn.maparg(',lcd', 'n'))
+    eq('USER', vim.fn.maparg(',ler', 'n'))
+    registrations = 0
+    replay()
+    eq(0, registrations)
+    tex.setup()
+    assert(registrations > 0)
+    assert(vim.fn.maparg(',lcd', 'n') ~= '')
+    eq('USER', vim.fn.maparg(',ler', 'n'))
+  end)
+  vim.api.nvim_buf_create_user_command = original
+  tex.setup()
+  assert(ok, err)
+end)
+
 test('disabled default mappings still provide Plug mappings', function()
   buffer('x')
   assert(vim.fn.maparg(',ler', 'n') ~= '')

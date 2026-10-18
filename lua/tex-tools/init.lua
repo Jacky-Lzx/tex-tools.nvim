@@ -1,4 +1,5 @@
 local M = {}
+local generation = 0
 
 local function clear_default_mappings(bufnr)
   vim.api.nvim_buf_call(bufnr, function()
@@ -20,6 +21,11 @@ local function action(module, method, ...)
 end
 
 local function attach(bufnr)
+  -- Filetype-based loaders may replay FileType after setup already attached
+  -- the current buffer. Explicit setup calls start a new generation.
+  if vim.b[bufnr].tex_tools_generation == generation then
+    return
+  end
   clear_default_mappings(bufnr)
   local installed = {}
   local enter_plug = '<Plug>(TexToolsSmartEnter)'
@@ -349,7 +355,7 @@ local function attach(bufnr)
       plug_options.replace_keycodes = false
     end
     vim.keymap.set(map[1], plug, map[4], plug_options)
-    if require('tex-tools.config').options.mappings then
+    if options.mappings then
       -- Do not replace an existing global or buffer-local user mapping.
       vim.api.nvim_buf_call(bufnr, function()
         for _, mode in ipairs(type(map[1]) == 'table' and map[1] or { map[1] }) do
@@ -371,6 +377,7 @@ local function attach(bufnr)
     end
   end
   vim.b[bufnr].tex_tools_default_mappings = installed
+  vim.b[bufnr].tex_tools_generation = generation
 end
 
 function M.setup(opts)
@@ -378,6 +385,7 @@ function M.setup(opts)
     error('tex-tools.nvim requires Neovim 0.11 or newer')
   end
   require('tex-tools.config').setup(opts)
+  generation = generation + 1
   local group = vim.api.nvim_create_augroup('TexTools', { clear = true })
   vim.api.nvim_create_autocmd('FileType', {
     group = group,
