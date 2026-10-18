@@ -9,7 +9,7 @@ function M.command_name(name)
 end
 
 ---Apply byte-based, end-exclusive replacements in one undo operation.
-function M.apply(bufnr, changes)
+function M.apply(bufnr, changes, repeat_action)
   if not vim.api.nvim_buf_is_loaded(bufnr) then
     return false, 'Buffer is not loaded'
   end
@@ -19,12 +19,21 @@ function M.apply(bufnr, changes)
   local edits = {}
   for _, change in ipairs(changes) do
     local sr, sc, er, ec = unpack(change.range)
-    edits[#edits + 1] = {
-      range = { start = { line = sr, character = sc }, ['end'] = { line = er, character = ec } },
-      newText = change.text,
-    }
+    local original = table.concat(vim.api.nvim_buf_get_text(bufnr, sr, sc, er, ec, {}), '\n')
+    if original ~= change.text then
+      edits[#edits + 1] = {
+        range = { start = { line = sr, character = sc }, ['end'] = { line = er, character = ec } },
+        newText = change.text,
+      }
+    end
+  end
+  if #edits == 0 then
+    return true
   end
   vim.lsp.util.apply_text_edits(edits, bufnr, 'utf-8')
+  if repeat_action then
+    require('tex-tools.repeat').record(bufnr, repeat_action)
+  end
   return true
 end
 

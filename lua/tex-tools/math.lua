@@ -19,7 +19,7 @@ function M.toggle_delimiters()
   return require('tex-tools.edit').apply(vim.api.nvim_get_current_buf(), {
     { range = formula.opening, text = target[1] },
     { range = formula.closing, text = target[2] },
-  })
+  }, { module = 'math', method = 'toggle_delimiters' })
 end
 
 return M

@@ -42,14 +42,14 @@ function M.from_node(node, bufnr)
   }
 end
 
-local function rename(env, name)
+local function rename(env, name, repeat_action)
   if not edit.environment_name(name) then
     return false, 'Use a literal environment name, e.g. equation*'
   end
   return edit.apply(env.bufnr, {
     { range = ts.range(env.begin_name), text = name },
     { range = ts.range(env.end_name), text = name },
-  })
+  }, repeat_action)
 end
 
 ---@param name? string Prompt with vim.ui.input when omitted.
@@ -60,7 +60,7 @@ function M.rename(name)
     return false, err
   end
   return edit.with_environment_name(env.bufnr, name, env.name, function(value)
-    return rename(env, value)
+    return rename(env, value, { module = 'environment', method = 'rename', args = { value } })
   end)
 end
 
@@ -147,6 +147,7 @@ function M.unwrap()
   end
   if opening_line and closing_line then
     vim.api.nvim_buf_set_lines(env.bufnr, sr, er + 1, false, body)
+    require('tex-tools.repeat').record(env.bufnr, { module = 'environment', method = 'unwrap' })
     return true
   end
   return edit.apply(env.bufnr, {
@@ -154,7 +155,7 @@ function M.unwrap()
       range = { sr, opening_line and 0 or sc, er, closing_line and #line(er) or ec },
       text = table.concat(body, '\n'),
     },
-  })
+  }, { module = 'environment', method = 'unwrap' })
 end
 
 function M.toggle_star()
@@ -163,7 +164,7 @@ function M.toggle_star()
     return false, err
   end
   local name = env.name:sub(-1) == '*' and env.name:sub(1, -2) or (env.name .. '*')
-  return rename(env, name)
+  return rename(env, name, { module = 'environment', method = 'toggle_star' })
 end
 
 ---Jump from the end marker to the begin marker, or from the body/begin to end.

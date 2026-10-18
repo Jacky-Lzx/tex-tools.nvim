@@ -49,7 +49,11 @@ function M.rename(name)
     if value:match('[A-Za-z@]$') and after(bufnr, range[3], range[4]):match('[A-Za-z@]') then
       return false, 'Renaming would merge the command name with following text'
     end
-    return edit.apply(bufnr, { { range = range, text = value } })
+    return edit.apply(bufnr, { { range = range, text = value } }, {
+      module = 'command',
+      method = 'rename',
+      args = { value },
+    })
   end)
 end
 
@@ -79,7 +83,7 @@ function M.unwrap()
   then
     return false, 'Unwrap would merge a control word with adjacent text'
   end
-  return edit.apply(bufnr, { { range = object.outer, text = body } })
+  return edit.apply(bufnr, { { range = object.outer, text = body } }, { module = 'command', method = 'unwrap' })
 end
 
 local function range_for(bufnr, opts)

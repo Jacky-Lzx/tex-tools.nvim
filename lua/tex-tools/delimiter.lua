@@ -274,7 +274,7 @@ function M.change(name)
       return edit.apply(bufnr, {
         { range = pair.left, text = separated(bufnr, pair.left, target[1]) },
         { range = pair.right, text = separated(bufnr, pair.right, target[2]) },
-      })
+      }, { module = 'delimiter', method = 'change', args = { aliases[value] or value } })
     end
   )
 end
@@ -340,7 +340,7 @@ function M.unwrap()
   then
     return false, 'Unwrap would merge a control word with adjacent text'
   end
-  return edit.apply(bufnr, { { range = pair.outer, text = body } })
+  return edit.apply(bufnr, { { range = pair.outer, text = body } }, { module = 'delimiter', method = 'unwrap' })
 end
 
 local function sizing_barrier(node, range, bufnr)
@@ -382,7 +382,7 @@ function M.toggle_size()
     return edit.apply(bufnr, {
       { range = pair.left_command, text = '' },
       { range = pair.right_command, text = '' },
-    })
+    }, { module = 'delimiter', method = 'toggle_size' })
   end
   for child in pair.node:iter_children() do
     if sizing_barrier(child, pair.inner, bufnr) then
@@ -392,7 +392,7 @@ function M.toggle_size()
   return edit.apply(bufnr, {
     { range = pair.left, text = '\\left' .. slice(bufnr, pair.left) },
     { range = pair.right, text = '\\right' .. slice(bufnr, pair.right) },
-  })
+  }, { module = 'delimiter', method = 'toggle_size' })
 end
 
 return M

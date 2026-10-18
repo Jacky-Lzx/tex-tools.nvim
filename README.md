@@ -295,6 +295,39 @@ See [doc/tex-tools.txt](doc/tex-tools.txt) for all `<Plug>` names and API detail
 You can migrate VimTeX workflows gradually. When using both plugins, consider
 disabling one plugin's mappings to avoid conflicts.
 
+## Repeating structural edits
+
+After a successful structural edit, move to another target and press `.`.
+For example, use `<localleader>lcr` to rename `\textbf{first}` to
+`\emph{first}`, then move inside another command and press `.` to rename
+it to `\emph` without another prompt.
+
+Repeat supports command/environment renaming and unwrapping, environment
+star toggling, math bracket replacement/removal and size toggling, and
+formula delimiter switching. Names and shapes reuse the accepted value;
+toggles act on the new target's current state. Each repeat queries the
+syntax tree again, including in another `tex` / `plaintex` buffer. It never
+reuses an old selection or byte range. Comments, literal content, invalid
+targets, missing parsers, and unmodifiable buffers are refused.
+
+Each `.` is one undo step. A count such as `3.` applies the operation three
+times at the same cursor, useful for unwrapping nested commands; it does not
+advance to sibling structures. A counted repeat stops at the first invalid
+target, and its successful edits can be undone together.
+
+Recording uses native `g@` / `operatorfunc`, with no extra dependency or mapping
+on `.`. A subsequent native edit or another native operator supplies its own
+repeat. Existing user mappings on `.` take precedence. Failed, cancelled,
+stale, and unchanged operations leave the preceding repeat intact.
+
+Normal-mode mappings, Ex commands, and Lua editing APIs record completed edits
+when the target is the current `tex` / `plaintex` buffer in Normal mode.
+An accepted prompt records its resolved value only after the edit succeeds.
+A prompt that edits a now-hidden buffer still edits that buffer, but leaves
+the current buffer's repeat intact. API calls during Insert mode preserve
+native typing behavior. Range surrounds, list insertion, and smart Enter do
+not register a structural repeat; text-object operators keep native repeats.
+
 ## texlab configuration
 
 Your existing texlab configuration works as is. texlab manages the compiler,
@@ -431,7 +464,7 @@ expanded.
 ## Roadmap
 
 1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
-2. **Implemented: Editing** — Command, argument, formula, and math bracket text objects; command renaming and surrounds; adding and removing surrounding environments; formula delimiter switching and math bracket editing/sizing.
+2. **Implemented: Editing** — Command, argument, formula, and math bracket text objects; command renaming and surrounds; adding and removing surrounding environments; formula delimiter switching and math bracket editing/sizing; native dot repeat for cursor-based structural edits.
 3. **In progress: Input** — Explicit `\item` insertion and optional context-aware Enter are implemented. Further input helpers should compose with existing snippet and pairs plugins.
 4. **Implemented: Navigation** — Section and same-level list-item jumps with counts, jump history, and fold opening.
 
@@ -461,7 +494,8 @@ description labels, indentation, smart Enter splits/fallbacks, rapid repeated
 Enter input, section and list-item navigation, counted mappings, jump history,
 fold opening, command renaming/unwrapping, exact Visual command surrounds,
 math bracket matching, paired edits, automatic sizing, alignment and middle guards,
-syntax-boundary guards, and texlab request parameter encoding. texlab tests
+syntax-boundary guards, native and counted dot repeat, native editing compatibility,
+and texlab request parameter encoding. texlab tests
 use a client double and do not start a LaTeX compiler or PDF viewer. Verify
 actual builds and PDF navigation with your configured local toolchain.
 

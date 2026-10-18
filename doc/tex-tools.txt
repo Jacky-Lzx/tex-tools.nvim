@@ -200,6 +200,39 @@ Default Visual/operator-pending mappings:
 <Plug> mappings are always installed in tex/plaintex buffers, even when
 default mappings are disabled. Use |vim.keymap.set()| to choose other keys.
 
+REPEATING EDITS                                         *tex-tools-repeat*
+
+After a successful structural edit, move to another target and press |.|.
+Supported operations:
+    Command/environment rename and unwrap.
+    Environment star toggling.
+    Math bracket change, unwrap, and automatic size toggling.
+    Formula delimiter switching.
+
+Reuse the resolved name/shape without another prompt. Toggles use the new
+target's current state. Query syntax at the current cursor for every repeat;
+do not reuse saved ranges or syntax nodes. Repeats also work in another
+tex/plaintex buffer. Refuse comments, literal content, invalid targets,
+missing parsers, and unmodifiable buffers. Report errors with a notification.
+
+Each repeat is one undo step. [count]. applies the operation count times at
+the same cursor, without moving to siblings. For example, 3. can unwrap
+three nested commands. Stop at the first invalid target; all successful
+iterations of a counted repeat belong to one undo step.
+
+Use native |g@| and 'operatorfunc'; no extra plugin or mapping on . is added.
+Subsequent native edits and other native operators supply their own repeat.
+An existing user mapping on . takes precedence. Failed, cancelled, stale,
+and unchanged initial operations preserve the preceding repeat.
+
+Mappings, Ex commands, and Lua APIs record only completed edits to the
+current tex/plaintex buffer in Normal mode. Async prompts record the
+resolved input after success. An edit in a buffer that is no longer current
+does not replace the current buffer's repeat. API edits during Insert mode
+preserve native typing behavior. Range surrounds, list insertion, and smart
+Enter do not register structural repeats. Text-object operators keep their
+native repeats. No setup() call is required by the repeat implementation.
+
 COMMAND EDITING                                         *tex-tools-command-editing*
 
 Commands use the same innermost invocation as ac/ic. Only syntax-owned
@@ -377,6 +410,8 @@ operator. All text objects support characterwise Visual/operator-pending mode.
 LUA API                                                 *tex-tools-api*
 
 All functions are available from require('tex-tools').
+Cursor-based editing APIs participate in |tex-tools-repeat| after an actual
+change to the current tex/plaintex buffer in Normal mode.
 
 in_math([opts])                                          *tex-tools.in_math()*
     Return boolean[, error]. Recognizes inline/display math, mathematical
