@@ -451,6 +451,7 @@ dofile('tests/navigation_structures.lua')({
 })
 
 dofile('tests/textobject_counts.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
+dofile('tests/item.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
 
 for _, entry in ipairs(tests) do
   local input, notify, get_clients, get_parser =

@@ -213,6 +213,8 @@ Default Visual/operator-pending mappings:
     i$                  <Plug>(TexToolsInsideMath)
     ad                  <Plug>(TexToolsAroundMathDelimiter)
     id                  <Plug>(TexToolsInsideMathDelimiter)
+    ai                  <Plug>(TexToolsAroundItem)
+    ii                  <Plug>(TexToolsInsideItem)
 
 <Plug> mappings are always installed in tex/plaintex buffers, even when
 default mappings are disabled. Use |vim.keymap.set()| to choose other keys.
@@ -438,13 +440,35 @@ An inner formula in \text{...} is selected before the outer formula.
 ad selects the innermost math bracket pair including its size commands.
 id selects the body between its markers. See |tex-tools-math-brackets|.
 
+ai selects the current item in itemize, enumerate, or description, including
+its \item or \item*, optional label, continuation paragraphs, and nested lists.
+ii selects the body without the marker, label, or surrounding whitespace.
+Escaped trailing spaces remain part of the body.
+For example, dai deletes an item; cii changes its body and keeps its label.
+The nearest environment must be a supported list, with the cursor in its body.
+The marker and label select their item. Blank gaps use the preceding item;
+indentation before a marker selects that marker's item. Standalone comments
+and unrelated headings do not extend an item's range.
+
+For whole-line items, ai uses linewise Visual mode and includes indentation,
+the final newline, and a trailing comment on the final line. Following blank
+lines and standalone comments remain. Inline ai is characterwise and includes
+following horizontal whitespace. ii is characterwise; a trailing comment
+outside the parser's item node is excluded, while embedded comments remain.
+An empty body cancels ii but permits ai. Comments, parser-recognized literal
+content, definitions, and incomplete lists are refused. If the installed
+parser marks an unfinished label such as \item[] as an error, finish the
+label before using item objects in that list.
+
 Command, argument, and formula objects skip comments and literal/code content.
 Incomplete argument/formula nodes are refused. Empty inner objects cancel the
-operator. All text objects support characterwise Visual/operator-pending mode.
+operator. All objects support Visual/operator-pending mode; only whole-line
+ai selections use linewise mode.
 
 Counts select enclosing objects of the same kind at the current cursor.
 Depth 1 is the innermost object; depth 2 is the next enclosing object.
-Examples: v2ae, d2ac, y2ia, v2a$, and v2ad. Operator and text-object counts
+Examples: v2ae, d2ac, y2ia, v2a$, v2ad, and d2ai. Item depth 1 stays at the
+nearest list level; depth 2 selects the parent item. Operator and text-object counts
 multiply: 2d2ac selects depth four. Do not advance to siblings.
 
 Curly and optional argument groups share depth. Inline/display formulas and
@@ -532,7 +556,7 @@ toggle_math_delimiter_size()               *tex-tools.toggle_math_delimiter_size
     buffer even after switching buffers, provided it is still unchanged.
 
 textobject_range(kind, inner [, opts])            *tex-tools.textobject_range()*
-    kind is 'environment', 'command', 'argument', 'math', or 'delimiter'.
+    kind is 'environment', 'command', 'argument', 'math', 'delimiter', or 'item'.
     inner is a boolean.
     Return {start_row, start_byte, end_row, end_byte} or nil, error, without
     notifying. Coordinates are zero-based and the end is exclusive. opts is
@@ -540,7 +564,8 @@ textobject_range(kind, inner [, opts])            *tex-tools.textobject_range()*
     queries. count is a positive integer depth, default 1. opts is left unchanged.
 
 select_textobject(kind, inner [, count])         *tex-tools.select_textobject()*
-    Select the text object in characterwise Visual mode in the current buffer.
+    Select the text object in Visual mode in the current buffer. Selections
+    are characterwise except for whole-line around-item objects (ai).
     count is a positive integer depth, default 1. Lua APIs do not read pending
     key counts implicitly; custom mappings may pass vim.v.count1 explicitly.
     Return true or false, error. If no object is available, cancel the operator.

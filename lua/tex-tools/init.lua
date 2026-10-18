@@ -313,6 +313,7 @@ local function attach(bufnr)
     { 'argument', 'a', 'Argument' },
     { 'math', '$', 'Math' },
     { 'delimiter', 'd', 'MathDelimiter' },
+    { 'item', 'i', 'Item' },
   }) do
     for _, variant in ipairs({ { 'a', 'Around', false }, { 'i', 'Inside', true } }) do
       maps[#maps + 1] = {

@@ -44,7 +44,7 @@ function M.range(kind, inner, opts)
   if kind == 'environment' then
     return M.environment_range(inner, opts)
   end
-  if kind ~= 'command' and kind ~= 'argument' and kind ~= 'math' and kind ~= 'delimiter' then
+  if kind ~= 'command' and kind ~= 'argument' and kind ~= 'math' and kind ~= 'delimiter' and kind ~= 'item' then
     return nil, 'Unknown text object: ' .. tostring(kind)
   end
   local count, message = depth(opts)
@@ -54,6 +54,8 @@ function M.range(kind, inner, opts)
   local object, err
   if kind == 'delimiter' then
     object, err = require('tex-tools.delimiter').current(opts, count)
+  elseif kind == 'item' then
+    object, err = require('tex-tools.item').current(opts, count)
   else
     object, err = require('tex-tools.structure')[kind](opts, count)
   end
@@ -80,6 +82,7 @@ function M.select(kind, inner, count)
     return false, err
   end
   local sr, sc, er, ec = unpack(range)
+  local whole_lines = kind == 'item' and not inner and sc == 0 and ec == 0 and er > sr
   if ec == 0 and er > sr then
     er = er - 1
     ec = #vim.api.nvim_buf_get_lines(0, er, er + 1, false)[1]
@@ -95,6 +98,12 @@ function M.select(kind, inner, count)
     vim.cmd.normal({ vim.keycode('<Esc>'), bang = true })
   end
   vim.api.nvim_win_set_cursor(0, { sr + 1, sc })
+  if whole_lines then
+    -- Keep the final newline in whole-item operators under both selection modes.
+    vim.cmd.normal({ 'V', bang = true })
+    vim.api.nvim_win_set_cursor(0, { er + 1, 0 })
+    return true
+  end
   vim.cmd.normal({ 'v', bang = true })
   -- Respect 'selection=exclusive' so operators do not drop the final character.
   vim.api.nvim_win_set_cursor(0, { er + 1, vim.o.selection == 'exclusive' and ec or last })

@@ -30,6 +30,7 @@ has incomplete markers, or has mismatched begin/end names.
 - Switch `$...$` ↔ `\(...\)` and `$$...$$` ↔ `\[...\]` without changing math mode or formula content.
 - Rename commands, unwrap a single braced argument, and surround text with a command.
 - Math bracket text objects, paired replacement/removal, and automatic sizing with `\left` / `\right`.
+- List-item text objects (`ai` / `ii`), including multiline bodies and nested lists.
 
 Command, argument, and formula objects follow the parser's structure and skip
 comments and literal content. Command objects include only arguments owned by
@@ -261,6 +262,7 @@ Set `vim.g.maplocalleader` before loading the plugin to choose the prefix key.
 - `aa` / `ia` → selects the innermost brace or bracket group / its contents, e.g. `yaa`, `cia`.
 - `a$` / `i$` → selects the formula including / excluding its delimiters, e.g. `da$`, `yi$`. Named math environments and configured custom math environments are included.
 - `ad` / `id` → selects math brackets including / excluding their markers, e.g. `yad`, `cid`.
+- `ai` / `ii` → selects the current list item including its marker / just its body, e.g. `dai`, `cii`.
 - `<localleader>les` → `:[range]TexToolsSurroundEnvironment [name]`; wraps the current line in Normal mode or selected lines in Visual mode, prompting for a name.
 - `<localleader>led` → `:TexToolsUnwrapEnvironment`; removes both markers and begin options while preserving the body.
 - `<localleader>lf` → `:TexToolsToggleMathDelimiters`; switches between dollar and backslash delimiters, preserving inline/display mode.
@@ -281,7 +283,28 @@ and an optional positive count. `jump_environment()` retains its begin/end jump.
 own lines, it also excludes the newlines surrounding the body. An empty body
 cancels the operation. `ae` includes the `document` environment.
 
-All five text-object kinds support counts in Visual and operator-pending mode.
+`ai` includes the current `\item` or `\item*`, its optional label, and its
+body in `itemize`, `enumerate`, and `description`. `ii` selects only the body,
+excluding surrounding whitespace: `cii` preserves the marker and label.
+Escaped spaces at the end of the body remain part of the selection.
+Bodies include continuation paragraphs and nested lists. Default selection
+stays at the nearest list level; `2ai` / `2ii` select the enclosing parent item.
+The nearest environment must be a supported list, and the cursor must be in
+its body. A marker or label selects its item; whitespace between items uses
+the preceding item, and indentation before a marker selects that marker's item.
+
+When an item occupies whole lines, `ai` selects linewise, including its
+indentation, final newline, and any trailing comment on the final line.
+Following blank lines and standalone comments remain. Inline items select
+characterwise and include following horizontal whitespace. `ii` remains
+characterwise and excludes a trailing comment outside the parser's item node;
+comments inside the body remain part of it. Empty bodies cancel `ii` but
+remain selectable with `ai`. Comments, parser-recognized literal content,
+definitions, and incomplete lists are refused. Syntax follows the installed
+parser; if it marks an unfinished description label such as `\item[]` as an
+error, finish the label before selecting items in that list.
+
+All six text-object kinds support counts in Visual and operator-pending mode.
 A count selects the requested enclosing object of the same kind at the cursor:
 `1` selects the innermost, `2` the next enclosing object, and so on.
 For example, `v2ae` selects the second enclosing environment, `d2ac` deletes
@@ -429,11 +452,12 @@ tex.forward_search()
 -- Query a specific buffer and position; rows and byte columns are zero-based.
 tex.in_math({ bufnr = 3, pos = { 9, 4 } })
 
--- kind: "environment", "command", "argument", "math", or "delimiter"; true selects the inner part.
+-- kind: "environment", "command", "argument", "math", "delimiter", or "item"; true selects the inner part.
 tex.textobject_range("argument", true) -- {start_row, start_byte, end_row, end_byte}, end-exclusive
 tex.select_textobject("argument", true) -- enter a characterwise Visual selection
 tex.textobject_range("command", false, { count = 2 }) -- second enclosing command call
 tex.select_textobject("environment", false, 2) -- select the second enclosing environment
+tex.textobject_range("item", true) -- current item body, preserving its marker and label
 ```
 
 Context queries do not display notifications and can be called frequently.
@@ -451,6 +475,8 @@ without notifying, and accepts optional `{ bufnr, pos, count }` query options.
 selects in the current buffer, accepts an optional third `count` argument, and
 returns `true` or `false, error`. Lua APIs default to depth one independently
 of pending key counts. Custom mappings can pass `vim.v.count1` explicitly.
+Selections are characterwise except for `ai` on whole-line items, which uses
+linewise Visual mode to include the final newline.
 For operator mappings, use the provided `<Plug>` entries to preserve undo
 and repeat state when no matching object exists.
 
@@ -504,7 +530,7 @@ expanded.
 ## Roadmap
 
 1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
-2. **Implemented: Editing** — Counted environment, command, argument, formula, and math bracket text objects; command renaming and surrounds; adding and removing surrounding environments; formula delimiter switching and math bracket editing/sizing; native dot repeat for cursor-based structural edits.
+2. **Implemented: Editing** — Counted environment, command, argument, formula, math bracket, and list-item text objects; command renaming and surrounds; adding and removing surrounding environments; formula delimiter switching and math bracket editing/sizing; native dot repeat for cursor-based structural edits.
 3. **In progress: Input** — Explicit `\item` insertion and optional context-aware Enter are implemented. Further input helpers should compose with existing snippet and pairs plugins.
 4. **Implemented: Navigation** — Section, same-level list-item, environment, and formula jumps with counts, jump history, and fold opening.
 
@@ -534,7 +560,8 @@ description labels, indentation, smart Enter splits/fallbacks, rapid repeated
 Enter input, section/list-item/environment/formula navigation, counted mappings, jump history,
 fold opening, command renaming/unwrapping, exact Visual command surrounds,
 math bracket matching, paired edits, automatic sizing, alignment and middle guards,
-syntax-boundary guards, counted enclosing text objects, native and counted dot
+syntax-boundary guards, counted enclosing text objects, list-item bodies and
+labels, nested list selection, native and counted dot
 repeat, native editing compatibility, and texlab request parameter encoding. texlab tests
 use a client double and do not start a LaTeX compiler or PDF viewer. Verify
 actual builds and PDF navigation with your configured local toolchain.
