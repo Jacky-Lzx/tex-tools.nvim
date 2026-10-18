@@ -1,5 +1,9 @@
 local M = {}
 
+function M.backend(build)
+  return vim.fs.basename(build.executable or 'latexmk'):lower():gsub('%.exe$', '')
+end
+
 local function absolute(path, directory)
   path = vim.fs.normalize(path, { expand_env = false })
   if not path:match('^/') and not path:match('^%a:/') then
@@ -109,7 +113,12 @@ function M.resolve(client, opts)
     end
   end
   local function dir(value)
-    return absolute(type(value) == 'string' and value ~= '' and value or '.', cwd)
+    if type(value) == 'string' and value ~= '' then
+      return absolute(value, cwd)
+    end
+    -- Tectonic's compile command defaults to the input file's directory,
+    -- even when texlab starts it from a parent containing a root marker.
+    return M.backend(build) == 'tectonic' and directory or cwd
   end
   local outdir = M.argument(build.args, { '--outdir', '-outdir', '-output-directory', '--output-directory', '-o' })
   local auxdir = M.argument(build.args, { '-auxdir', '-aux-directory' })

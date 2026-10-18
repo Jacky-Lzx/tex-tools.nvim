@@ -147,6 +147,18 @@ local function attach(bufnr)
       end,
       { desc = 'Build with the attached texlab client' },
     },
+    TexToolsClean = {
+      function()
+        action('clean', 'clean', false)
+      end,
+      { desc = 'Clean auxiliary build files' },
+    },
+    TexToolsCleanFull = {
+      function()
+        action('clean', 'clean', true)
+      end,
+      { desc = 'Clean build artifacts including the PDF' },
+    },
     TexToolsForwardSearch = {
       function()
         action('lsp', 'forward_search')
@@ -224,6 +236,22 @@ local function attach(bufnr)
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
   local maps = {
+    {
+      'n',
+      '<localleader>lc',
+      'Clean',
+      function()
+        action('clean', 'clean', false)
+      end,
+    },
+    {
+      'n',
+      '<localleader>lC',
+      'CleanFull',
+      function()
+        action('clean', 'clean', true)
+      end,
+    },
     {
       'n',
       '<localleader>lo',
@@ -641,6 +669,9 @@ function M.build_log(path)
 end
 function M.build_errors(opts)
   return require('tex-tools.build_output').errors(opts)
+end
+function M.clean(full)
+  return require('tex-tools.clean').clean(full)
 end
 
 return M

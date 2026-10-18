@@ -54,6 +54,7 @@ and `d` (math brackets). Normal mode unless stated otherwise.
 | `<localleader>lk` / `lK` | Cancel builds in the current / all texlab clients |
 | `<localleader>lg` | Show build status |
 | `<localleader>lo` / `lq` / `le` | Live compiler output / full log / texlab diagnostics |
+| `<localleader>lc` / `lC` | Clean auxiliary files / all artifacts including PDF |
 | `]]` / `[[` | Next / previous section |
 | `]i` / `[i` | Next / previous item at the current list level |
 | `]e` / `[e` | Next / previous environment opening |
@@ -116,7 +117,7 @@ existing LSP log handlers. In that window, `q` closes it and `F` toggles followi
 new lines. Output is reset for each build; no window opens automatically.
 `:TexToolsLog [path]` opens the full `.log` read-only. Without a path, the main
 file is resolved through `% !TeX root` directives or `build.main_file` (relative
-to the LSP root), with `\\documentclass` identifying a standalone main file.
+to the LSP root), with `\documentclass` identifying a standalone main file.
 Ambiguous child files require one of these explicit roots.
 
 `:TexToolsErrors` fills quickfix with the current texlab client's errors and
@@ -134,6 +135,22 @@ and root markers. Complex `.latexmkrc` output paths are not evaluated; configure
 texlab directories explicitly or pass a log path. The Lua APIs are
 `build_output()`, `build_log(path?)`, and
 `build_errors({ errors_only = false, open = false })`.
+
+`:TexToolsClean` removes auxiliary files; `:TexToolsCleanFull` also removes the
+PDF. For latexmk, these delegate to texlab's `cleanAuxiliary` / `cleanArtifacts`
+commands. For Tectonic's `compile` command, cleanup removes only exact main-file
+artifacts from the resolved directories: `.aux`, `.out`, `.toc`, `.lof`, `.lot`,
+`.fls`, `.nav`, `.snm`, `.vrb`, `.synctex.gz`, and `.log`. `.bbl`, bibliography,
+source and unrelated files are retained. The default directory for Tectonic is
+the main file's directory; `--outdir` / `-o` and texlab's directory settings are
+respected. Directory trees are never removed; leaf symlinks are unlinked.
+Cleanup refuses active builds, unknown main files, custom compiler backends and
+Tectonic project `build` / `watch` commands. Lua: `clean()` / `clean(true)` return
+`true, request_id` for latexmk (completion notifies), or `true, removed_count`
+for Tectonic; failures return `false, error`.
+
+Builds use texlab's process lifecycle. Independent persistent `latexmk -pvc`
+management and selected-region compilation are not provided.
 
 ## Conceal
 

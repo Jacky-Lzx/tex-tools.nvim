@@ -50,6 +50,9 @@ local function request(action, method)
   local manager, generation
   if action == 'build' then
     manager = require('tex-tools.build')
+    if manager.state(client).cleaning then
+      return false, 'Wait for artifact cleaning to finish before building'
+    end
     if manager.active(client) then
       return false, 'A build is already running in this texlab client; cancel it before starting another'
     end

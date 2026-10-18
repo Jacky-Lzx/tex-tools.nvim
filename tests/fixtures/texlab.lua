@@ -7,6 +7,7 @@ end
 local function notify(method, params)
   send({ jsonrpc = '2.0', method = method, params = params })
 end
+local opened = {}
 while true do
   local length
   while true do
@@ -30,10 +31,21 @@ while true do
       result = {
         capabilities = {
           textDocumentSync = { openClose = true, change = 1, save = true },
-          executeCommandProvider = { commands = { 'texlab.cancelBuild' } },
+          executeCommandProvider = {
+            commands = { 'texlab.cancelBuild', 'texlab.cleanAuxiliary', 'texlab.cleanArtifacts' },
+          },
         },
       },
     })
+  elseif message.method == 'textDocument/didOpen' then
+    opened[message.params.textDocument.uri] = true
+  elseif message.method == 'workspace/executeCommand' and message.params.command:match('^texlab%.clean') then
+    local uri = message.params.arguments[1].uri
+    if opened[uri] then
+      send({ jsonrpc = '2.0', id = message.id, result = vim.NIL })
+    else
+      send({ jsonrpc = '2.0', id = message.id, error = { code = -32602, message = 'Main document not opened' } })
+    end
   elseif message.method == 'textDocument/build' then
     local uri = message.params.textDocument.uri
     send({ jsonrpc = '2.0', id = 100, method = 'window/workDoneProgress/create', params = { token = 'build' } })

@@ -81,6 +81,8 @@ Normal mode (each <Plug> name corresponds to a command below):
     <LocalLeader>lo     <Plug>(TexToolsBuildOutput)
     <LocalLeader>lq     <Plug>(TexToolsLog)
     <LocalLeader>le     <Plug>(TexToolsErrors)
+    <LocalLeader>lc     <Plug>(TexToolsClean)
+    <LocalLeader>lC     <Plug>(TexToolsCleanFull)
     ]]                  <Plug>(TexToolsNextSection)
     [[                  <Plug>(TexToolsPreviousSection)
     ]i                  <Plug>(TexToolsNextItem)
@@ -200,7 +202,7 @@ nil, error if no texlab client is attached. These functions need no setup().
 :TexToolsLog [path]                                *:TexToolsLog*
     Open a full .log read-only. An explicit path needs no LSP client. Otherwise
     resolve the main file through % !TeX root directives, build.main_file, or
-    a standalone document's \\documentclass. Ambiguous roots return an error.
+    a standalone document's \documentclass. Ambiguous roots return an error.
     build.main_file defaults to false; a path is relative to the LSP root.
     Common output/jobname arguments and texlab logDirectory are respected.
     Complex .latexmkrc paths require explicit directories or a log path.
@@ -213,6 +215,24 @@ Lua: build_output(), build_log([path]), build_errors([opts]) return
 boolean[, result_or_error]. Results are an output buffer, log path, or diagnostic
 count respectively. build_errors opts: errors_only (default false), open
 (default true). Set open=false to fill quickfix without opening it.
+
+:TexToolsClean                                     *:TexToolsClean*
+    Remove auxiliary build artifacts for the resolved main file.
+:TexToolsCleanFull                                 *:TexToolsCleanFull*
+    Also remove the PDF. Refuse cleaning during compilation or another cleanup.
+    latexmk delegates to texlab.cleanAuxiliary / texlab.cleanArtifacts, attaching
+    the main document if necessary; completion/errors notify asynchronously.
+    Tectonic compile cleanup removes exact files only: .aux, .out, .toc, .lof,
+    .lot, .fls, .nav, .snm, .vrb, .synctex.gz, .log; full adds .pdf. Source,
+    bibliography, .bbl and unrelated files are retained. Default output is the
+    input directory; --outdir/-o and texlab auxiliary/log/PDF directories apply.
+    No directory recursion occurs; leaf symlinks themselves are unlinked.
+    Unsupported compilers, Tectonic project build/watch and ambiguous mains
+    return errors. Directory paths in .latexmkrc are handled by texlab/latexmk.
+
+Lua: clean([full]) returns true, request_id (latexmk), true, removed_count
+(Tectonic), or false, error. full defaults to false. Compilation uses texlab's
+process lifecycle; independent latexmk -pvc and region compilation are absent.
 
 COMMAND EDITING                                         *tex-tools-command-editing*
 
@@ -405,6 +425,7 @@ DEVELOPMENT                                             *tex-tools-development*
     nvim --clean --headless -l tests/run.lua
 
 Set TEX_TOOLS_TEST_PARSER=/path/to/latex.so if necessary. Tests use the real
-parser and a texlab client double; PDF integration uses your local toolchain.
+parser, texlab client doubles and a stdio LSP fixture; compiler/PDF integration
+uses your local toolchain.
 
 vim:tw=78:ts=4:ft=help:norl:

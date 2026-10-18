@@ -498,6 +498,7 @@ dofile('tests/context_details.lua')({ test = test, eq = eq, buffer = buffer, at 
 dofile('tests/conceal.lua')({ test = test, eq = eq, buffer = buffer, content = content })
 dofile('tests/build.lua')({ test = test, eq = eq, buffer = buffer, content = content })
 dofile('tests/build_output.lua')({ test = test, eq = eq, buffer = buffer, content = content })
+dofile('tests/clean.lua')({ test = test, eq = eq, buffer = buffer, content = content })
 
 for _, entry in ipairs(tests) do
   local input, notify, get_clients, get_parser =
