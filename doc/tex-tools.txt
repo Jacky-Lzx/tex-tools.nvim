@@ -98,6 +98,14 @@ COMMANDS                                                *tex-tools-commands*
     invisible/mixed or ambiguous plain delimiters, orphaned \middle, and
     automatic sizing across alignment cells/rows. See |tex-tools-math-brackets|.
 
+:[count]TexToolsJumpMathDelimiter             *:TexToolsJumpMathDelimiter*
+    Jump to the closing marker of the surrounding math bracket pair, or
+    from its closing marker back to its opening marker. Sized pairs land
+    on \left or \right. Count selects enclosing depth, default 1.
+    Record the previous context and open destination folds. An invalid
+    pair or unavailable depth leaves cursor/jump history unchanged.
+    See |tex-tools-math-brackets| for supported pairs and syntax guards.
+
 :TexToolsInsertItem                                     *:TexToolsInsertItem*
     Insert a sibling \item after the entire current item, including its
     continuation paragraphs and nested lists, then enter Insert mode.
@@ -180,6 +188,7 @@ Default normal-mode mappings:
     <LocalLeader>ldc    <Plug>(TexToolsChangeMathDelimiters)
     <LocalLeader>ldd    <Plug>(TexToolsUnwrapMathDelimiters)
     <LocalLeader>ldt    <Plug>(TexToolsToggleMathDelimiterSize)
+    <LocalLeader>ldm    <Plug>(TexToolsJumpMathDelimiter)
     <LocalLeader>li     <Plug>(TexToolsInsertItem)
     ]]                  <Plug>(TexToolsNextSection)
     [[                  <Plug>(TexToolsPreviousSection)
@@ -330,6 +339,15 @@ Size commands cannot be removed while a \middle belongs to that pair;
 
 This feature edits brackets inside math. Use |:TexToolsToggleMathDelimiters|
 to change $...$ and \(...\), or $$...$$ and \[...\], around the formula.
+
+<LocalLeader>ldm and |:TexToolsJumpMathDelimiter| use the same matching rules.
+From the body or opening marker, jump to the closing marker. From any byte
+of the closing marker, jump back to the opening marker. Sized markers include
+the size command and intervening whitespace; destinations are \left/\right.
+Counts select enclosing depth at the current cursor, as with ad/id.
+Jumping records the previous position, opens folds, and supports unmodifiable
+buffers without changing text, registers, undo history, or native repeats.
+An invalid pair or unavailable depth leaves cursor/jump history unchanged.
 
 NAVIGATION                                              *tex-tools-navigation*
 
@@ -554,6 +572,11 @@ toggle_math_delimiter_size()               *tex-tools.toggle_math_delimiter_size
     supported syntax, and guards. Omitting shape opens vim.ui.input; true
     then means the prompt opened. The pending edit targets the original
     buffer even after switching buffers, provided it is still unchanged.
+
+jump_math_delimiter([count])                   *tex-tools.jump_math_delimiter()*
+    Jump between the requested enclosing math bracket markers. count is a
+    positive integer depth, default 1. Return true or false, error without
+    notifying. See |:TexToolsJumpMathDelimiter| and |tex-tools-math-brackets|.
 
 textobject_range(kind, inner [, opts])            *tex-tools.textobject_range()*
     kind is 'environment', 'command', 'argument', 'math', 'delimiter', or 'item'.

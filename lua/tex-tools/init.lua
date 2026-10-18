@@ -43,6 +43,12 @@ local function attach(bufnr)
     end)
   end
   local commands = {
+    TexToolsJumpMathDelimiter = {
+      function(args)
+        action('delimiter', 'jump', args.count)
+      end,
+      { count = 1, desc = 'Jump between matching math bracket markers' },
+    },
     TexToolsChangeMathDelimiters = {
       function(args)
         action('delimiter', 'change', args.args ~= '' and args.args or nil)
@@ -153,6 +159,14 @@ local function attach(bufnr)
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
   local maps = {
+    {
+      'n',
+      '<localleader>ldm',
+      'JumpMathDelimiter',
+      function()
+        action('delimiter', 'jump', vim.v.count1)
+      end,
+    },
     {
       'n',
       '<localleader>ldc',
@@ -427,6 +441,9 @@ function M.unwrap_math_delimiters()
 end
 function M.toggle_math_delimiter_size()
   return require('tex-tools.delimiter').toggle_size()
+end
+function M.jump_math_delimiter(count)
+  return require('tex-tools.delimiter').jump(count)
 end
 function M.insert_item()
   return require('tex-tools.list').insert()

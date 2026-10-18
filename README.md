@@ -174,6 +174,16 @@ is open cancel the pending operation. Existing mappings are preserved;
 - `<localleader>ldc` / `:TexToolsChangeMathDelimiters [shape]`: replace both brackets while keeping their size commands and all body text.
 - `<localleader>ldd` / `:TexToolsUnwrapMathDelimiters`: remove both markers, preserving their contents.
 - `<localleader>ldt` / `:TexToolsToggleMathDelimiterSize`: switch `(x)` ↔ `\left(x\right)`, likewise for the other supported pairs.
+- `<localleader>ldm` / `:TexToolsJumpMathDelimiter`: jump between matching math bracket markers.
+
+Bracket jumps use the same pairs and syntax guards as `ad` / `id`. From the
+body or opening marker, jump to the closing marker; from anywhere in the
+closing marker, jump back to the opening marker. Sized pairs land on `\left`
+or `\right`. A count selects an enclosing pair: `2<localleader>ldm` or
+`:2TexToolsJumpMathDelimiter` selects depth two at the current cursor.
+Jumps record the previous position and open destination folds, work in
+unmodifiable buffers, and leave text, registers, and undo history unchanged.
+An unavailable depth or invalid pair leaves the cursor and jump history unchanged.
 
 Shapes are `paren`, `bracket`, `brace`, `angle`, `vert`, and `Vert`, producing
 `()`, `[]`, `\{\}`, `\langle\rangle`, `\lvert\rvert`, and `\lVert\rVert`.
@@ -252,6 +262,7 @@ Set `vim.g.maplocalleader` before loading the plugin to choose the prefix key.
 - `<localleader>lcr` → `:TexToolsRenameCommand [name]`; renames the innermost command.
 - `<localleader>lcd` → `:TexToolsUnwrapCommand`; keeps the contents of one braced argument.
 - `<localleader>ldc` / `<localleader>ldd` / `<localleader>ldt` → change / unwrap / toggle the size of math brackets; see [Math bracket editing](#math-bracket-editing).
+- `<localleader>ldm` → `:TexToolsJumpMathDelimiter`; jump between matching math bracket markers, with enclosing-depth counts.
 - `<localleader>lcs` (Normal / Visual) → `:TexToolsSurroundCommand [name]`; wraps a line or exact Visual selection, prompting for the name.
 - `<localleader>let` → `:TexToolsToggleEnvironmentStar`, e.g. `equation` ↔ `equation*`.
 - `<localleader>lm` → `:TexToolsJumpEnvironment`; jumps from the body or begin marker to end, and from end back to begin.
@@ -442,6 +453,7 @@ tex.toggle_math_delimiters()
 tex.change_math_delimiters("bracket") -- (x) -> [x], keeping any sizing commands
 tex.unwrap_math_delimiters() -- remove brackets, preserve contents
 tex.toggle_math_delimiter_size() -- (x) <-> \left(x\right)
+tex.jump_math_delimiter() -- jump to the other math bracket marker; optional count selects depth
 tex.insert_item() -- insert a sibling list item and enter Insert mode
 tex.smart_enter() -- encoded keys for an Insert-mode expression mapping
 tex.jump_section(1, 3) -- next section marker, repeated three times
@@ -532,7 +544,7 @@ expanded.
 1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
 2. **Implemented: Editing** — Counted environment, command, argument, formula, math bracket, and list-item text objects; command renaming and surrounds; adding and removing surrounding environments; formula delimiter switching and math bracket editing/sizing; native dot repeat for cursor-based structural edits.
 3. **In progress: Input** — Explicit `\item` insertion and optional context-aware Enter are implemented. Further input helpers should compose with existing snippet and pairs plugins.
-4. **Implemented: Navigation** — Section, same-level list-item, environment, and formula jumps with counts, jump history, and fold opening.
+4. **Implemented: Navigation** — Section, same-level list-item, environment, formula, and matching math bracket jumps with counts, jump history, and fold opening.
 
 Each phase is tested against the real parser. Parsing, LSP communication,
 compiler processes, and log diagnostics remain the responsibility of

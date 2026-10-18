@@ -252,6 +252,24 @@ function M.current(opts, count)
   return nil, 'No surrounding math delimiter pair'
 end
 
+---Jump between the markers of the requested enclosing math bracket pair.
+function M.jump(count)
+  count = count == nil and 1 or count
+  if type(count) ~= 'number' or count < 1 or count == math.huge or count % 1 ~= 0 then
+    return false, 'Count must be a positive integer'
+  end
+  local pair, err = M.current(nil, count)
+  if not pair then
+    return false, err
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local marker = ts.contains(pair.closing, cursor[1] - 1, cursor[2]) and pair.opening or pair.closing
+  vim.cmd.normal({ "m'", bang = true })
+  vim.api.nvim_win_set_cursor(0, { marker[1] + 1, marker[2] })
+  vim.cmd.normal({ 'zv', bang = true })
+  return true
+end
+
 local function editable()
   local pair, err = M.current()
   if not pair then
