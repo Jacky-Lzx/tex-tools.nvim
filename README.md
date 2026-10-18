@@ -2,629 +2,125 @@
 
 # tex-tools.nvim
 
-A Lua toolkit for writing LaTeX in Neovim, developed in stages and inspired by
-[VimTeX](https://github.com/lervag/vimtex)'s editing workflows.
-
-Syntax analysis uses [tree-sitter-latex](https://github.com/latex-lsp/tree-sitter-latex).
-[texlab](https://github.com/latex-lsp/texlab) handles completion, diagnostics,
-references, formatting, and project management. This plugin provides editing
-operations and calls the texlab client already attached to your buffer.
-
-## Phase 1: Context and environment editing
-
-- Detect math and comment contexts for conditions in LuaSnip and other tools.
-- Find the innermost environment and jump between `\begin` and `\end`.
-- Rename both environment markers in one undo operation and toggle a trailing `*`.
-- Use `ae` / `ie` environment text objects in Visual mode or with `d` / `c` / `y`.
-- Build and forward search through texlab; check your setup with `:checkhealth tex-tools`.
-
-Supports nested environments, environments on a single line, UTF-8 text,
-text and nested formulas inside `\text{}`, comments, and verbatim-like
-environments. Editing is refused when an environment cannot be identified,
-has incomplete markers, or has mismatched begin/end names.
-
-## Phase 2: Structural editing
-
-- Command (`ac` / `ic`), argument (`aa` / `ia`), and formula (`a$` / `i$`) text objects.
-- Surround the current line or selected lines with an environment, and unwrap an existing environment while keeping its body.
-- Switch `$...$` ↔ `\(...\)` and `$$...$$` ↔ `\[...\]` without changing math mode or formula content.
-- Rename commands, unwrap a single braced argument, and surround text with a command.
-- Math bracket text objects, paired replacement/removal, and automatic sizing with `\left` / `\right`.
-- List-item text objects (`ai` / `ii`), including multiline bodies and nested lists.
-
-Command, argument, and formula objects follow the parser's structure and skip
-comments and literal content. Command objects include only arguments owned by
-the command node; selecting `\section{Title}` never includes its section body.
-
-## Phase 3: List input
-
-- Insert a sibling `\item` after the entire current item, including continuation paragraphs and nested lists.
-- Support `itemize`, `enumerate`, and `description`, preserving the current item's indentation.
-- Insert `\item[]` in a description list and enter Insert mode inside the empty label.
-- Create the first item in an empty list and split inline item/end markers when needed.
-- Optionally split a list item at the cursor with Enter, keeping the suffix in the new item.
-
-Use `:TexToolsInsertItem` or `<localleader>li` in Normal or Insert mode. New items
-are inserted at the current list level, with the cursor ready for typing.
-Whitespace gaps use the preceding item. In a whitespace-only empty list, the
-first item is added before the end marker, indented by one `shiftwidth` from
-the begin line; `expandtab` and `tabstop` are respected.
-
-Place the cursor in the list body. List markers, comments, literal content,
-incomplete lists, and unsupported nearest environments cancel the operation.
-Before the first item of a nonempty list, no item is selected. Existing item
-labels and stars are not copied; surrounding text and comments are preserved.
-One undo removes the new marker and the text typed immediately into it, while
-preserving text previously typed in the old item.
-
-Enable the optional Insert-mode Enter mapping with:
-
-```lua
-require("tex-tools").setup({ smart_enter = true })
-```
-
-At the end of a nonempty item, Enter creates a sibling. Inside its body, Enter
-splits at the cursor, moving the suffix and following continuation lines into
-the new item. Adjacent horizontal whitespace is trimmed; the original marker
-keeps its separating space, and escaped spaces are preserved. Description
-lists create an empty label and place
-the cursor inside it. The current item's indentation is reused.
-
-Empty items/lists, blank gaps after an item, comments, literal content, list
-markers, and positions inside commands, arguments, or formulas use native
-Enter. Unsupported or incomplete lists and a missing parser also fall back
-silently. Native indentation and comment continuation apply on fallback.
-One undo restores a split and removes immediately typed text, preserving
-text typed before Enter. Use the explicit insert command to create the first
-item in an empty list or insert after the entire item.
-
-`smart_enter` defaults to `false`. Enabling it preserves existing Enter
-mappings; `mappings = false` disables this default too. For a custom key in a
-TeX buffer, use `<Plug>(TexToolsSmartEnter)` in Insert mode. For an existing
-completion mapping, call `smart_enter()` in its fallback branch:
-
-```lua
--- In after/ftplugin/tex.lua, or your own TeX FileType callback.
-vim.keymap.set("i", "<CR>", function()
-  if vim.fn.pumvisible() == 1 then
-    return vim.keycode("<C-y>")
-  end
-  return require("tex-tools").smart_enter()
-end, { buffer = true, expr = true, replace_keycodes = false })
-```
-
-## Phase 4: Structural navigation
-
-- `]]` / `[[` jump to the next / previous section marker at any section level.
-- `]i` / `[i` jump between item markers in the current list, skipping nested environments.
-- `]e` / `[e` jump to environment begin markers throughout the buffer, including nested environments.
-- `]m` / `[m` jump to inline/display formula openings and named math environments.
-- Counts such as `3]]` and `2[i` skip multiple targets; `<C-o>` returns to the jump's origin.
-
-These Normal-mode mappings land on the opening delimiter or command's
-backslash and open folds containing the destination. Section navigation
-recognizes `part`, `chapter`, `section`, `subsection`, `subsubsection`,
-`paragraph`, and `subparagraph`,
-including starred forms and the parser's `addpart` / `addchap` / `addsec` aliases.
-Incomplete headers, comments, literal environments, and recognized definition
-bodies are excluded. Valid headings remain reachable when their body has a
-syntax error. Navigation follows the upstream syntax tree; macros are not
-expanded, and legacy `\def` bodies are not identified as definition bodies.
-
-List navigation stays in the nearest environment, which must be `itemize`,
-`enumerate`, or `description` with matching begin/end markers. Items under
-paragraph nodes are included; nested environments are skipped. Empty items,
-labels, and starred markers are supported. From a list's begin/end marker or
-a whitespace gap, the same position-based search applies. List navigation
-is refused inside comments, literal content, and recognized definitions.
-
-Environment navigation includes `document` and requires complete, matching
-begin/end markers. Formula navigation includes `$...$`, `\(...\)`, `$$...$$`,
-`\[...\]`, parser-recognized math environments, and configured
-`math_environments`. Delimited formulas must be complete and have matching
-delimiters. Nested formulas inside `\text{...}` are separate targets.
-Both traverse in source order, skipping comments, literal/code environments
-(including their markers), and recognized definition bodies. They can start
-inside excluded content to reach a valid target elsewhere in the buffer.
-`<localleader>lm` continues to jump between the current environment's markers.
-
-All motions search strictly before/after the cursor. Moving backward from a
-marker selects the preceding marker. Nested openings count as separate
-targets in environment and formula navigation. Oversized counts stop at the furthest
-available target without wrapping. If there is no target, the cursor and
-jump history are preserved. All navigation works without texlab and in
-unmodifiable buffers.
-
-## Command editing
-
-- `<localleader>lcr` / `:TexToolsRenameCommand [name]`: rename the innermost command, keeping all arguments, options, whitespace, and comments. For example, `\textbf{body}` becomes `\emph{body}`.
-- `<localleader>lcd` / `:TexToolsUnwrapCommand`: remove a command with exactly one braced argument, keeping its contents. For example, `\textbf{body}` becomes `body`.
-- `<localleader>lcs` in Visual mode: wrap the selected text with `\name{...}`. In Normal mode or with `:[range]TexToolsSurroundCommand [name]`, wrap the current line or Ex line range.
-
-Omit a name to open an input prompt. Enter ASCII letters or `@`, optionally
-followed by one `*`, without the leading backslash. A new name supplies its
-own star: renaming `section*` to `chapter` removes the star. Control-symbol
-commands such as `\%` are excluded. These are local edits to an invocation;
-macro signatures, definitions, and uses elsewhere in the project are not
-renamed or inferred.
-
-Unwrap refuses optional or multiple arguments, non-group parameters, and
-comments between the command and its argument. Comments inside the retained
-body are preserved. Rename and unwrap refuse changes that would merge a bare
-control word with adjacent letters. As with command text objects, a heading's
-body is excluded from its invocation.
-
-Visual surrounds support characterwise and linewise selections, forward and
-backward, both `selection` settings, UTF-8, combining marks, and multiple
-lines. The selected text is preserved without reindentation. Blockwise and
-partial-character/virtual-space selections are refused. Surrounds require
-nonempty text and reject selections crossing command, argument, formula, or
-environment boundaries; complete structures or text within one body are
-accepted. Any intersecting comments or literal content are refused.
-
-All command edits require the real parser and a modifiable buffer. Commands
-inside comments/literal content and incomplete invocations are refused.
-Each operation can be undone with one `u`. Buffer edits while a name prompt
-is open cancel the pending operation. Existing mappings are preserved;
-`mappings = false` retains commands, Lua APIs, and `<Plug>` mappings.
-
-## Math bracket editing
-
-- `ad` / `id`: select the innermost math bracket pair including / excluding its markers.
-- `<localleader>ldc` / `:TexToolsChangeMathDelimiters [shape]`: replace both brackets while keeping their size commands and all body text.
-- `<localleader>ldd` / `:TexToolsUnwrapMathDelimiters`: remove both markers, preserving their contents.
-- `<localleader>ldt` / `:TexToolsToggleMathDelimiterSize`: switch `(x)` ↔ `\left(x\right)`, likewise for the other supported pairs.
-- `<localleader>ldm` / `:TexToolsJumpMathDelimiter`: jump between matching math bracket markers.
-
-Bracket jumps use the same pairs and syntax guards as `ad` / `id`. From the
-body or opening marker, jump to the closing marker; from anywhere in the
-closing marker, jump back to the opening marker. Sized pairs land on `\left`
-or `\right`. A count selects an enclosing pair: `2<localleader>ldm` or
-`:2TexToolsJumpMathDelimiter` selects depth two at the current cursor.
-Jumps record the previous position and open destination folds, work in
-unmodifiable buffers, and leave text, registers, and undo history unchanged.
-An unavailable depth or invalid pair leaves the cursor and jump history unchanged.
-
-Shapes are `paren`, `bracket`, `brace`, `angle`, `vert`, and `Vert`, producing
-`()`, `[]`, `\{\}`, `\langle\rangle`, `\lvert\rvert`, and `\lVert\rVert`.
-Aliases are `(`, `[`, `{`, `<`, `|`, and `\|`, respectively. Omit the shape to
-prompt. For example, changing `\left(x\right)` to `bracket` produces
-`\left[x\right]`. A separator space is added when a new control-word
-delimiter would otherwise consume adjacent letters.
-
-Plain brackets are matched from Tree-sitter tokens within one syntax scope;
-commands and argument groups remain intact. Parser-owned optional group
-markers and unowned square brackets directly following a command are excluded,
-since their role may depend on an unknown macro signature. Sized pairs use the
-parser's `math_delimiter` fields. All operations require math context and skip
-comments, literal content, text-mode content, and parser-owned environment headers. Nested
-inline math inside text-mode content remains supported. Body comments,
-whitespace, newlines, and UTF-8 text are preserved. Each edit is one undo step.
-
-Explicit `\left` / `\right` pairs may have mixed brackets, invisible `.`, or
-symmetric bars. They support selection, replacement, and removal, but size
-toggling requires matching visible directional delimiters. Plain `|...|` is
-ambiguous and is excluded; use `\lvert...\rvert` instead. Fixed sizes such as
-`\bigl` / `\bigr` and custom delimiter macros are outside this first version.
-
-Removing `\left` / `\right` is refused when it would orphan a `\middle` at
-that level. Unwrapping also refuses token merging or comments inside a marker
-that would be discarded. Enabling automatic sizing cannot span alignment cells
-or rows. These commands are separate from `<localleader>lf`, which changes the spelling of
-the enclosing inline/display formula delimiters.
+Lua tools for writing LaTeX in Neovim, inspired by [VimTeX](https://github.com/lervag/vimtex).
+Provides structural editing, text objects, navigation, list input, and snippet
+context queries using [Tree-sitter](https://github.com/latex-lsp/tree-sitter-latex).
+Build and PDF forward search use your existing texlab client; texlab handles
+completion, diagnostics, references, and formatting.
 
 ## Installation
 
-Requires **Neovim ≥ 0.11** and an installed **`latex` Tree-sitter parser**.
-With nvim-treesitter, run `:TSInstall latex`. The plugin does not depend on
-nvim-treesitter's Lua API or install the parser automatically.
+Requires **Neovim ≥ 0.11** and the **`latex` Tree-sitter parser** (for example,
+`:TSInstall latex` with nvim-treesitter). Configure texlab separately if you
+want build and forward search.
 
-Currently, load the plugin from a local checkout. Example for lazy.nvim:
+Load this local checkout with lazy.nvim:
 
 ```lua
 {
-  dir = "/path/to/tex-tools-nvim", -- Replace with your local checkout path.
-  name = "tex-tools.nvim",
+  dir = "/path/to/tex-tools-nvim",
   ft = { "tex", "plaintex" },
   opts = {
     mappings = true,
-    smart_enter = false, -- Optional list Enter mapping; preserves existing mappings.
-    math_environments = {}, -- e.g. { "myequation" }; starred variants are also recognized.
+    smart_enter = false,    -- Optional list-aware Insert-mode Enter.
+    math_environments = {}, -- Additional math environments; stars are recognized.
   },
 }
 ```
 
-For other loading methods, add the repository to `runtimepath`, then call:
+With other plugin managers, add the plugin to `runtimepath` and call
+`require("tex-tools").setup()`. Set `vim.g.maplocalleader` before loading.
+Existing mappings are preserved; `mappings = false` keeps commands and
+`<Plug>` mappings available. Check dependencies with `:checkhealth tex-tools`.
 
-```lua
-require("tex-tools").setup()
-```
+## Default keys
 
-Keep your existing Tree-sitter highlighting setup. The plugin leaves indentation,
-folding, conceal, and LSP configuration to your existing setup.
+Keys use `<localleader>l`, grouped by `c` (commands), `e` (environments),
+and `d` (math brackets). Normal mode unless stated otherwise.
 
-## Key mappings and commands
+| Key | Action |
+| --- | --- |
+| `<localleader>lcr` / `lcd` | Rename / unwrap a command |
+| `<localleader>lcs` | Surround a line or Visual selection with a command |
+| `<localleader>ler` / `let` | Rename an environment / toggle its star |
+| `<localleader>les` / `led` | Surround lines with / unwrap an environment |
+| `<localleader>lm` | Jump between environment begin/end markers |
+| `<localleader>lf` | Switch `$…$` ↔ `\(…\)` or `$$…$$` ↔ `\[…\]` |
+| `<localleader>ldc` / `ldd` | Change / remove math brackets |
+| `<localleader>ldt` / `ldm` | Toggle `\left`/`\right` sizing / jump to the matching bracket |
+| `<localleader>li` | Insert a sibling `\item` (Normal / Insert) |
+| `<localleader>ll` / `lv` | Build / PDF forward search through texlab |
+| `]]` / `[[` | Next / previous section |
+| `]i` / `[i` | Next / previous item at the current list level |
+| `]e` / `[e` | Next / previous environment opening |
+| `]m` / `[m` | Next / previous formula opening |
 
-Commands and mappings are registered in `tex` / `plaintex` buffers. Default
-mappings are skipped when a global or buffer-local mapping already exists.
-Set `mappings = false` to disable the defaults.
+In paired entries, `<localleader>` applies to both keys. Environment surrounds
+also work in Visual mode and operate on whole lines. Navigation supports
+counts, jump history, and fold opening.
 
-Structural edits use `<localleader>l` with `c` for commands, `e` for
-environments, and `d` for math brackets. Within those groups, `r` renames,
-`c` changes a bracket pair, `d` removes the wrapper, `s` surrounds text, and
-`t` toggles a property. `<localleader>lc` and `<localleader>le` are group
-prefixes; surrounding now uses `<localleader>lcs` and `<localleader>les`.
-The former unprefixed edit keys are no longer installed by default.
-Ex commands, `<Plug>` names, and Lua APIs retain their names.
-Set `vim.g.maplocalleader` before loading the plugin to choose the prefix key.
+### Text objects
 
-- `<localleader>ler` → `:TexToolsRenameEnvironment [name]`; prompts when the name is omitted.
-- `<localleader>lcr` → `:TexToolsRenameCommand [name]`; renames the innermost command.
-- `<localleader>lcd` → `:TexToolsUnwrapCommand`; keeps the contents of one braced argument.
-- `<localleader>ldc` / `<localleader>ldd` / `<localleader>ldt` → change / unwrap / toggle the size of math brackets; see [Math bracket editing](#math-bracket-editing).
-- `<localleader>ldm` → `:TexToolsJumpMathDelimiter`; jump between matching math bracket markers, with enclosing-depth counts.
-- `<localleader>lcs` (Normal / Visual) → `:TexToolsSurroundCommand [name]`; wraps a line or exact Visual selection, prompting for the name.
-- `<localleader>let` → `:TexToolsToggleEnvironmentStar`, e.g. `equation` ↔ `equation*`.
-- `<localleader>lm` → `:TexToolsJumpEnvironment`; jumps from the body or begin marker to end, and from end back to begin.
-- `<localleader>ll` → `:TexToolsBuild`; saves the current file, then requests a texlab build.
-- `<localleader>lv` → `:TexToolsForwardSearch`; asks texlab to locate the current cursor position in the PDF.
-- `ae` / `ie` → selects the whole environment / its body, e.g. `vae`, `yie`, `dae`.
-- `ac` / `ic` → selects the command call / command name, e.g. `dac`, `yic`. The inner name excludes the backslash and includes a trailing star.
-- `aa` / `ia` → selects the innermost brace or bracket group / its contents, e.g. `yaa`, `cia`.
-- `a$` / `i$` → selects the formula including / excluding its delimiters, e.g. `da$`, `yi$`. Named math environments and configured custom math environments are included.
-- `ad` / `id` → selects math brackets including / excluding their markers, e.g. `yad`, `cid`.
-- `ai` / `ii` → selects the current list item including its marker / just its body, e.g. `dai`, `cii`.
-- `<localleader>les` → `:[range]TexToolsSurroundEnvironment [name]`; wraps the current line in Normal mode or selected lines in Visual mode, prompting for a name.
-- `<localleader>led` → `:TexToolsUnwrapEnvironment`; removes both markers and begin options while preserving the body.
-- `<localleader>lf` → `:TexToolsToggleMathDelimiters`; switches between dollar and backslash delimiters, preserving inline/display mode.
-- `<localleader>li` (Normal / Insert) → `:TexToolsInsertItem`; inserts a sibling item and enters Insert mode in its body or description label.
-- `<CR>` (Insert, only with `smart_enter = true`) → `<Plug>(TexToolsSmartEnter)`; splits at the cursor or uses native Enter.
-- `]]` / `[[` (Normal) → `:TexToolsNextSection` / `:TexToolsPreviousSection`.
-- `]i` / `[i` (Normal) → `:TexToolsNextItem` / `:TexToolsPreviousItem`.
-- `]e` / `[e` (Normal) → `:TexToolsNextEnvironment` / `:TexToolsPreviousEnvironment`.
-- `]m` / `[m` (Normal) → `:TexToolsNextMath` / `:TexToolsPreviousMath`.
+Use in Visual mode or with operators such as `d`, `c`, and `y`.
 
-Navigation commands accept a count prefix too, for example
-`:3TexToolsNextSection`, `:2TexToolsPreviousItem`, or `:2TexToolsNextMath`.
-Lua callers can use `jump_environment_start(direction, count)` and
-`jump_math(direction, count)`, with direction `1` (next) or `-1` (previous)
-and an optional positive count. `jump_environment()` retains its begin/end jump.
+| Around / inside | Target |
+| --- | --- |
+| `ae` / `ie` | Environment including markers / body |
+| `ac` / `ic` | Command call / name without the backslash |
+| `aa` / `ia` | Curly or bracket group / contents |
+| `a$` / `i$` | Formula including delimiters / body |
+| `ad` / `id` | Math brackets including size commands / contents |
+| `ai` / `ii` | List item including marker and label / body |
 
-`ie` excludes the begin marker's optional arguments. When markers occupy their
-own lines, it also excludes the newlines surrounding the body. An empty body
-cancels the operation. `ae` includes the `document` environment.
+Counts select enclosing depth: `d2ac` deletes the second enclosing command,
+`2ai` selects the parent item. Bracket jumps also count enclosing depth;
+section/item/environment/formula motions count successive targets.
+Whole-line `ai` selections are linewise; other objects are characterwise.
+An empty inner object or unavailable depth cancels the operator.
 
-`ai` includes the current `\item` or `\item*`, its optional label, and its
-body in `itemize`, `enumerate`, and `description`. `ii` selects only the body,
-excluding surrounding whitespace: `cii` preserves the marker and label.
-Escaped spaces at the end of the body remain part of the selection.
-Bodies include continuation paragraphs and nested lists. Default selection
-stays at the nearest list level; `2ai` / `2ii` select the enclosing parent item.
-The nearest environment must be a supported list, and the cursor must be in
-its body. A marker or label selects its item; whitespace between items uses
-the preceding item, and indentation before a marker selects that marker's item.
+### Lists and repeat
 
-When an item occupies whole lines, `ai` selects linewise, including its
-indentation, final newline, and any trailing comment on the final line.
-Following blank lines and standalone comments remain. Inline items select
-characterwise and include following horizontal whitespace. `ii` remains
-characterwise and excludes a trailing comment outside the parser's item node;
-comments inside the body remain part of it. Empty bodies cancel `ii` but
-remain selectable with `ai`. Comments, parser-recognized literal content,
-definitions, and incomplete lists are refused. Syntax follows the installed
-parser; if it marks an unfinished description label such as `\item[]` as an
-error, finish the label before selecting items in that list.
+Lists support `itemize`, `enumerate`, and `description`, including nested lists
+and continuation paragraphs. In description lists, insertion starts inside
+the new label. Enable `smart_enter` to split nonempty items with Enter;
+other contexts use native Enter.
 
-All six text-object kinds support counts in Visual and operator-pending mode.
-A count selects the requested enclosing object of the same kind at the cursor:
-`1` selects the innermost, `2` the next enclosing object, and so on.
-For example, `v2ae` selects the second enclosing environment, `d2ac` deletes
-the second enclosing command call, `y2ia` yanks the second enclosing argument's
-contents, and `v2a$` / `v2ad` select the second enclosing formula / math bracket.
-Operator and text-object counts multiply: `2d2ac` selects depth four.
+Cursor-based rename, unwrap, and toggle edits support `.` and single-step
+undo. Surrounds and list input do not register structural repeats;
+text-object operators use native repeat behavior.
 
-Counts never advance to sibling structures. Curly and optional groups share
-argument depth; inline/display formulas and named math environments share
-formula depth. Math bracket counts include plain and left/right-sized pairs
-and stay inside the nearest formula or math environment. Empty inner objects
-still occupy a level; only the requested object's inner part must be nonempty.
-If the depth is unavailable or the target is invalid, cancel the whole
-operation without changing text or registers. Failed default/Plug mappings
-also preserve undo history and the preceding native repeat. Successful
-operators retain native dot repeat and undo behavior.
+## Context queries
 
-Star toggling changes the name only; the document class and packages determine
-whether the resulting environment exists.
+All functions below return `boolean[, error]` and accept optional
+`{ bufnr, pos = { row, byte_column } }`, with zero-based coordinates.
+They are read-only and work without `setup()` or texlab.
 
-Environment surrounding operates on whole lines, including when a characterwise or blockwise
-Visual selection is used. Markers use the first selected line's indentation;
-the body is preserved without reindentation. For example, `:2,5TexToolsSurroundEnvironment quote`
-wraps lines 2 through 5. Unwrapping removes standalone marker lines entirely,
-preserves blank body lines and comments, and handles inline markers. Each wrap,
-unwrap, and delimiter switch can be undone with one `u`.
+| Function | Context |
+| --- | --- |
+| `in_math()` | Inline/display math or a math environment |
+| `in_comment()` | LaTeX comments |
+| `in_subscript()` / `in_superscript()` | Mathematical script payload |
+| `in_numerator()` / `in_denominator()` | Nearest `\frac`, `\dfrac`, or `\tfrac` part |
+| `in_table_cell()` | Supported table/alignment body cell |
 
-Formula delimiter switching leaves named environments such as `equation`
-to the environment commands. Incomplete or mismatched formula delimiters are
-rejected. Arguments and optional groups must be recognized by the parser;
-the plugin does not infer custom macro signatures or parse unrecognized
-optional arguments.
-
-You can also define your own `<Plug>` mappings:
-
-```lua
-vim.keymap.set("n", "<leader>te", "<Plug>(TexToolsRenameEnvironment)")
-vim.keymap.set({ "x", "o" }, "aE", "<Plug>(TexToolsAroundEnvironment)")
-vim.keymap.set({ "n", "i" }, "<C-j>", "<Plug>(TexToolsInsertItem)")
-vim.keymap.set("n", "]s", "<Plug>(TexToolsNextSection)")
-vim.keymap.set("x", "<leader>tc", "<Plug>(TexToolsSurroundCommand)")
-```
-
-See [doc/tex-tools.txt](doc/tex-tools.txt) for all `<Plug>` names and API details.
-You can migrate VimTeX workflows gradually. When using both plugins, consider
-disabling one plugin's mappings to avoid conflicts.
-
-## Repeating structural edits
-
-After a successful structural edit, move to another target and press `.`.
-For example, use `<localleader>lcr` to rename `\textbf{first}` to
-`\emph{first}`, then move inside another command and press `.` to rename
-it to `\emph` without another prompt.
-
-Repeat supports command/environment renaming and unwrapping, environment
-star toggling, math bracket replacement/removal and size toggling, and
-formula delimiter switching. Names and shapes reuse the accepted value;
-toggles act on the new target's current state. Each repeat queries the
-syntax tree again, including in another `tex` / `plaintex` buffer. It never
-reuses an old selection or byte range. Comments, literal content, invalid
-targets, missing parsers, and unmodifiable buffers are refused.
-
-Each `.` is one undo step. A count such as `3.` applies the operation three
-times at the same cursor, useful for unwrapping nested commands; it does not
-advance to sibling structures. A counted repeat stops at the first invalid
-target, and its successful edits can be undone together.
-
-Recording uses native `g@` / `operatorfunc`, with no extra dependency or mapping
-on `.`. A subsequent native edit or another native operator supplies its own
-repeat. Existing user mappings on `.` take precedence. Failed, cancelled,
-stale, and unchanged operations leave the preceding repeat intact.
-
-Normal-mode mappings, Ex commands, and Lua editing APIs record completed edits
-when the target is the current `tex` / `plaintex` buffer in Normal mode.
-An accepted prompt records its resolved value only after the edit succeeds.
-A prompt that edits a now-hidden buffer still edits that buffer, but leaves
-the current buffer's repeat intact. API calls during Insert mode preserve
-native typing behavior. Range surrounds, list insertion, and smart Enter do
-not register a structural repeat; text-object operators keep native repeats.
-
-## texlab configuration
-
-Your existing texlab configuration works as is. texlab manages the compiler,
-PDF viewer, root-file discovery, and SyncTeX. Environment editing and context
-queries also work without an attached texlab client.
-
-Here is a standalone example using Neovim 0.11's native LSP configuration.
-Merge the relevant settings into your existing configuration as needed:
-
-```lua
-vim.lsp.config("texlab", {
-  cmd = { "texlab" },
-  filetypes = { "tex", "plaintex", "bib" },
-  root_markers = { ".texlabroot", "texlabroot", ".latexmkrc", "Tectonic.toml", ".git" },
-  settings = {
-    texlab = {
-      build = {
-        executable = "latexmk",
-        args = { "-pdf", "-interaction=nonstopmode", "-synctex=1", "%f" },
-        onSave = false,
-      },
-      forwardSearch = {
-        executable = "zathura",
-        args = { "--synctex-forward", "%l:1:%f", "%p" },
-      },
-    },
-  },
-})
-vim.lsp.enable("texlab")
-```
-
-Install `latexmk` and `zathura` separately, or configure your preferred PDF
-viewer. Inverse search uses your existing texlab and PDF viewer configuration.
-
-## Lua API
+Example LuaSnip condition:
 
 ```lua
 local tex = require("tex-tools")
-
-tex.in_math()                  -- boolean, optional error message
-tex.in_comment()               -- boolean, optional error message
-tex.in_subscript()             -- inside a mathematical subscript payload
-tex.in_superscript()           -- inside a mathematical superscript payload
-tex.in_numerator()             -- numerator of the nearest supported fraction
-tex.in_denominator()           -- denominator of the nearest supported fraction
-tex.in_table_cell()            -- inside a supported table/alignment body cell
-tex.environment()              -- environment table or nil, optional error message
-tex.rename_command("emph")
-tex.unwrap_command()
-tex.surround_command("textbf") -- current line
-tex.surround_command("emph", { range = { 0, 7, 0, 11 } }) -- zero-based bytes, end-exclusive
-tex.surround_command_visual("emph") -- active characterwise/linewise Visual selection
-tex.rename_environment("align*")
-tex.toggle_environment_star()
-tex.jump_environment()
-tex.surround_environment("quote") -- current line
-tex.surround_environment("quote", { line1 = 2, line2 = 5 }) -- one-based, inclusive
-tex.unwrap_environment()
-tex.toggle_math_delimiters()
-tex.change_math_delimiters("bracket") -- (x) -> [x], keeping any sizing commands
-tex.unwrap_math_delimiters() -- remove brackets, preserve contents
-tex.toggle_math_delimiter_size() -- (x) <-> \left(x\right)
-tex.jump_math_delimiter() -- jump to the other math bracket marker; optional count selects depth
-tex.insert_item() -- insert a sibling list item and enter Insert mode
-tex.smart_enter() -- encoded keys for an Insert-mode expression mapping
-tex.jump_section(1, 3) -- next section marker, repeated three times
-tex.jump_item(-1) -- preceding item marker at the current list level
-tex.build()
-tex.forward_search()
-
--- Query a specific buffer and position; rows and byte columns are zero-based.
-tex.in_math({ bufnr = 3, pos = { 9, 4 } })
-
--- kind: "environment", "command", "argument", "math", "delimiter", or "item"; true selects the inner part.
-tex.textobject_range("argument", true) -- {start_row, start_byte, end_row, end_byte}, end-exclusive
-tex.select_textobject("argument", true) -- enter a characterwise Visual selection
-tex.textobject_range("command", false, { count = 2 }) -- second enclosing command call
-tex.select_textobject("environment", false, 2) -- select the second enclosing environment
-tex.textobject_range("item", true) -- current item body, preserving its marker and label
-```
-
-Context queries do not display notifications and can be called frequently.
-They return `false, error` when the parser is unavailable. `environment()` returns
-`nil, error` when no usable environment is found. Editing operations return
-`true` or `false, error`; for an asynchronous rename, `true` means the input
-prompt has opened. Build and forward search return `true, request_id` when the
-request is sent, then report the result through a notification.
-
-`surround_environment()` prompts when the name is omitted and defaults to the
-current line when no range is given. A buffer change while the prompt is open
-cancels the pending edit. `textobject_range()` returns a range or `nil, error`
-without notifying, and accepts optional `{ bufnr, pos, count }` query options.
-`count` defaults to `1` and must be a positive integer. `select_textobject()`
-selects in the current buffer, accepts an optional third `count` argument, and
-returns `true` or `false, error`. Lua APIs default to depth one independently
-of pending key counts. Custom mappings can pass `vim.v.count1` explicitly.
-Selections are characterwise except for `ai` on whole-line items, which uses
-linewise Visual mode to include the final newline.
-For operator mappings, use the provided `<Plug>` entries to preserve undo
-and repeat state when no matching object exists.
-
-`insert_item()` returns `true` after inserting and entering Insert mode, or
-`false, error` without modifying the buffer or moving the cursor. Like the
-other editing APIs, it reports errors to its caller; commands and mappings
-display those errors as notifications.
-
-`smart_enter()` returns encoded keystrokes for an Insert-mode expression mapping
-with `replace_keycodes = false`. It does not edit or query the buffer during
-expression evaluation. The returned action checks the syntax when executed,
-then splits the item or queues native Enter without remapping or notifications.
-It works without `setup()`; only automatic mapping installation requires setup.
-
-`jump_section(direction, count)` and `jump_item(direction, count)` use `1` for
-next and `-1` for previous. `count` defaults to `1` and must be a positive
-integer. They return `true` on movement or `false, error` without moving.
-They do not notify or require `setup()`; commands and mappings display errors.
-Custom Normal-mode Lua mappings can pass `vim.v.count1` to retain count support.
-
-`change_math_delimiters(shape)`, `unwrap_math_delimiters()`, and
-`toggle_math_delimiter_size()` return `true` or `false, error` without notifying
-and work without `setup()`. Omitting the shape prompts; `true` then means the
-prompt opened. The pending edit targets the original buffer and is cancelled
-if that buffer changes. `textobject_range("delimiter", inner, opts)` accepts
-the same `{ bufnr, pos, count }` options as the other text objects.
-
-`rename_command(name)` and `surround_command(name, opts)` prompt when `name`
-is omitted. `surround_command()` accepts either a byte `range` or one-based
-inclusive `line1`/`line2`, defaulting to the current line. It copies the range
-before opening a prompt. `surround_command_visual(name)` reads the active
-Visual selection and leaves Visual mode before prompting or editing.
-Together with `unwrap_command()`, these APIs return `true` or `false, error`
-without notifying; `true` for a prompt means it has opened. They work without
-`setup()` and edit the original buffer even if a different buffer is current
-when the prompt finishes, provided the original buffer is unchanged.
-
-### Snippet context conditions
-
-All `in_*` queries return a boolean and an optional error, accept `{ bufnr,
-pos }`, and work without `setup()` or an LSP client. They do not notify or
-change text, cursor, registers, undo history, or repeat state. A missing
-parser or invalid position returns `false, error`; ordinary nonmatching
-contexts return `false`. Rows and byte columns are zero-based; querying a
-hidden buffer requires an explicit position.
-
-`in_subscript()` / `in_superscript()` recognize parser-owned `_` / `^`
-payloads in math mode. Braced payloads include the insertion position just
-before the closing brace, so `$x^{}$` supports a condition inside the empty
-group. The opening brace and the `_` / `^` token are excluded. Unbraced
-letters and command names use their end-exclusive syntax ranges. Nested
-scripts can satisfy both queries. Text-mode regions suppress math roles;
-an inner formula starts a new scope, independent of outer scripts/fractions.
-
-`in_numerator()` / `in_denominator()` inspect the nearest `\frac`, `\dfrac`,
-or `\tfrac` with two complete braced arguments. They share the insertion
-boundary rule above. Command names, extra arguments, unbraced fractions,
-custom aliases, and incomplete arguments do not match. In
-`\frac{outer}{\frac{inner}{bottom}}`, `inner` is a numerator and `bottom`
-is a denominator; the outer fraction's role does not leak into the inner one.
-
-`in_table_cell()` recognizes `tabular`, `tabular*`, `tabularx`, `array`,
-`matrix`, `pmatrix`, `bmatrix`, `Bmatrix`, `vmatrix`, `Vmatrix`, `smallmatrix`,
-`cases`, `aligned`, `alignedat`, `align`, `alignat`, `flalign`, and `split`,
-including starred variants. It excludes environment markers/options,
-mandatory width/column-count/column-format arguments, structural `&`, row
-breaks (`\\` / `\tabularnewline`) and their star/spacing options, and common
-table rule commands such as `\hline`, `\cline`, and booktabs rules.
-Whitespace in a cell and nested command/group/formula contents count as
-cell context; their separators do not split the outer table. The nearest
-environment must be supported and complete. This is a syntactic body-context
-condition; it does not infer visual columns, spans, or custom macro signatures.
-Comments and parser-recognized literal content suppress all five queries.
-
-Example LuaSnip conditions:
-
-```lua
-local tex = require("tex-tools")
-local in_math = function() return tex.in_math() end
 local in_power = function() return tex.in_superscript() end
-local in_denominator = function() return tex.in_denominator() end
-local in_cell = function() return tex.in_table_cell() end
--- s({ trig = "...", condition = in_math }, { ... })
--- Use in_power, in_denominator, or in_cell for more specific snippets.
+-- s({ trig = "...", condition = in_power }, { ... })
 ```
 
-Math context follows the syntax tree, recognizing `$...$`, `\(...\)`, `$$...$$`,
-`\[...\]`, and math environments supported by the parser. Text regions such as
-`\text{...}` leave math mode; nested formulas inside them enter math mode again.
-Add custom math environments through `math_environments`. TeX macros are not
-expanded.
+See `:help tex-tools.txt` or [the reference](doc/tex-tools.txt) for commands,
+`<Plug>` names, all Lua APIs, and context boundaries. Syntax follows the
+installed parser; custom macro signatures are not inferred.
 
-## Roadmap
-
-1. **Implemented: Foundation** — Math/comment, script, fraction-part, and table-cell context queries; environment detection, renaming, jumps, text objects, texlab requests, and health checks.
-2. **Implemented: Editing** — Counted environment, command, argument, formula, math bracket, and list-item text objects; command renaming and surrounds; adding and removing surrounding environments; formula delimiter switching and math bracket editing/sizing; native dot repeat for cursor-based structural edits.
-3. **In progress: Input** — Explicit `\item` insertion and optional context-aware Enter are implemented. Further input helpers should compose with existing snippet and pairs plugins.
-4. **Implemented: Navigation** — Section, same-level list-item, environment, formula, and matching math bracket jumps with counts, jump history, and fold opening.
-
-Each phase is tested against the real parser. Parsing, LSP communication,
-compiler processes, and log diagnostics remain the responsibility of
-Tree-sitter, Neovim's LSP client, and texlab.
-
-## Development and testing
+## Development
 
 ```sh
 stylua --check lua tests
 nvim --clean --headless -l tests/run.lua
 ```
 
-Tests use Neovim and the real `latex` parser without an additional Lua test
-framework. If the parser is outside a clean Neovim instance's `runtimepath`,
-specify its shared library:
-
-```sh
-TEX_TOOLS_TEST_PARSER=/path/to/latex.so nvim --clean --headless -l tests/run.lua
-```
-
-Tests cover context boundaries, environment editing, line and Visual surrounds,
-math delimiter round trips, undo, UTF-8 text objects, actual operator mappings,
-stale asynchronous prompts, nested list insertion, Normal/Insert-mode typing,
-description labels, indentation, smart Enter splits/fallbacks, rapid repeated
-Enter input, section/list-item/environment/formula navigation, counted mappings, jump history,
-fold opening, command renaming/unwrapping, exact Visual command surrounds,
-math bracket matching, paired edits, automatic sizing, alignment and middle guards,
-syntax-boundary guards, counted enclosing text objects, list-item bodies and
-labels, nested list selection, native and counted dot
-repeat, native editing compatibility, and texlab request parameter encoding. texlab tests
-use a client double and do not start a LaTeX compiler or PDF viewer. Verify
-actual builds and PDF navigation with your configured local toolchain.
-
-References: [VimTeX documentation](https://github.com/lervag/vimtex/blob/master/doc/vimtex.txt),
-[Tree-sitter LaTeX node definitions](https://github.com/latex-lsp/tree-sitter-latex/blob/master/src/node-types.json),
-and [texlab protocol extensions](https://github.com/latex-lsp/texlab/wiki/Protocol-Extensions).
+Set `TEX_TOOLS_TEST_PARSER=/path/to/latex.so` if the parser is outside Neovim's
+runtime path. Tests use the real parser and a texlab client double.
