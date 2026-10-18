@@ -145,21 +145,28 @@ diagnostics, references, formatting and root-file discovery belong to texlab.
 
 MAPPINGS                                                *tex-tools-mappings*
 
+Structural edits use <LocalLeader>l, grouped by c (commands), e (environments),
+and d (math brackets). Suffixes: r renames, c changes brackets, d unwraps,
+s surrounds, t toggles. <LocalLeader>lc and <LocalLeader>le are group prefixes;
+use <LocalLeader>lcs/<LocalLeader>les for surrounds. The former unprefixed
+edit keys are no longer defaults. Ex commands, <Plug> names, and Lua APIs
+retain their names. Set g:maplocalleader before loading the plugin.
+
 Default normal-mode mappings:
-    csc                 <Plug>(TexToolsRenameCommand)
-    dsc                 <Plug>(TexToolsUnwrapCommand)
-    <LocalLeader>lc     <Plug>(TexToolsSurroundCommand)
-    cse                 <Plug>(TexToolsRenameEnvironment)
-    tss                 <Plug>(TexToolsToggleEnvironmentStar)
+    <LocalLeader>lcr    <Plug>(TexToolsRenameCommand)
+    <LocalLeader>lcd    <Plug>(TexToolsUnwrapCommand)
+    <LocalLeader>lcs    <Plug>(TexToolsSurroundCommand)
+    <LocalLeader>ler    <Plug>(TexToolsRenameEnvironment)
+    <LocalLeader>let    <Plug>(TexToolsToggleEnvironmentStar)
     <LocalLeader>lm     <Plug>(TexToolsJumpEnvironment)
     <LocalLeader>ll     <Plug>(TexToolsBuild)
     <LocalLeader>lv     <Plug>(TexToolsForwardSearch)
-    <LocalLeader>le     <Plug>(TexToolsSurroundEnvironment)
-    dse                 <Plug>(TexToolsUnwrapEnvironment)
-    ts$                 <Plug>(TexToolsToggleMathDelimiters)
-    csd                 <Plug>(TexToolsChangeMathDelimiters)
-    dsd                 <Plug>(TexToolsUnwrapMathDelimiters)
-    tsd                 <Plug>(TexToolsToggleMathDelimiterSize)
+    <LocalLeader>les    <Plug>(TexToolsSurroundEnvironment)
+    <LocalLeader>led    <Plug>(TexToolsUnwrapEnvironment)
+    <LocalLeader>lf     <Plug>(TexToolsToggleMathDelimiters)
+    <LocalLeader>ldc    <Plug>(TexToolsChangeMathDelimiters)
+    <LocalLeader>ldd    <Plug>(TexToolsUnwrapMathDelimiters)
+    <LocalLeader>ldt    <Plug>(TexToolsToggleMathDelimiterSize)
     <LocalLeader>li     <Plug>(TexToolsInsertItem)
     ]]                  <Plug>(TexToolsNextSection)
     [[                  <Plug>(TexToolsPreviousSection)
@@ -173,9 +180,9 @@ Optional Insert-mode mapping (smart_enter = true):
     <CR>                <Plug>(TexToolsSmartEnter)
 
 Default Visual mapping:
-    <LocalLeader>lc     <Plug>(TexToolsSurroundCommand)
+    <LocalLeader>lcs    <Plug>(TexToolsSurroundCommand)
     Command surround uses the exact characterwise/linewise selection.
-    <LocalLeader>le     <Plug>(TexToolsSurroundEnvironment)
+    <LocalLeader>les    <Plug>(TexToolsSurroundEnvironment)
     Surround operates on whole selected lines, also for character/block mode.
 
 Default Visual/operator-pending mappings:

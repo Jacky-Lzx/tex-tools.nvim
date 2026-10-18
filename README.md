@@ -123,9 +123,9 @@ unmodifiable buffers.
 
 ## Command editing
 
-- `csc` / `:TexToolsRenameCommand [name]`: rename the innermost command, keeping all arguments, options, whitespace, and comments. For example, `\textbf{body}` becomes `\emph{body}`.
-- `dsc` / `:TexToolsUnwrapCommand`: remove a command with exactly one braced argument, keeping its contents. For example, `\textbf{body}` becomes `body`.
-- `<localleader>lc` in Visual mode: wrap the selected text with `\name{...}`. In Normal mode or with `:[range]TexToolsSurroundCommand [name]`, wrap the current line or Ex line range.
+- `<localleader>lcr` / `:TexToolsRenameCommand [name]`: rename the innermost command, keeping all arguments, options, whitespace, and comments. For example, `\textbf{body}` becomes `\emph{body}`.
+- `<localleader>lcd` / `:TexToolsUnwrapCommand`: remove a command with exactly one braced argument, keeping its contents. For example, `\textbf{body}` becomes `body`.
+- `<localleader>lcs` in Visual mode: wrap the selected text with `\name{...}`. In Normal mode or with `:[range]TexToolsSurroundCommand [name]`, wrap the current line or Ex line range.
 
 Omit a name to open an input prompt. Enter ASCII letters or `@`, optionally
 followed by one `*`, without the leading backslash. A new name supplies its
@@ -157,9 +157,9 @@ is open cancel the pending operation. Existing mappings are preserved;
 ## Math bracket editing
 
 - `ad` / `id`: select the innermost math bracket pair including / excluding its markers.
-- `csd` / `:TexToolsChangeMathDelimiters [shape]`: replace both brackets while keeping their size commands and all body text.
-- `dsd` / `:TexToolsUnwrapMathDelimiters`: remove both markers, preserving their contents.
-- `tsd` / `:TexToolsToggleMathDelimiterSize`: switch `(x)` ↔ `\left(x\right)`, likewise for the other supported pairs.
+- `<localleader>ldc` / `:TexToolsChangeMathDelimiters [shape]`: replace both brackets while keeping their size commands and all body text.
+- `<localleader>ldd` / `:TexToolsUnwrapMathDelimiters`: remove both markers, preserving their contents.
+- `<localleader>ldt` / `:TexToolsToggleMathDelimiterSize`: switch `(x)` ↔ `\left(x\right)`, likewise for the other supported pairs.
 
 Shapes are `paren`, `bracket`, `brace`, `angle`, `vert`, and `Vert`, producing
 `()`, `[]`, `\{\}`, `\langle\rangle`, `\lvert\rvert`, and `\lVert\rVert`.
@@ -186,7 +186,7 @@ ambiguous and is excluded; use `\lvert...\rvert` instead. Fixed sizes such as
 Removing `\left` / `\right` is refused when it would orphan a `\middle` at
 that level. Unwrapping also refuses token merging or comments inside a marker
 that would be discarded. Enabling automatic sizing cannot span alignment cells
-or rows. These commands are separate from `ts$`, which changes the spelling of
+or rows. These commands are separate from `<localleader>lf`, which changes the spelling of
 the enclosing inline/display formula delimiters.
 
 ## Installation
@@ -225,12 +225,21 @@ Commands and mappings are registered in `tex` / `plaintex` buffers. Default
 mappings are skipped when a global or buffer-local mapping already exists.
 Set `mappings = false` to disable the defaults.
 
-- `cse` → `:TexToolsRenameEnvironment [name]`; prompts when the name is omitted.
-- `csc` → `:TexToolsRenameCommand [name]`; renames the innermost command.
-- `dsc` → `:TexToolsUnwrapCommand`; keeps the contents of one braced argument.
-- `csd` / `dsd` / `tsd` → change / unwrap / toggle the size of math brackets; see [Math bracket editing](#math-bracket-editing).
-- `<localleader>lc` (Normal / Visual) → `:TexToolsSurroundCommand [name]`; wraps a line or exact Visual selection, prompting for the name.
-- `tss` → `:TexToolsToggleEnvironmentStar`, e.g. `equation` ↔ `equation*`.
+Structural edits use `<localleader>l` with `c` for commands, `e` for
+environments, and `d` for math brackets. Within those groups, `r` renames,
+`c` changes a bracket pair, `d` removes the wrapper, `s` surrounds text, and
+`t` toggles a property. `<localleader>lc` and `<localleader>le` are group
+prefixes; surrounding now uses `<localleader>lcs` and `<localleader>les`.
+The former unprefixed edit keys are no longer installed by default.
+Ex commands, `<Plug>` names, and Lua APIs retain their names.
+Set `vim.g.maplocalleader` before loading the plugin to choose the prefix key.
+
+- `<localleader>ler` → `:TexToolsRenameEnvironment [name]`; prompts when the name is omitted.
+- `<localleader>lcr` → `:TexToolsRenameCommand [name]`; renames the innermost command.
+- `<localleader>lcd` → `:TexToolsUnwrapCommand`; keeps the contents of one braced argument.
+- `<localleader>ldc` / `<localleader>ldd` / `<localleader>ldt` → change / unwrap / toggle the size of math brackets; see [Math bracket editing](#math-bracket-editing).
+- `<localleader>lcs` (Normal / Visual) → `:TexToolsSurroundCommand [name]`; wraps a line or exact Visual selection, prompting for the name.
+- `<localleader>let` → `:TexToolsToggleEnvironmentStar`, e.g. `equation` ↔ `equation*`.
 - `<localleader>lm` → `:TexToolsJumpEnvironment`; jumps from the body or begin marker to end, and from end back to begin.
 - `<localleader>ll` → `:TexToolsBuild`; saves the current file, then requests a texlab build.
 - `<localleader>lv` → `:TexToolsForwardSearch`; asks texlab to locate the current cursor position in the PDF.
@@ -239,9 +248,9 @@ Set `mappings = false` to disable the defaults.
 - `aa` / `ia` → selects the innermost brace or bracket group / its contents, e.g. `yaa`, `cia`.
 - `a$` / `i$` → selects the formula including / excluding its delimiters, e.g. `da$`, `yi$`. Named math environments and configured custom math environments are included.
 - `ad` / `id` → selects math brackets including / excluding their markers, e.g. `yad`, `cid`.
-- `<localleader>le` → `:[range]TexToolsSurroundEnvironment [name]`; wraps the current line in Normal mode or selected lines in Visual mode, prompting for a name.
-- `dse` → `:TexToolsUnwrapEnvironment`; removes both markers and begin options while preserving the body.
-- `ts$` → `:TexToolsToggleMathDelimiters`; switches between dollar and backslash delimiters, preserving inline/display mode.
+- `<localleader>les` → `:[range]TexToolsSurroundEnvironment [name]`; wraps the current line in Normal mode or selected lines in Visual mode, prompting for a name.
+- `<localleader>led` → `:TexToolsUnwrapEnvironment`; removes both markers and begin options while preserving the body.
+- `<localleader>lf` → `:TexToolsToggleMathDelimiters`; switches between dollar and backslash delimiters, preserving inline/display mode.
 - `<localleader>li` (Normal / Insert) → `:TexToolsInsertItem`; inserts a sibling item and enters Insert mode in its body or description label.
 - `<CR>` (Insert, only with `smart_enter = true`) → `<Plug>(TexToolsSmartEnter)`; splits at the cursor or uses native Enter.
 - `]]` / `[[` (Normal) → `:TexToolsNextSection` / `:TexToolsPreviousSection`.

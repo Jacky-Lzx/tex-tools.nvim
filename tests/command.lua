@@ -231,7 +231,7 @@ return function(h)
     buffer('before á after')
     at('á')
     prompt('emph')
-    keys('v,lc')
+    keys('v,lcs')
     eq('before \\emph{á} after', content())
   end)
 
@@ -239,7 +239,7 @@ return function(h)
     buffer('before\tword after')
     at('\tword')
     prompt('emph')
-    keys('v4l,lc')
+    keys('v4l,lcs')
     eq('before\\emph{\tword} after', content())
   end)
 
@@ -248,7 +248,7 @@ return function(h)
     local virtualedit = vim.o.virtualedit
     vim.o.virtualedit = 'all'
     prompt('emph')
-    keys('$llvll,lc<Esc>')
+    keys('$llvll,lcs<Esc>')
     vim.o.virtualedit = virtualedit
     eq('word', content())
   end)
@@ -261,11 +261,11 @@ return function(h)
         at('中文', reverse and #'中' or 0)
         prompt('textbf')
         if reverse then
-          keys('vh,lc')
+          keys('vh,lcs')
         elseif selection == 'exclusive' then
-          keys('vll,lc')
+          keys('vll,lcs')
         else
-          keys('vl,lc')
+          keys('vl,lcs')
         end
         -- Native exclusive selection omits the higher endpoint in either direction.
         local expected = reverse and selection == 'exclusive' and 'before \\textbf{中}文 after'
@@ -279,7 +279,7 @@ return function(h)
     buffer('before\nfirst\n中文\nafter')
     at('中文')
     prompt('emph')
-    keys('Vk,lc')
+    keys('Vk,lcs')
     eq('before\n\\emph{first\n中文}\nafter', content())
   end)
 
@@ -287,7 +287,7 @@ return function(h)
     buffer('before first\nsecond after')
     at('first')
     prompt('emph')
-    keys('vj^5l,lc')
+    keys('vj^5l,lcs')
     eq('before \\emph{first\nsecond} after', content())
   end)
 
@@ -295,7 +295,7 @@ return function(h)
     buffer('first\nsecond')
     local original = content()
     prompt('emph')
-    keys('<C-v>j,lc<Esc>')
+    keys('<C-v>j,lcs<Esc>')
     eq(original, content())
   end)
 
@@ -443,12 +443,12 @@ return function(h)
     buffer('\\textbf{body}')
     at('body')
     prompt('emph')
-    keys('csc')
+    keys(',lcr')
     eq('\\emph{body}', content())
     at('body')
-    keys('dsc')
+    keys(',lcd')
     eq('body', content())
-    keys(',lc')
+    keys(',lcs')
     eq('\\emph{body}', content())
     at('body')
     vim.cmd('TexToolsRenameCommand textit')
@@ -462,10 +462,10 @@ return function(h)
     tex.setup({ mappings = false })
     buffer('word', 'plaintex')
     for _, entry in ipairs({
-      { 'n', 'csc', 'RenameCommand' },
-      { 'n', 'dsc', 'UnwrapCommand' },
-      { 'n', ',lc', 'SurroundCommand' },
-      { 'x', ',lc', 'SurroundCommand' },
+      { 'n', ',lcr', 'RenameCommand' },
+      { 'n', ',lcd', 'UnwrapCommand' },
+      { 'n', ',lcs', 'SurroundCommand' },
+      { 'x', ',lcs', 'SurroundCommand' },
     }) do
       eq('', vim.fn.maparg(entry[2], entry[1]))
       assert(vim.fn.maparg('<Plug>(TexTools' .. entry[3] .. ')', entry[1]) ~= '')
@@ -476,17 +476,17 @@ return function(h)
 
   test('command editing preserves existing global and Visual user mappings', function()
     buffer('word', 'text')
-    vim.keymap.set('n', 'csc', 'GLOBAL')
-    vim.keymap.set('x', ',lc', 'LOCAL', { buffer = true })
+    vim.keymap.set('n', ',lcr', 'GLOBAL')
+    vim.keymap.set('x', ',lcs', 'LOCAL', { buffer = true })
     vim.bo.filetype = 'tex'
     tex.setup()
-    eq('GLOBAL', vim.fn.maparg('csc', 'n'))
-    eq('LOCAL', vim.fn.maparg(',lc', 'x'))
+    eq('GLOBAL', vim.fn.maparg(',lcr', 'n'))
+    eq('LOCAL', vim.fn.maparg(',lcs', 'x'))
     tex.setup({ mappings = false })
-    eq('GLOBAL', vim.fn.maparg('csc', 'n'))
-    eq('LOCAL', vim.fn.maparg(',lc', 'x'))
-    vim.keymap.del('n', 'csc')
-    vim.keymap.del('x', ',lc', { buffer = true })
+    eq('GLOBAL', vim.fn.maparg(',lcr', 'n'))
+    eq('LOCAL', vim.fn.maparg(',lcs', 'x'))
+    vim.keymap.del('n', ',lcr')
+    vim.keymap.del('x', ',lcs', { buffer = true })
     tex.setup()
   end)
 end

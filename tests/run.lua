@@ -274,18 +274,18 @@ end)
 
 test('disabled default mappings still provide Plug mappings', function()
   buffer('x')
-  assert(vim.fn.maparg('cse', 'n') ~= '')
+  assert(vim.fn.maparg(',ler', 'n') ~= '')
   tex.setup({ mappings = false })
-  eq('', vim.fn.maparg('cse', 'n'))
+  eq('', vim.fn.maparg(',ler', 'n'))
   assert(vim.fn.maparg('<Plug>(TexToolsRenameEnvironment)', 'n') ~= '')
   tex.setup()
 end)
 
 test('preserve existing user mappings', function()
   buffer('x', 'lua')
-  vim.keymap.set('n', 'cse', '<Nop>', { buffer = true })
+  vim.keymap.set('n', ',ler', '<Nop>', { buffer = true })
   vim.bo.filetype = 'tex'
-  eq('<Nop>', vim.fn.maparg('cse', 'n'))
+  eq('<Nop>', vim.fn.maparg(',ler', 'n'))
 end)
 
 test('texlab requests use the attached client and correct UTF-16 position', function()

@@ -155,7 +155,7 @@ local function attach(bufnr)
   local maps = {
     {
       'n',
-      'csd',
+      '<localleader>ldc',
       'ChangeMathDelimiters',
       function()
         action('delimiter', 'change')
@@ -163,7 +163,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      'dsd',
+      '<localleader>ldd',
       'UnwrapMathDelimiters',
       function()
         action('delimiter', 'unwrap')
@@ -171,7 +171,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      'tsd',
+      '<localleader>ldt',
       'ToggleMathDelimiterSize',
       function()
         action('delimiter', 'toggle_size')
@@ -179,7 +179,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      'csc',
+      '<localleader>lcr',
       'RenameCommand',
       function()
         action('command', 'rename')
@@ -187,7 +187,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      'dsc',
+      '<localleader>lcd',
       'UnwrapCommand',
       function()
         action('command', 'unwrap')
@@ -195,7 +195,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      '<localleader>lc',
+      '<localleader>lcs',
       'SurroundCommand',
       function()
         action('command', 'surround')
@@ -203,7 +203,7 @@ local function attach(bufnr)
     },
     {
       'x',
-      '<localleader>lc',
+      '<localleader>lcs',
       'SurroundCommand',
       function()
         action('command', 'surround_visual')
@@ -219,7 +219,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      'dse',
+      '<localleader>led',
       'UnwrapEnvironment',
       function()
         action('environment', 'unwrap')
@@ -227,7 +227,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      '<localleader>le',
+      '<localleader>les',
       'SurroundEnvironment',
       function()
         action('environment', 'surround')
@@ -235,7 +235,7 @@ local function attach(bufnr)
     },
     {
       'x',
-      '<localleader>le',
+      '<localleader>les',
       'SurroundEnvironment',
       function()
         action('environment', 'surround_visual')
@@ -243,7 +243,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      'ts$',
+      '<localleader>lf',
       'ToggleMathDelimiters',
       function()
         action('math', 'toggle_delimiters')
@@ -251,7 +251,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      'cse',
+      '<localleader>ler',
       'RenameEnvironment',
       function()
         action('environment', 'rename')
@@ -259,7 +259,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      'tss',
+      '<localleader>let',
       'ToggleEnvironmentStar',
       function()
         action('environment', 'toggle_star')
