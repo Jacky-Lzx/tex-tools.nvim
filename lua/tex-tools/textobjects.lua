@@ -17,10 +17,15 @@ function M.range(kind, inner, opts)
   if kind == 'environment' then
     return M.environment_range(inner, opts)
   end
-  if kind ~= 'command' and kind ~= 'argument' and kind ~= 'math' then
+  if kind ~= 'command' and kind ~= 'argument' and kind ~= 'math' and kind ~= 'delimiter' then
     return nil, 'Unknown text object: ' .. tostring(kind)
   end
-  local object, err = require('tex-tools.structure')[kind](opts)
+  local object, err
+  if kind == 'delimiter' then
+    object, err = require('tex-tools.delimiter').current(opts)
+  else
+    object, err = require('tex-tools.structure')[kind](opts)
+  end
   if not object then
     return nil, err
   end

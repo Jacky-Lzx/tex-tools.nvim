@@ -24,24 +24,6 @@ local function after(bufnr, row, col)
   return vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]:sub(col + 1, col + 1)
 end
 
-local function control_word_before(bufnr, row, col)
-  if col == 0 then
-    return false
-  end
-  local node = ts.node({ bufnr = bufnr, pos = { row, col - 1 } })
-  while node do
-    local command = node:type() == 'command_name' and node or ts.field(node, 'command')
-    if command then
-      local _, _, er, ec = command:range()
-      if er == row and ec == col and ts.text(command, bufnr):match('^\\[A-Za-z@]+$') then
-        return true
-      end
-    end
-    node = node:parent()
-  end
-  return false
-end
-
 local function current()
   local object, err = structure.command()
   if not object then
@@ -86,13 +68,13 @@ function M.unwrap()
   end
   local body = contents(bufnr, argument.inner)
   local sr, sc, er, ec = unpack(object.outer)
-  local prefix_word = control_word_before(bufnr, sr, sc)
+  local prefix_word = edit.control_word_before(bufnr, sr, sc)
   local tail = after(bufnr, er, ec)
   if
     (prefix_word and body:match('^[A-Za-z@]'))
     or (
       tail:match('[A-Za-z@]')
-      and (body == '' and prefix_word or control_word_before(bufnr, argument.inner[3], argument.inner[4]))
+      and (body == '' and prefix_word or edit.control_word_before(bufnr, argument.inner[3], argument.inner[4]))
     )
   then
     return false, 'Unwrap would merge a control word with adjacent text'

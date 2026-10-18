@@ -29,6 +29,7 @@ has incomplete markers, or has mismatched begin/end names.
 - Surround the current line or selected lines with an environment, and unwrap an existing environment while keeping its body.
 - Switch `$...$` ↔ `\(...\)` and `$$...$$` ↔ `\[...\]` without changing math mode or formula content.
 - Rename commands, unwrap a single braced argument, and surround text with a command.
+- Math bracket text objects, paired replacement/removal, and automatic sizing with `\left` / `\right`.
 
 Command, argument, and formula objects follow the parser's structure and skip
 comments and literal content. Command objects include only arguments owned by
@@ -153,6 +154,41 @@ Each operation can be undone with one `u`. Buffer edits while a name prompt
 is open cancel the pending operation. Existing mappings are preserved;
 `mappings = false` retains commands, Lua APIs, and `<Plug>` mappings.
 
+## Math bracket editing
+
+- `ad` / `id`: select the innermost math bracket pair including / excluding its markers.
+- `csd` / `:TexToolsChangeMathDelimiters [shape]`: replace both brackets while keeping their size commands and all body text.
+- `dsd` / `:TexToolsUnwrapMathDelimiters`: remove both markers, preserving their contents.
+- `tsd` / `:TexToolsToggleMathDelimiterSize`: switch `(x)` ↔ `\left(x\right)`, likewise for the other supported pairs.
+
+Shapes are `paren`, `bracket`, `brace`, `angle`, `vert`, and `Vert`, producing
+`()`, `[]`, `\{\}`, `\langle\rangle`, `\lvert\rvert`, and `\lVert\rVert`.
+Aliases are `(`, `[`, `{`, `<`, `|`, and `\|`, respectively. Omit the shape to
+prompt. For example, changing `\left(x\right)` to `bracket` produces
+`\left[x\right]`. A separator space is added when a new control-word
+delimiter would otherwise consume adjacent letters.
+
+Plain brackets are matched from Tree-sitter tokens within one syntax scope;
+commands and argument groups remain intact. Parser-owned optional group
+markers and unowned square brackets directly following a command are excluded,
+since their role may depend on an unknown macro signature. Sized pairs use the
+parser's `math_delimiter` fields. All operations require math context and skip
+comments, literal content, text-mode content, and parser-owned environment headers. Nested
+inline math inside text-mode content remains supported. Body comments,
+whitespace, newlines, and UTF-8 text are preserved. Each edit is one undo step.
+
+Explicit `\left` / `\right` pairs may have mixed brackets, invisible `.`, or
+symmetric bars. They support selection, replacement, and removal, but size
+toggling requires matching visible directional delimiters. Plain `|...|` is
+ambiguous and is excluded; use `\lvert...\rvert` instead. Fixed sizes such as
+`\bigl` / `\bigr` and custom delimiter macros are outside this first version.
+
+Removing `\left` / `\right` is refused when it would orphan a `\middle` at
+that level. Unwrapping also refuses token merging or comments inside a marker
+that would be discarded. Enabling automatic sizing cannot span alignment cells
+or rows. These commands are separate from `ts$`, which changes the spelling of
+the enclosing inline/display formula delimiters.
+
 ## Installation
 
 Requires **Neovim ≥ 0.11** and an installed **`latex` Tree-sitter parser**.
@@ -192,6 +228,7 @@ Set `mappings = false` to disable the defaults.
 - `cse` → `:TexToolsRenameEnvironment [name]`; prompts when the name is omitted.
 - `csc` → `:TexToolsRenameCommand [name]`; renames the innermost command.
 - `dsc` → `:TexToolsUnwrapCommand`; keeps the contents of one braced argument.
+- `csd` / `dsd` / `tsd` → change / unwrap / toggle the size of math brackets; see [Math bracket editing](#math-bracket-editing).
 - `<localleader>lc` (Normal / Visual) → `:TexToolsSurroundCommand [name]`; wraps a line or exact Visual selection, prompting for the name.
 - `tss` → `:TexToolsToggleEnvironmentStar`, e.g. `equation` ↔ `equation*`.
 - `<localleader>lm` → `:TexToolsJumpEnvironment`; jumps from the body or begin marker to end, and from end back to begin.
@@ -201,6 +238,7 @@ Set `mappings = false` to disable the defaults.
 - `ac` / `ic` → selects the command call / command name, e.g. `dac`, `yic`. The inner name excludes the backslash and includes a trailing star.
 - `aa` / `ia` → selects the innermost brace or bracket group / its contents, e.g. `yaa`, `cia`.
 - `a$` / `i$` → selects the formula including / excluding its delimiters, e.g. `da$`, `yi$`. Named math environments and configured custom math environments are included.
+- `ad` / `id` → selects math brackets including / excluding their markers, e.g. `yad`, `cid`.
 - `<localleader>le` → `:[range]TexToolsSurroundEnvironment [name]`; wraps the current line in Normal mode or selected lines in Visual mode, prompting for a name.
 - `dse` → `:TexToolsUnwrapEnvironment`; removes both markers and begin options while preserving the body.
 - `ts$` → `:TexToolsToggleMathDelimiters`; switches between dollar and backslash delimiters, preserving inline/display mode.
@@ -302,6 +340,9 @@ tex.surround_environment("quote") -- current line
 tex.surround_environment("quote", { line1 = 2, line2 = 5 }) -- one-based, inclusive
 tex.unwrap_environment()
 tex.toggle_math_delimiters()
+tex.change_math_delimiters("bracket") -- (x) -> [x], keeping any sizing commands
+tex.unwrap_math_delimiters() -- remove brackets, preserve contents
+tex.toggle_math_delimiter_size() -- (x) <-> \left(x\right)
 tex.insert_item() -- insert a sibling list item and enter Insert mode
 tex.smart_enter() -- encoded keys for an Insert-mode expression mapping
 tex.jump_section(1, 3) -- next section marker, repeated three times
@@ -312,7 +353,7 @@ tex.forward_search()
 -- Query a specific buffer and position; rows and byte columns are zero-based.
 tex.in_math({ bufnr = 3, pos = { 9, 4 } })
 
--- kind: "environment", "command", "argument", or "math"; true selects the inner part.
+-- kind: "environment", "command", "argument", "math", or "delimiter"; true selects the inner part.
 tex.textobject_range("argument", true) -- {start_row, start_byte, end_row, end_byte}, end-exclusive
 tex.select_textobject("argument", true) -- enter a characterwise Visual selection
 ```
@@ -348,6 +389,13 @@ integer. They return `true` on movement or `false, error` without moving.
 They do not notify or require `setup()`; commands and mappings display errors.
 Custom Normal-mode Lua mappings can pass `vim.v.count1` to retain count support.
 
+`change_math_delimiters(shape)`, `unwrap_math_delimiters()`, and
+`toggle_math_delimiter_size()` return `true` or `false, error` without notifying
+and work without `setup()`. Omitting the shape prompts; `true` then means the
+prompt opened. The pending edit targets the original buffer and is cancelled
+if that buffer changes. `textobject_range("delimiter", inner, opts)` accepts
+the same `{ bufnr, pos }` options as the other text objects.
+
 `rename_command(name)` and `surround_command(name, opts)` prompt when `name`
 is omitted. `surround_command()` accepts either a byte `range` or one-based
 inclusive `line1`/`line2`, defaulting to the current line. It copies the range
@@ -374,7 +422,7 @@ expanded.
 ## Roadmap
 
 1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
-2. **Implemented: Editing** — Command, argument, and formula text objects; command renaming and surrounds; adding and removing surrounding environments; math delimiter switching.
+2. **Implemented: Editing** — Command, argument, formula, and math bracket text objects; command renaming and surrounds; adding and removing surrounding environments; formula delimiter switching and math bracket editing/sizing.
 3. **In progress: Input** — Explicit `\item` insertion and optional context-aware Enter are implemented. Further input helpers should compose with existing snippet and pairs plugins.
 4. **Implemented: Navigation** — Section and same-level list-item jumps with counts, jump history, and fold opening.
 
@@ -403,6 +451,7 @@ stale asynchronous prompts, nested list insertion, Normal/Insert-mode typing,
 description labels, indentation, smart Enter splits/fallbacks, rapid repeated
 Enter input, section and list-item navigation, counted mappings, jump history,
 fold opening, command renaming/unwrapping, exact Visual command surrounds,
+math bracket matching, paired edits, automatic sizing, alignment and middle guards,
 syntax-boundary guards, and texlab request parameter encoding. texlab tests
 use a client double and do not start a LaTeX compiler or PDF viewer. Verify
 actual builds and PDF navigation with your configured local toolchain.

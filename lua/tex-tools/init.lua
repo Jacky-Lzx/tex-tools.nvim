@@ -43,6 +43,24 @@ local function attach(bufnr)
     end)
   end
   local commands = {
+    TexToolsChangeMathDelimiters = {
+      function(args)
+        action('delimiter', 'change', args.args ~= '' and args.args or nil)
+      end,
+      { nargs = '?', desc = 'Change the surrounding math delimiter pair' },
+    },
+    TexToolsUnwrapMathDelimiters = {
+      function()
+        action('delimiter', 'unwrap')
+      end,
+      { desc = 'Remove the surrounding math delimiter pair, keeping its contents' },
+    },
+    TexToolsToggleMathDelimiterSize = {
+      function()
+        action('delimiter', 'toggle_size')
+      end,
+      { desc = 'Toggle automatic math delimiter sizing with left/right' },
+    },
     TexToolsRenameCommand = {
       function(args)
         action('command', 'rename', args.args ~= '' and args.args or nil)
@@ -135,6 +153,30 @@ local function attach(bufnr)
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
   local maps = {
+    {
+      'n',
+      'csd',
+      'ChangeMathDelimiters',
+      function()
+        action('delimiter', 'change')
+      end,
+    },
+    {
+      'n',
+      'dsd',
+      'UnwrapMathDelimiters',
+      function()
+        action('delimiter', 'unwrap')
+      end,
+    },
+    {
+      'n',
+      'tsd',
+      'ToggleMathDelimiterSize',
+      function()
+        action('delimiter', 'toggle_size')
+      end,
+    },
     {
       'n',
       'csc',
@@ -276,7 +318,12 @@ local function attach(bufnr)
       }
     end
   end
-  for _, object in ipairs({ { 'command', 'c', 'Command' }, { 'argument', 'a', 'Argument' }, { 'math', '$', 'Math' } }) do
+  for _, object in ipairs({
+    { 'command', 'c', 'Command' },
+    { 'argument', 'a', 'Argument' },
+    { 'math', '$', 'Math' },
+    { 'delimiter', 'd', 'MathDelimiter' },
+  }) do
     for _, variant in ipairs({ { 'a', 'Around', false }, { 'i', 'Inside', true } }) do
       maps[#maps + 1] = {
         { 'x', 'o' },
@@ -374,6 +421,15 @@ function M.unwrap_environment()
 end
 function M.toggle_math_delimiters()
   return require('tex-tools.math').toggle_delimiters()
+end
+function M.change_math_delimiters(name)
+  return require('tex-tools.delimiter').change(name)
+end
+function M.unwrap_math_delimiters()
+  return require('tex-tools.delimiter').unwrap()
+end
+function M.toggle_math_delimiter_size()
+  return require('tex-tools.delimiter').toggle_size()
 end
 function M.insert_item()
   return require('tex-tools.list').insert()

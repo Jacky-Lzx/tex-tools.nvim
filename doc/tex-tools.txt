@@ -83,6 +83,21 @@ COMMANDS                                                *tex-tools-commands*
     and literal content. Named math environments use the environment commands.
     Both delimiter changes belong to one undo operation.
 
+:TexToolsChangeMathDelimiters [shape]           *:TexToolsChangeMathDelimiters*
+    Replace both surrounding math brackets, preserving any sizing commands
+    and all body text. Omit shape to prompt with the current shape as default.
+    Shapes and aliases are listed at |tex-tools-math-brackets|.
+
+:TexToolsUnwrapMathDelimiters                   *:TexToolsUnwrapMathDelimiters*
+    Remove both surrounding math bracket markers, preserving their contents.
+    Refuse edits that discard marker comments, merge control words with
+    letters, or orphan a \middle. See |tex-tools-math-brackets|.
+
+:TexToolsToggleMathDelimiterSize             *:TexToolsToggleMathDelimiterSize*
+    Add/remove \left and \right on the surrounding bracket pair. Refuse
+    invisible/mixed or ambiguous plain delimiters, orphaned \middle, and
+    automatic sizing across alignment cells/rows. See |tex-tools-math-brackets|.
+
 :TexToolsInsertItem                                     *:TexToolsInsertItem*
     Insert a sibling \item after the entire current item, including its
     continuation paragraphs and nested lists, then enter Insert mode.
@@ -142,6 +157,9 @@ Default normal-mode mappings:
     <LocalLeader>le     <Plug>(TexToolsSurroundEnvironment)
     dse                 <Plug>(TexToolsUnwrapEnvironment)
     ts$                 <Plug>(TexToolsToggleMathDelimiters)
+    csd                 <Plug>(TexToolsChangeMathDelimiters)
+    dsd                 <Plug>(TexToolsUnwrapMathDelimiters)
+    tsd                 <Plug>(TexToolsToggleMathDelimiterSize)
     <LocalLeader>li     <Plug>(TexToolsInsertItem)
     ]]                  <Plug>(TexToolsNextSection)
     [[                  <Plug>(TexToolsPreviousSection)
@@ -169,6 +187,8 @@ Default Visual/operator-pending mappings:
     ia                  <Plug>(TexToolsInsideArgument)
     a$                  <Plug>(TexToolsAroundMath)
     i$                  <Plug>(TexToolsInsideMath)
+    ad                  <Plug>(TexToolsAroundMathDelimiter)
+    id                  <Plug>(TexToolsInsideMathDelimiter)
 
 <Plug> mappings are always installed in tex/plaintex buffers, even when
 default mappings are disabled. Use |vim.keymap.set()| to choose other keys.
@@ -206,6 +226,51 @@ Each edit is one undo operation. Missing names open vim.ui.input; cancelled
 or empty prompt responses do nothing. A buffer edit while a prompt is open
 invalidates its saved ranges. Commands/mappings notify on failure, while
 Lua APIs return errors. Existing mappings and mappings=false are respected.
+
+MATH BRACKETS                                           *tex-tools-math-brackets*
+
+ad/id and math bracket edits choose the innermost pair around the cursor.
+Plain pairs are matched from syntax tokens in the same scope; argument,
+formula, command, and environment boundaries cannot be cut. Sized pairs use
+the upstream math_delimiter node and its left/right command/delimiter fields.
+All operations require a math context. Comments, literal content, text_mode
+content, and parser-owned environment headers are excluded. Nested inline math inside
+text_mode is supported. Selection works in unmodifiable buffers; edits do not.
+
+Shapes accepted by :TexToolsChangeMathDelimiters and change_math_delimiters():
+    Shape       Alias       Delimiters ~
+    paren       (           ( and )
+    bracket     [           [ and ]
+    brace       {           \{ and \}
+    angle       <           \langle and \rangle
+    vert        |           \lvert and \rvert
+    Vert        \|          \lVert and \rVert
+
+Changing a shape preserves size commands, marker whitespace/comments, and
+the body. Add a separator space if a new control-word delimiter would
+otherwise consume following letters. Example: (x) -> \langle x\rangle.
+Unwrap keeps the body exactly, including whitespace, comments, and newlines.
+It refuses comments between a size command and its delimiter rather than
+discarding them. Edits that merge a control word with adjacent letters are
+refused too. Each paired edit is one undo operation and supports UTF-8.
+
+Size toggling adds/removes \left and \right. It requires matching visible
+directional delimiters. Explicit sized pairs with mixed brackets, invisible
+., or symmetric bars support selection, replacement, and removal, but cannot
+have sizing disabled. Plain |...| and \|...\| are ambiguous and excluded;
+use \lvert...\rvert or \lVert...\rVert. Fixed size commands such as \bigl
+and \bigr, custom delimiter macros, and incomplete pairs are unsupported.
+
+Parser-owned optional group markers are excluded. Square brackets directly
+after a command are refused when not owned by its syntax node, since its
+macro signature is unknown. Raw { } delimit argument groups; use aa/ia for
+those, or escaped \{ \} for math braces. Plain mismatched pairs are refused.
+Automatic sizing cannot be enabled across alignment cells or row separators.
+Size commands cannot be removed while a \middle belongs to that pair;
+\middle inside a nested sized pair does not prevent editing the outer pair.
+
+This feature edits brackets inside math. Use |:TexToolsToggleMathDelimiters|
+to change $...$ and \(...\), or $$...$$ and \[...\], around the formula.
 
 NAVIGATION                                              *tex-tools-navigation*
 
@@ -295,6 +360,9 @@ its delimiters/markers. i$ selects its body. For named environments, standalone
 marker lines are excluded as with ie. Configured math_environments are included.
 An inner formula in \text{...} is selected before the outer formula.
 
+ad selects the innermost math bracket pair including its size commands.
+id selects the body between its markers. See |tex-tools-math-brackets|.
+
 Command, argument, and formula objects skip comments and literal/code content.
 Incomplete argument/formula nodes are refused. Empty inner objects cancel the
 operator. All text objects support characterwise Visual/operator-pending mode.
@@ -361,8 +429,18 @@ unwrap_environment()                           *tex-tools.unwrap_environment()*
 toggle_math_delimiters()                     *tex-tools.toggle_math_delimiters()*
     Operate at the current cursor. Return true or false, error.
 
+change_math_delimiters([shape])              *tex-tools.change_math_delimiters()*
+unwrap_math_delimiters()                     *tex-tools.unwrap_math_delimiters()*
+toggle_math_delimiter_size()               *tex-tools.toggle_math_delimiter_size()*
+    Edit the surrounding math brackets. Return true or false, error without
+    notifying. No setup() required. See |tex-tools-math-brackets| for shapes,
+    supported syntax, and guards. Omitting shape opens vim.ui.input; true
+    then means the prompt opened. The pending edit targets the original
+    buffer even after switching buffers, provided it is still unchanged.
+
 textobject_range(kind, inner [, opts])            *tex-tools.textobject_range()*
-    kind is 'environment', 'command', 'argument', or 'math'. inner is a boolean.
+    kind is 'environment', 'command', 'argument', 'math', or 'delimiter'.
+    inner is a boolean.
     Return {start_row, start_byte, end_row, end_byte} or nil, error, without
     notifying. Coordinates are zero-based and the end is exclusive. opts is
     the same {bufnr, pos} table accepted by context queries.

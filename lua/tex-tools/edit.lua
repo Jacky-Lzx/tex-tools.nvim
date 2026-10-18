@@ -28,7 +28,7 @@ function M.apply(bufnr, changes)
   return true
 end
 
-local function with_name(bufnr, name, default, kind, validate, message, callback)
+function M.with_name(bufnr, name, default, kind, validate, message, callback)
   local function apply(value)
     if not validate(value) then
       return false, message
@@ -61,7 +61,7 @@ end
 
 ---Resolve names without allowing delayed prompts to use stale ranges.
 function M.with_environment_name(bufnr, name, default, callback)
-  return with_name(
+  return M.with_name(
     bufnr,
     name,
     default,
@@ -73,7 +73,7 @@ function M.with_environment_name(bufnr, name, default, callback)
 end
 
 function M.with_command_name(bufnr, name, default, callback)
-  return with_name(
+  return M.with_name(
     bufnr,
     name,
     default,
@@ -82,6 +82,25 @@ function M.with_command_name(bufnr, name, default, callback)
     'Use a command name without a backslash: ASCII letters or @, with an optional trailing *',
     callback
   )
+end
+
+function M.control_word_before(bufnr, row, col)
+  local ts = require('tex-tools.treesitter')
+  if col == 0 then
+    return false
+  end
+  local node = ts.node({ bufnr = bufnr, pos = { row, col - 1 } })
+  while node do
+    local command = node:type() == 'command_name' and node or ts.field(node, 'command')
+    if command then
+      local _, _, er, ec = command:range()
+      if er == row and ec == col and ts.text(command, bufnr):match('^\\[A-Za-z@]+$') then
+        return true
+      end
+    end
+    node = node:parent()
+  end
+  return false
 end
 
 return M
