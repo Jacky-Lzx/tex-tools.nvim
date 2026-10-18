@@ -279,9 +279,25 @@ and an optional positive count. `jump_environment()` retains its begin/end jump.
 
 `ie` excludes the begin marker's optional arguments. When markers occupy their
 own lines, it also excludes the newlines surrounding the body. An empty body
-cancels the operation. `ae` includes the `document` environment. Selecting outer
-objects with a count is not supported yet. An empty inner text object cancels
-the operator.
+cancels the operation. `ae` includes the `document` environment.
+
+All five text-object kinds support counts in Visual and operator-pending mode.
+A count selects the requested enclosing object of the same kind at the cursor:
+`1` selects the innermost, `2` the next enclosing object, and so on.
+For example, `v2ae` selects the second enclosing environment, `d2ac` deletes
+the second enclosing command call, `y2ia` yanks the second enclosing argument's
+contents, and `v2a$` / `v2ad` select the second enclosing formula / math bracket.
+Operator and text-object counts multiply: `2d2ac` selects depth four.
+
+Counts never advance to sibling structures. Curly and optional groups share
+argument depth; inline/display formulas and named math environments share
+formula depth. Math bracket counts include plain and left/right-sized pairs
+and stay inside the nearest formula or math environment. Empty inner objects
+still occupy a level; only the requested object's inner part must be nonempty.
+If the depth is unavailable or the target is invalid, cancel the whole
+operation without changing text or registers. Failed default/Plug mappings
+also preserve undo history and the preceding native repeat. Successful
+operators retain native dot repeat and undo behavior.
 
 Star toggling changes the name only; the document class and packages determine
 whether the resulting environment exists.
@@ -416,6 +432,8 @@ tex.in_math({ bufnr = 3, pos = { 9, 4 } })
 -- kind: "environment", "command", "argument", "math", or "delimiter"; true selects the inner part.
 tex.textobject_range("argument", true) -- {start_row, start_byte, end_row, end_byte}, end-exclusive
 tex.select_textobject("argument", true) -- enter a characterwise Visual selection
+tex.textobject_range("command", false, { count = 2 }) -- second enclosing command call
+tex.select_textobject("environment", false, 2) -- select the second enclosing environment
 ```
 
 Context queries do not display notifications and can be called frequently.
@@ -428,9 +446,13 @@ request is sent, then report the result through a notification.
 `surround_environment()` prompts when the name is omitted and defaults to the
 current line when no range is given. A buffer change while the prompt is open
 cancels the pending edit. `textobject_range()` returns a range or `nil, error`
-without notifying, and accepts the same optional `{ bufnr, pos }` query options.
-`select_textobject()` selects in the current buffer and returns `true` or
-`false, error`.
+without notifying, and accepts optional `{ bufnr, pos, count }` query options.
+`count` defaults to `1` and must be a positive integer. `select_textobject()`
+selects in the current buffer, accepts an optional third `count` argument, and
+returns `true` or `false, error`. Lua APIs default to depth one independently
+of pending key counts. Custom mappings can pass `vim.v.count1` explicitly.
+For operator mappings, use the provided `<Plug>` entries to preserve undo
+and repeat state when no matching object exists.
 
 `insert_item()` returns `true` after inserting and entering Insert mode, or
 `false, error` without modifying the buffer or moving the cursor. Like the
@@ -454,7 +476,7 @@ Custom Normal-mode Lua mappings can pass `vim.v.count1` to retain count support.
 and work without `setup()`. Omitting the shape prompts; `true` then means the
 prompt opened. The pending edit targets the original buffer and is cancelled
 if that buffer changes. `textobject_range("delimiter", inner, opts)` accepts
-the same `{ bufnr, pos }` options as the other text objects.
+the same `{ bufnr, pos, count }` options as the other text objects.
 
 `rename_command(name)` and `surround_command(name, opts)` prompt when `name`
 is omitted. `surround_command()` accepts either a byte `range` or one-based
@@ -482,7 +504,7 @@ expanded.
 ## Roadmap
 
 1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
-2. **Implemented: Editing** — Command, argument, formula, and math bracket text objects; command renaming and surrounds; adding and removing surrounding environments; formula delimiter switching and math bracket editing/sizing; native dot repeat for cursor-based structural edits.
+2. **Implemented: Editing** — Counted environment, command, argument, formula, and math bracket text objects; command renaming and surrounds; adding and removing surrounding environments; formula delimiter switching and math bracket editing/sizing; native dot repeat for cursor-based structural edits.
 3. **In progress: Input** — Explicit `\item` insertion and optional context-aware Enter are implemented. Further input helpers should compose with existing snippet and pairs plugins.
 4. **Implemented: Navigation** — Section, same-level list-item, environment, and formula jumps with counts, jump history, and fold opening.
 
@@ -512,8 +534,8 @@ description labels, indentation, smart Enter splits/fallbacks, rapid repeated
 Enter input, section/list-item/environment/formula navigation, counted mappings, jump history,
 fold opening, command renaming/unwrapping, exact Visual command surrounds,
 math bracket matching, paired edits, automatic sizing, alignment and middle guards,
-syntax-boundary guards, native and counted dot repeat, native editing compatibility,
-and texlab request parameter encoding. texlab tests
+syntax-boundary guards, counted enclosing text objects, native and counted dot
+repeat, native editing compatibility, and texlab request parameter encoding. texlab tests
 use a client double and do not start a LaTeX compiler or PDF viewer. Verify
 actual builds and PDF navigation with your configured local toolchain.
 

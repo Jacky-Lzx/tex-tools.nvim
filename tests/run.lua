@@ -450,6 +450,8 @@ dofile('tests/navigation_structures.lua')({
   keys = keys,
 })
 
+dofile('tests/textobject_counts.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
+
 for _, entry in ipairs(tests) do
   local input, notify, get_clients, get_parser =
     vim.ui.input, vim.notify, vim.lsp.get_clients, vim.treesitter.get_parser

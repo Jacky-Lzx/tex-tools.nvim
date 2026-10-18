@@ -25,11 +25,19 @@ function M.group_node(node)
   end
 end
 
-function M.argument(opts)
+function M.argument(opts, count)
+  count = count or 1
   local node, err = ts.editable_node(opts)
   while node do
     if group(node) then
-      return group_ranges(node)
+      local object, message = group_ranges(node)
+      if not object then
+        return nil, message
+      end
+      count = count - 1
+      if count == 0 then
+        return object
+      end
     end
     node = node:parent()
   end
@@ -72,7 +80,8 @@ function M.command_node(node, bufnr)
     invalid and 'Command arguments are incomplete' or nil
 end
 
-function M.command(opts)
+function M.command(opts, count)
+  count = count or 1
   local node, err = ts.editable_node(opts)
   local pos = opts and opts.pos
   if not pos then
@@ -85,14 +94,18 @@ function M.command(opts)
       if message then
         return nil, message
       end
-      return object
+      count = count - 1
+      if count == 0 then
+        return object
+      end
     end
     node = node:parent()
   end
   return nil, err or 'No surrounding LaTeX command'
 end
 
-function M.math(opts)
+function M.math(opts, count)
+  count = count or 1
   local node, err = ts.editable_node(opts)
   while node do
     local kind = node:type()
@@ -107,21 +120,27 @@ function M.math(opts)
       end
       local _, _, sr, sc = first:range()
       local er, ec = last:range()
-      return {
-        node = node,
-        outer = ts.range(node),
-        inner = { sr, sc, er, ec },
-        opening = ts.range(first),
-        closing = ts.range(last),
-        delimiter = first:type(),
-      }
+      count = count - 1
+      if count == 0 then
+        return {
+          node = node,
+          outer = ts.range(node),
+          inner = { sr, sc, er, ec },
+          opening = ts.range(first),
+          closing = ts.range(last),
+          delimiter = first:type(),
+        }
+      end
     elseif require('tex-tools.context').is_math_environment(node, opts and opts.bufnr) then
       local environment = require('tex-tools.environment')
       local env, message = environment.from_node(node, ts.buffer(opts and opts.bufnr))
       if not env then
         return nil, message
       end
-      return { node = node, outer = ts.range(node), inner = environment.body_range(env) }
+      count = count - 1
+      if count == 0 then
+        return { node = node, outer = ts.range(node), inner = environment.body_range(env) }
+      end
     end
     node = node:parent()
   end

@@ -289,22 +289,6 @@ local function attach(bufnr)
         action('lsp', 'forward_search')
       end,
     },
-    {
-      { 'x', 'o' },
-      'ae',
-      'AroundEnvironment',
-      function()
-        action('textobjects', 'select_environment', false)
-      end,
-    },
-    {
-      { 'x', 'o' },
-      'ie',
-      'InsideEnvironment',
-      function()
-        action('textobjects', 'select_environment', true)
-      end,
-    },
   }
   for _, kind in ipairs({
     { 'Section', ']]', '[[' },
@@ -324,6 +308,7 @@ local function attach(bufnr)
     end
   end
   for _, object in ipairs({
+    { 'environment', 'e', 'Environment' },
     { 'command', 'c', 'Command' },
     { 'argument', 'a', 'Argument' },
     { 'math', '$', 'Math' },
@@ -335,14 +320,20 @@ local function attach(bufnr)
         variant[1] .. object[2],
         variant[2] .. object[3],
         function()
-          action('textobjects', 'select', object[1], variant[3])
+          return require('tex-tools.textobjects').mapping(object[1], variant[3], vim.v.count1)
         end,
+        expr = true,
       }
     end
   end
   for _, map in ipairs(maps) do
     local plug = '<Plug>(TexTools' .. map[3] .. ')'
-    vim.keymap.set(map[1], plug, map[4], { buffer = bufnr, silent = true, desc = 'tex-tools: ' .. map[3] })
+    local plug_options = { buffer = bufnr, silent = true, desc = 'tex-tools: ' .. map[3] }
+    if map.expr then
+      plug_options.expr = true
+      plug_options.replace_keycodes = false
+    end
+    vim.keymap.set(map[1], plug, map[4], plug_options)
     if require('tex-tools.config').options.mappings then
       -- Do not replace an existing global or buffer-local user mapping.
       vim.api.nvim_buf_call(bufnr, function()
@@ -457,8 +448,8 @@ end
 function M.textobject_range(kind, inner, opts)
   return require('tex-tools.textobjects').range(kind, inner, opts)
 end
-function M.select_textobject(kind, inner)
-  return require('tex-tools.textobjects').select(kind, inner)
+function M.select_textobject(kind, inner, count)
+  return require('tex-tools.textobjects').select(kind, inner, count)
 end
 function M.build()
   return require('tex-tools.lsp').build()

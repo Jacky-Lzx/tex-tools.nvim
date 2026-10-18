@@ -419,8 +419,7 @@ ae selects the innermost complete environment, including its begin/end
 markers. ie selects its body, excluding begin options and marker lines
 when the markers are on their own lines. An empty body cancels the operator.
 These are characterwise selections; both 'selection' settings and UTF-8
-characters are supported. document is included. Counts to select enclosing
-objects are not implemented yet.
+characters are supported. document is included.
 
 ac selects the innermost command call, including its syntax-owned arguments
 and options. ic selects the name, excluding the backslash and including a
@@ -442,6 +441,22 @@ id selects the body between its markers. See |tex-tools-math-brackets|.
 Command, argument, and formula objects skip comments and literal/code content.
 Incomplete argument/formula nodes are refused. Empty inner objects cancel the
 operator. All text objects support characterwise Visual/operator-pending mode.
+
+Counts select enclosing objects of the same kind at the current cursor.
+Depth 1 is the innermost object; depth 2 is the next enclosing object.
+Examples: v2ae, d2ac, y2ia, v2a$, and v2ad. Operator and text-object counts
+multiply: 2d2ac selects depth four. Do not advance to siblings.
+
+Curly and optional argument groups share depth. Inline/display formulas and
+named math environments share formula depth, including math_environments.
+Math brackets count both plain and left/right-sized pairs, stopping at the
+nearest formula or math environment. Empty inner objects still occupy a
+level; only the requested object's inner part must be nonempty.
+
+An unavailable depth or an invalid target cancels the entire operator, with
+no text/register changes. Failed default/Plug mappings also preserve undo
+history and the preceding native repeat. Successful operators keep native
+dot repeat and undo behavior. Existing syntax and context guards still apply.
 
 LUA API                                                 *tex-tools-api*
 
@@ -521,11 +536,16 @@ textobject_range(kind, inner [, opts])            *tex-tools.textobject_range()*
     inner is a boolean.
     Return {start_row, start_byte, end_row, end_byte} or nil, error, without
     notifying. Coordinates are zero-based and the end is exclusive. opts is
-    the same {bufnr, pos} table accepted by context queries.
+    a {bufnr, pos, count} table. bufnr/pos have the same meaning as in context
+    queries. count is a positive integer depth, default 1. opts is left unchanged.
 
-select_textobject(kind, inner)                  *tex-tools.select_textobject()*
+select_textobject(kind, inner [, count])         *tex-tools.select_textobject()*
     Select the text object in characterwise Visual mode in the current buffer.
+    count is a positive integer depth, default 1. Lua APIs do not read pending
+    key counts implicitly; custom mappings may pass vim.v.count1 explicitly.
     Return true or false, error. If no object is available, cancel the operator.
+    For operator mappings, use the provided <Plug> entries to preserve undo
+    and repeat state when no matching object exists. See |tex-tools-textobjects|.
 
 insert_item()                                         *tex-tools.insert_item()*
     Insert a sibling list item at the current list level, position the cursor,

@@ -88,7 +88,7 @@ end
 -- Inspect syntax tokens, never source text. Commands, groups, formulas, and
 -- environments are atomic, so a pair cannot straddle their argument boundaries.
 local function plain(scope, bufnr, pos)
-  local stack, found, uncertain, sized, previous_command = {}, nil, false, false, nil
+  local stack, found, uncertain, sized, previous_command = {}, {}, false, false, nil
   local function visit(node)
     local kind, value = node:type()
     if ts.comment_types[kind] then
@@ -123,7 +123,7 @@ local function plain(scope, bufnr, pos)
         if ts.contains(pair.outer, pos[1], pos[2]) then
           uncertain = uncertain or last.uncertain
           sized = sized or last.sized or size_commands[previous_command]
-          found = found or pair
+          found[#found + 1] = pair
         end
       else
         stack = {}
@@ -175,7 +175,8 @@ local function incomplete(node, range)
   return false
 end
 
-function M.current(opts)
+function M.current(opts, count)
+  count = count or 1
   local node, err = ts.editable_node(opts)
   if not node then
     return nil, err
@@ -204,23 +205,39 @@ function M.current(opts)
     local cursor = vim.api.nvim_win_get_cursor(0)
     pos = { cursor[1] - 1, cursor[2] }
   end
+  local seen = {}
+  local function candidate(pair)
+    -- Plain pairs can appear again through a text wrapper in the syntax tree.
+    local key = table.concat(pair.outer, ':')
+    if not seen[key] then
+      seen[key] = true
+      count = count - 1
+      return count == 0
+    end
+    return false
+  end
   while node do
     -- A sized pair owns its marker tokens; never reinterpret them as plain.
-    local pair, message = plain(node, bufnr, pos)
+    local pairs, message = plain(node, bufnr, pos)
     if message then
       return nil, message
     end
-    if pair then
+    for _, pair in ipairs(pairs) do
       if incomplete(node, pair.outer) then
         return nil, 'Math delimiter contents are incomplete'
       end
-      pair.node = node
-      return pair
+      if candidate(pair) then
+        pair.node = node
+        return pair
+      end
     end
     if node:type() == 'math_delimiter' then
       local sized, reason = automatic(node, bufnr)
-      if not sized or ts.contains(sized.outer, pos[1], pos[2]) then
-        return sized, reason
+      if not sized then
+        return nil, reason
+      end
+      if ts.contains(sized.outer, pos[1], pos[2]) and candidate(sized) then
+        return sized
       end
     end
     if

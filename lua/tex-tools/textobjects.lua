@@ -1,11 +1,38 @@
 local environment = require('tex-tools.environment')
+local ts = require('tex-tools.treesitter')
 local M = {}
+
+local function depth(opts)
+  local count = opts and opts.count
+  count = count == nil and 1 or count
+  if type(count) ~= 'number' or count < 1 or count == math.huge or count % 1 ~= 0 then
+    return nil, 'Count must be a positive integer'
+  end
+  return count
+end
 
 ---Return a zero-based, byte-column, end-exclusive environment range.
 function M.environment_range(inner, opts)
+  local count, message = depth(opts)
+  if not count then
+    return nil, message
+  end
   local env, err = environment.current(opts)
   if not env then
     return nil, err
+  end
+  for _ = 2, count do
+    local node = env.node:parent()
+    while node and not ts.environment(node) do
+      node = node:parent()
+    end
+    if not node then
+      return nil, 'Not enough enclosing LaTeX environments'
+    end
+    env, err = environment.from_node(node, env.bufnr)
+    if not env then
+      return nil, err
+    end
   end
   if not inner then
     return { env.node:range() }
@@ -20,11 +47,15 @@ function M.range(kind, inner, opts)
   if kind ~= 'command' and kind ~= 'argument' and kind ~= 'math' and kind ~= 'delimiter' then
     return nil, 'Unknown text object: ' .. tostring(kind)
   end
+  local count, message = depth(opts)
+  if not count then
+    return nil, message
+  end
   local object, err
   if kind == 'delimiter' then
-    object, err = require('tex-tools.delimiter').current(opts)
+    object, err = require('tex-tools.delimiter').current(opts, count)
   else
-    object, err = require('tex-tools.structure')[kind](opts)
+    object, err = require('tex-tools.structure')[kind](opts, count)
   end
   if not object then
     return nil, err
@@ -41,8 +72,8 @@ function M.range(kind, inner, opts)
   return range
 end
 
-function M.select(kind, inner)
-  local range, err = M.range(kind, inner)
+function M.select(kind, inner, count)
+  local range, err = M.range(kind, inner, { count = count })
   if not range then
     -- Cancel an operator instead of letting it consume a fallback motion.
     vim.api.nvim_feedkeys(vim.keycode('<Esc>'), 'n', false)
@@ -70,8 +101,24 @@ function M.select(kind, inner)
   return true
 end
 
-function M.select_environment(inner)
-  return M.select('environment', inner)
+function M.select_environment(inner, count)
+  return M.select('environment', inner, count)
+end
+
+---Expression mapping: cancel before a failed operator creates an empty edit.
+function M.mapping(kind, inner, count)
+  count = count == nil and 1 or count
+  local range, err = M.range(kind, inner, { count = count })
+  if not range then
+    vim.schedule_wrap(vim.notify)(err, vim.log.levels.WARN, { title = 'tex-tools' })
+    return vim.keycode('<Esc>')
+  end
+  -- Selection changes mode, so execute it after leaving expression textlock.
+  -- Re-query at execution. Native dot replays this RHS; read its live count
+  -- rather than freezing the initial depth into the recorded command.
+  return vim.keycode(
+    ('<Cmd>lua require("tex-tools.textobjects").select(%q, %s, vim.v.count1)<CR>'):format(kind, tostring(inner))
+  )
 end
 
 return M
