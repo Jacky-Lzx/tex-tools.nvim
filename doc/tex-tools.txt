@@ -58,6 +58,26 @@ COMMANDS                                                *tex-tools-commands*
     and literal content. Named math environments use the environment commands.
     Both delimiter changes belong to one undo operation.
 
+:TexToolsInsertItem                                     *:TexToolsInsertItem*
+    Insert a sibling \item after the entire current item, including its
+    continuation paragraphs and nested lists, then enter Insert mode.
+    Supported lists: itemize, enumerate, description. The nearest environment
+    must be one of these. The cursor must be in its body, not on its markers.
+    Description lists get \item[] with the cursor inside the empty label.
+    Other lists get \item followed by a space, ready for body text.
+
+    Reuse the current item's indentation. Empty whitespace-only lists get
+    their first item before the end marker, one shiftwidth past the begin
+    line's indentation, respecting expandtab/tabstop. Blank gaps select the
+    preceding item. No item is selected before the first item in a nonempty
+    list. Same-line item/end markers are split onto new lines when necessary.
+
+    Preserve existing body text and comments. Do not copy item labels/stars.
+    One undo removes the new marker and its immediately typed text together,
+    preserving text already typed in the preceding item.
+    Refuse comments, literal content, incomplete/mismatched lists, and
+    unmodifiable buffers. No Enter mapping is installed.
+
 :TexToolsBuild                                             *:TexToolsBuild*
     Save the current file with :update when modified, then send
     textDocument/build to its attached texlab client. A save failure stops
@@ -82,6 +102,10 @@ Default normal-mode mappings:
     <LocalLeader>le     <Plug>(TexToolsSurroundEnvironment)
     dse                 <Plug>(TexToolsUnwrapEnvironment)
     ts$                 <Plug>(TexToolsToggleMathDelimiters)
+    <LocalLeader>li     <Plug>(TexToolsInsertItem)
+
+Default Insert-mode mapping:
+    <LocalLeader>li     <Plug>(TexToolsInsertItem)
 
 Default Visual mapping:
     <LocalLeader>le     <Plug>(TexToolsSurroundEnvironment)
@@ -178,6 +202,13 @@ textobject_range(kind, inner [, opts])            *tex-tools.textobject_range()*
 select_textobject(kind, inner)                  *tex-tools.select_textobject()*
     Select the text object in characterwise Visual mode in the current buffer.
     Return true or false, error. If no object is available, cancel the operator.
+
+insert_item()                                         *tex-tools.insert_item()*
+    Insert a sibling list item at the current list level, position the cursor,
+    and enter Insert mode. For description lists, edit the empty label first.
+    Return true, or false, error without editing or moving the cursor. Does
+    not notify; the command and <Plug> mappings report errors to the user.
+    See |:TexToolsInsertItem| for scope and indentation behavior.
 
 build()                                                    *tex-tools.build()*
 forward_search()                                  *tex-tools.forward_search()*

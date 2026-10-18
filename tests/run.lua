@@ -432,11 +432,13 @@ test('texlab errors, empty responses and rejected requests are handled', functio
 end)
 
 dofile('tests/editing.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
+dofile('tests/list.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
 
 for _, entry in ipairs(tests) do
   local input, notify, get_clients, get_parser =
     vim.ui.input, vim.notify, vim.lsp.get_clients, vim.treesitter.get_parser
   local ok, err = xpcall(entry[2], debug.traceback)
+  vim.cmd.stopinsert()
   vim.ui.input, vim.notify, vim.lsp.get_clients, vim.treesitter.get_parser = input, notify, get_clients, get_parser
   vim.o.selection = 'inclusive'
   if ok then

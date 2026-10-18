@@ -64,6 +64,12 @@ local function attach(bufnr)
       end,
       { desc = 'Switch between dollar and backslash math delimiters' },
     },
+    TexToolsInsertItem = {
+      function()
+        action('list', 'insert')
+      end,
+      { desc = 'Insert a sibling LaTeX list item and enter Insert mode' },
+    },
     TexToolsBuild = {
       function()
         action('lsp', 'build')
@@ -81,6 +87,14 @@ local function attach(bufnr)
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
   local maps = {
+    {
+      { 'n', 'i' },
+      '<localleader>li',
+      'InsertItem',
+      function()
+        action('list', 'insert')
+      end,
+    },
     {
       'n',
       'dse',
@@ -256,6 +270,9 @@ function M.unwrap_environment()
 end
 function M.toggle_math_delimiters()
   return require('tex-tools.math').toggle_delimiters()
+end
+function M.insert_item()
+  return require('tex-tools.list').insert()
 end
 function M.textobject_range(kind, inner, opts)
   return require('tex-tools.textobjects').range(kind, inner, opts)

@@ -33,6 +33,28 @@ Command, argument, and formula objects follow the parser's structure and skip
 comments and literal content. Command objects include only arguments owned by
 the command node; selecting `\section{Title}` never includes its section body.
 
+## Phase 3: List input
+
+- Insert a sibling `\item` after the entire current item, including continuation paragraphs and nested lists.
+- Support `itemize`, `enumerate`, and `description`, preserving the current item's indentation.
+- Insert `\item[]` in a description list and enter Insert mode inside the empty label.
+- Create the first item in an empty list and split inline item/end markers when needed.
+
+Use `:TexToolsInsertItem` or `<localleader>li` in Normal or Insert mode. New items
+are inserted at the current list level, with the cursor ready for typing.
+Whitespace gaps use the preceding item. In a whitespace-only empty list, the
+first item is added before the end marker, indented by one `shiftwidth` from
+the begin line; `expandtab` and `tabstop` are respected.
+
+Place the cursor in the list body. List markers, comments, literal content,
+incomplete lists, and unsupported nearest environments cancel the operation.
+Before the first item of a nonempty list, no item is selected. Existing item
+labels and stars are not copied; surrounding text and comments are preserved.
+One undo removes the new marker and the text typed immediately into it, while
+preserving text previously typed in the old item.
+
+The operation is explicit; context-aware Enter behavior remains planned.
+
 ## Installation
 
 Requires **Neovim ≥ 0.11** and an installed **`latex` Tree-sitter parser**.
@@ -80,6 +102,7 @@ Set `mappings = false` to disable the defaults.
 - `<localleader>le` → `:[range]TexToolsSurroundEnvironment [name]`; wraps the current line in Normal mode or selected lines in Visual mode, prompting for a name.
 - `dse` → `:TexToolsUnwrapEnvironment`; removes both markers and begin options while preserving the body.
 - `ts$` → `:TexToolsToggleMathDelimiters`; switches between dollar and backslash delimiters, preserving inline/display mode.
+- `<localleader>li` (Normal / Insert) → `:TexToolsInsertItem`; inserts a sibling item and enters Insert mode in its body or description label.
 
 `ie` excludes the begin marker's optional arguments. When markers occupy their
 own lines, it also excludes the newlines surrounding the body. An empty body
@@ -108,6 +131,7 @@ You can also define your own `<Plug>` mappings:
 ```lua
 vim.keymap.set("n", "<leader>te", "<Plug>(TexToolsRenameEnvironment)")
 vim.keymap.set({ "x", "o" }, "aE", "<Plug>(TexToolsAroundEnvironment)")
+vim.keymap.set({ "n", "i" }, "<C-j>", "<Plug>(TexToolsInsertItem)")
 ```
 
 See [doc/tex-tools.txt](doc/tex-tools.txt) for all `<Plug>` names and API details.
@@ -163,6 +187,7 @@ tex.surround_environment("quote") -- current line
 tex.surround_environment("quote", { line1 = 2, line2 = 5 }) -- one-based, inclusive
 tex.unwrap_environment()
 tex.toggle_math_delimiters()
+tex.insert_item() -- insert a sibling list item and enter Insert mode
 tex.build()
 tex.forward_search()
 
@@ -188,6 +213,11 @@ without notifying, and accepts the same optional `{ bufnr, pos }` query options.
 `select_textobject()` selects in the current buffer and returns `true` or
 `false, error`.
 
+`insert_item()` returns `true` after inserting and entering Insert mode, or
+`false, error` without modifying the buffer or moving the cursor. Like the
+other editing APIs, it reports errors to its caller; commands and mappings
+display those errors as notifications.
+
 Example LuaSnip condition:
 
 ```lua
@@ -205,7 +235,7 @@ expanded.
 
 1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
 2. **Implemented: Editing** — Command, argument, and formula text objects; adding and removing surrounding environments; math delimiter switching.
-3. **Input** — Smart `\item` insertion, context-aware Enter behavior, and completion helpers that compose with existing snippet and pairs plugins.
+3. **In progress: Input** — Explicit smart `\item` insertion is implemented. Context-aware Enter behavior and completion helpers that compose with existing snippet and pairs plugins are planned.
 4. **Navigation** — Section and list-item motions and a table of contents, reusing texlab symbols and definitions where possible.
 
 Each phase is tested against the real parser. Parsing, LSP communication,
@@ -229,7 +259,8 @@ TEX_TOOLS_TEST_PARSER=/path/to/latex.so nvim --clean --headless -l tests/run.lua
 
 Tests cover context boundaries, environment editing, line and Visual surrounds,
 math delimiter round trips, undo, UTF-8 text objects, actual operator mappings,
-stale asynchronous prompts, and texlab request parameter encoding. texlab tests
+stale asynchronous prompts, nested list insertion, Normal/Insert-mode typing,
+description labels, indentation, and texlab request parameter encoding. texlab tests
 use a client double and do not start a LaTeX compiler or PDF viewer. Verify
 actual builds and PDF navigation with your configured local toolchain.
 
