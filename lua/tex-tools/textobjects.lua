@@ -51,6 +51,7 @@ function M.range(kind, inner, opts)
     and kind ~= 'delimiter'
     and kind ~= 'item'
     and kind ~= 'section'
+    and kind ~= 'cell'
   then
     return nil, 'Unknown text object: ' .. tostring(kind)
   end
@@ -59,7 +60,9 @@ function M.range(kind, inner, opts)
     return nil, message
   end
   local object, err
-  if kind == 'section' then
+  if kind == 'cell' then
+    object, err = require('tex-tools.table').current(opts, count)
+  elseif kind == 'section' then
     object, err = require('tex-tools.section').current(opts, count)
   elseif kind == 'delimiter' then
     object, err = require('tex-tools.delimiter').current(opts, count)

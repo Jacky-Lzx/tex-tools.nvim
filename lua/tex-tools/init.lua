@@ -315,6 +315,27 @@ local function attach(bufnr)
       }
     end
   end
+  for _, entry in ipairs({ { 'NextCell', 1 }, { 'PreviousCell', -1 } }) do
+    commands['TexTools' .. entry[1]] = {
+      function(args)
+        action('table', 'jump', entry[2], args.count)
+      end,
+      { count = 1, desc = 'Jump between table cells' },
+    }
+  end
+  for _, entry in ipairs({
+    { 'InsertRow', 'insert_row' },
+    { 'DeleteRow', 'delete_row' },
+    { 'InsertColumn', 'insert_column' },
+    { 'DeleteColumn', 'delete_column' },
+  }) do
+    commands['TexTools' .. entry[1]] = {
+      function()
+        action('table', 'edit', entry[2])
+      end,
+      { desc = 'Edit the surrounding table: ' .. entry[2] },
+    }
+  end
   for name, command in pairs(commands) do
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
@@ -561,6 +582,31 @@ local function attach(bufnr)
       end,
     },
   }
+  for _, entry in ipairs({ { 'NextCell', ']t', 1 }, { 'PreviousCell', '[t', -1 } }) do
+    maps[#maps + 1] = {
+      'n',
+      entry[2],
+      entry[1],
+      function()
+        action('table', 'jump', entry[3], vim.v.count1)
+      end,
+    }
+  end
+  for _, entry in ipairs({
+    { 'InsertRow', 'insert_row' },
+    { 'DeleteRow', 'delete_row' },
+    { 'InsertColumn', 'insert_column' },
+    { 'DeleteColumn', 'delete_column' },
+  }) do
+    maps[#maps + 1] = {
+      'n',
+      false,
+      entry[1],
+      function()
+        action('table', 'edit', entry[2])
+      end,
+    }
+  end
   for _, kind in ipairs({
     { 'Section', ']]', '[[' },
     { 'Item', ']i', '[i' },
@@ -586,6 +632,7 @@ local function attach(bufnr)
     { 'delimiter', 'd', 'MathDelimiter' },
     { 'item', 'i', 'Item' },
     { 'section', 'P', 'Section' },
+    { 'cell', 't', 'Cell' },
   }) do
     for _, variant in ipairs({ { 'a', 'Around', false }, { 'i', 'Inside', true } }) do
       maps[#maps + 1] = {
@@ -780,6 +827,12 @@ function M.jump_environment_start(direction, count)
 end
 function M.jump_math(direction, count)
   return require('tex-tools.navigation').math(direction, count)
+end
+function M.jump_cell(direction, count)
+  return require('tex-tools.table').jump(direction, count)
+end
+function M.table_edit(operation)
+  return require('tex-tools.table').edit(operation)
 end
 function M.textobject_range(kind, inner, opts)
   return require('tex-tools.textobjects').range(kind, inner, opts)

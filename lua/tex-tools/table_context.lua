@@ -105,7 +105,7 @@ local function index(node, env, bufnr)
       collect(child, tokens, bufnr)
     end
   end
-  local index = 1
+  local index, column_spec = 1, nil
   for _ = 1, math.max(1, required) do
     local range
     index, range = option(tokens, index)
@@ -121,18 +121,21 @@ local function index(node, env, bufnr)
         return false
       end
       local _, _, ar, ac = arg:range()
+      column_spec = ts.range(arg)
       sr, sc, index = ar, ac, index + 1
     end
   end
-  local excluded = {}
+  local excluded, boundaries = {}, {}
   for i = index, #tokens do
     local token = tokens[i]
     if token:type() == 'delimiter' then
       excluded[#excluded + 1] = ts.range(token)
+      boundaries[#boundaries + 1] = { kind = 'cell', range = ts.range(token) }
     end
     local command = ts.field(token, 'command')
     if command and rules[ts.text(command, bufnr)] then
       excluded[#excluded + 1] = ts.range(token)
+      boundaries[#boundaries + 1] = { kind = 'rule', range = ts.range(token) }
     end
     -- Flattened row-break command names have no command field of their own.
     local name = token:type() == 'command_name' and ts.text(token, bufnr)
@@ -155,6 +158,7 @@ local function index(node, env, bufnr)
         range[3], range[4] = spacing[3], spacing[4]
       end
       excluded[#excluded + 1] = range
+      boundaries[#boundaries + 1] = { kind = 'row', range = range }
     end
   end
   table.sort(excluded, function(a, b)
@@ -171,7 +175,32 @@ local function index(node, env, bufnr)
       merged[#merged + 1] = range
     end
   end
-  return { body = { sr, sc, er, ec }, excluded = merged }
+  return { body = { sr, sc, er, ec }, excluded = merged, boundaries = boundaries, column_spec = column_spec }
+end
+
+function M.structure(opts)
+  local node, err = ts.editable_node(opts)
+  local ancestor = node
+  while ancestor do
+    if ancestor:type():match('_definition$') then
+      return nil, 'No table editing in definitions'
+    end
+    ancestor = ancestor:parent()
+  end
+  while node and not ts.environment(node) do
+    node = node:parent()
+  end
+  if not node or node:has_error() then
+    return nil, err or 'No complete surrounding table or alignment'
+  end
+  local bufnr = ts.buffer(opts and opts.bufnr)
+  local env, message = environment.from_node(node, bufnr)
+  local result = env and index(node, env, bufnr)
+  if not result then
+    return nil, message or 'The nearest environment is not a supported table or alignment'
+  end
+  result.env = env
+  return result
 end
 
 function M.in_cell(opts)

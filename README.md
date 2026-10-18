@@ -397,3 +397,29 @@ and `column` in its data, allowing your configuration to focus a terminal.
 `:checkhealth tex-tools` now also reports compiler/viewer executables, the
 current main file, artifact/SyncTeX paths, and the existing RPC address. The
 health check does not compile, open a PDF or start an RPC server.
+
+### Tables and matrices
+
+`]t` / `[t` jump to the next/previous cell, across rows, with counts and jump
+history. `at` / `it` select a cell with/without surrounding whitespace; separators
+are excluded. Nested groups, commands, formulas and environments stay atomic.
+These operations use the nearest supported table/alignment environment, including
+`tabular`, `array`, matrices, `cases`, and `align` variants. Cell objects accept
+count 1; empty inner cells cancel the operator. Existing mappings are preserved.
+
+`:TexToolsInsertRow` inserts an empty row after the current row;
+`:TexToolsDeleteRow` removes it. `:TexToolsInsertColumn` inserts after the current
+column; `:TexToolsDeleteColumn` removes that column from every row. Column edits
+support tables/arrays with plain `l/c/r/X` preambles and matrix environments;
+they update the preamble and preserve row-break spacing options. An inserted
+column copies the current column's alignment. Rows must have equal cell counts,
+each on a separate source line. Edits refuse comments, rules, spans, nested
+environments and removal of the only row/column. Column edits refuse complex
+preambles and alignment environments. Navigation and objects remain available
+for more complex tables. Row/column edits support dot repeat and one-step undo.
+
+Lua: `jump_cell(direction, count?)`, `table_edit('insert_row'|'delete_row'|
+'insert_column'|'delete_column')`, and `textobject_range('cell', inner, opts?)`.
+All actions also have `<Plug>(TexToolsNextCell)`, `PreviousCell`, `InsertRow`,
+`DeleteRow`, `InsertColumn`, `DeleteColumn`, `AroundCell`, and `InsideCell`
+counterparts; editing commands have no default keys.

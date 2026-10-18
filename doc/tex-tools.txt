@@ -583,3 +583,35 @@ The User TexToolsInverseSearch event supplies file/line/column data. External
 terminal activation can be configured on that event; it is not automatic.
 
 vim:tw=78:ts=4:ft=help:norl:
+
+TABLES AND MATRICES                                     *tex-tools-tables*
+
+:[count]TexToolsNextCell                            *:TexToolsNextCell*
+:[count]TexToolsPreviousCell                        *:TexToolsPreviousCell*
+    ]t / [t traverse cells across rows. Counts, jump history and fold opening
+    are supported. Nested groups/commands/formulas/environments are atomic.
+    No wrapping occurs; unavailable counts leave the cursor unchanged.
+    at / it select a cell with/without whitespace, excluding separators.
+    Empty inner cells and counts other than 1 cancel the operator.
+:TexToolsInsertRow                                 *:TexToolsInsertRow*
+:TexToolsDeleteRow                                 *:TexToolsDeleteRow*
+    Insert an empty row after the cursor's row, or delete that row.
+:TexToolsInsertColumn                              *:TexToolsInsertColumn*
+:TexToolsDeleteColumn                              *:TexToolsDeleteColumn*
+    Insert after the current column (copying its alignment), or remove the
+    column from every row. Update plain l/c/r/X table/array preambles.
+    Matrix environments need no preamble. Alignment/cases column edits fail.
+
+Row/column edits require equal-width rows, each on a dedicated source line.
+Comments, rule commands, spans and nested environments are refused. The only
+row/column cannot be deleted. Complex preambles refuse column edits. Row-break
+options are preserved. Edits support dot repeat and one-step undo.
+Navigation/objects use the environments listed at in_table_cell(), with the
+nearest supported environment taking precedence; they accept complex content.
+
+Lua: jump_cell(direction [, count]), table_edit(operation), and
+textobject_range('cell', inner [, opts]). operation is insert_row, delete_row,
+insert_column, or delete_column. Return conventions match other editing APIs.
+Plug names: TexToolsNextCell, TexToolsPreviousCell, TexToolsInsertRow,
+TexToolsDeleteRow, TexToolsInsertColumn, TexToolsDeleteColumn,
+TexToolsAroundCell, TexToolsInsideCell. No default row/column edit keys.
