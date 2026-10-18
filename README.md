@@ -241,7 +241,7 @@ vim.opt.conceallevel = 2
 vim.opt.concealcursor = "nc"
 ```
 
-`conceal = true` enables these eight categories. Pass a table to disable any
+`conceal = true` enables these nine categories. Pass a table to disable any
 category, for example `conceal = { cites = false, styles = false }`.
 
 | Option | Examples |
@@ -254,6 +254,7 @@ category, for example `conceal = { cites = false, styles = false }`.
 | `math_bounds` | Hide matched `$…$`, `$$…$$`, `\(…\)`, `\[…\]` markers |
 | `math_delimiters` | Hide bracket sizing commands; `\langle` → ⟨ |
 | `styles` | Hide supported formatting wrappers such as `\textbf{…}` |
+| `math_symbols` | Math-only symbols: `\alpha` → α, `\times` → ×, `\leq` → ≤ |
 
 The feature loads on demand, scans visible source lines, and caches decorations
 between edits and viewport changes. Expensive Tree-sitter parses yield, keeping
@@ -262,14 +263,34 @@ options are preserved. Comments, verbatim/code environments, inline verbatim,
 macro definitions, paths, labels, and citation keys retain their source spelling.
 Styles keep the original contents and colors; they do not emulate TeX fonts.
 Accents support single ASCII letters with a precomposed Unicode equivalent.
-Citation notes are hidden; keys remain visible. Greek letters, general math
-symbols, fractions, scripts, section headings, and custom macro expansion are
-outside these eight categories. Unrecognized constructs retain their source.
+Citation notes are hidden; keys remain visible. Fractions, scripts, section
+headings and custom macro expansion retain their source. Unrecognized math
+commands also remain visible.
 
 Requires the `latex` parser but does not start a Tree-sitter highlighter. Disable
 VimTeX's conceal rules or legacy TeX syntax conceal when using this renderer to
 avoid overlapping replacements. `conceal = false` (the default), or
 `conceal = { enabled = false }`, disables it; missing parsers leave source visible.
+
+Math symbols use an explicit whitelist of Greek letters, operators, relations,
+sets, arrows and large operators. Scripts/limits and arguments remain source
+text. Symbols are concealed only in math, including nested formulas inside
+`\text{...}`. Ordinary text and the text parts of formulas remain unchanged.
+Customize bare control-word names with one printable Unicode character, or
+`false` to disable one entry:
+
+```lua
+require("tex-tools").setup({
+  conceal = {
+    math_symbols = true,
+    symbols = { alpha = "Α", beta = false, RR = "ℝ" },
+  },
+})
+```
+
+`math_symbols = false` disables built-in and custom math symbols. Custom entries
+replace only the command itself; they do not expand arguments or definitions.
+The built-in whitelist is in `lua/tex-tools/conceal_symbols.lua`.
 
 ## Context queries
 

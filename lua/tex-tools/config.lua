@@ -57,7 +57,7 @@ local function validate_profiles(profiles)
 end
 
 local conceal_categories =
-  { 'accents', 'ligatures', 'cites', 'fancy', 'spacing', 'math_bounds', 'math_delimiters', 'styles' }
+  { 'accents', 'ligatures', 'cites', 'fancy', 'spacing', 'math_bounds', 'math_delimiters', 'styles', 'math_symbols' }
 
 function M.setup(opts)
   opts = opts or {}
@@ -95,13 +95,27 @@ function M.setup(opts)
   vim.validate('conceal', options.conceal, { 'boolean', 'table' })
   if options.conceal ~= false then
     local conceal = type(options.conceal) == 'table' and options.conceal or {}
-    local normalized = { enabled = true }
+    local normalized = { enabled = true, symbols = {} }
     for _, category in ipairs(conceal_categories) do
       normalized[category] = true
     end
     for name, value in pairs(conceal) do
       assert(normalized[name] ~= nil, 'Unknown conceal option: ' .. tostring(name))
-      vim.validate('conceal.' .. name, value, 'boolean')
+      if name == 'symbols' then
+        vim.validate('conceal.symbols', value, 'table')
+        for command, glyph in pairs(value) do
+          assert(
+            type(command) == 'string' and command:match('^[A-Za-z@]+$'),
+            'conceal.symbols keys must be literal command names without a backslash'
+          )
+          assert(
+            glyph == false or (type(glyph) == 'string' and not glyph:find('%c') and vim.fn.strchars(glyph) == 1),
+            'conceal.symbols values must be one printable Unicode character or false'
+          )
+        end
+      else
+        vim.validate('conceal.' .. name, value, 'boolean')
+      end
       normalized[name] = value
     end
     options.conceal = normalized.enabled and normalized or false

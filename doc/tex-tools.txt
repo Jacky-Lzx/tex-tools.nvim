@@ -42,12 +42,26 @@ conceal=false (default) or conceal={enabled=false} disables the renderer.
     styles           Hide wrappers of common text/math formatting commands
                      (textbf, emph, textit, mathrm, mathbf, text, ...), keeping
                      their body and existing colors. Does not emulate fonts.
+    math_symbols     Whitelisted Greek letters, operators, relations, sets,
+                     arrows and large operators: \alpha -> α, \times -> ×.
 
-No Greek/general math-symbol, fraction, script, or section conceal is provided.
+Fractions, scripts and section headings retain source text.
 Custom macro expansion is not inferred. Unknown/unsupported constructs remain
 visible. Text accents/ligatures are disabled in math except within \text{...}.
 Comments, literal/code environments, inline verbatim, definitions, paths, labels,
 and citation-key spelling are protected. Citation notes are hidden by cites.
+
+Math symbols are math-only; text mode suppresses them, while nested formulas
+inside text start a new math context. Scripts, limits and arguments remain
+source. Set conceal.math_symbols=false to disable built-in/custom symbols.
+conceal.symbols maps bare command names (ASCII letters/@, no backslash) to one
+printable Unicode character, or false to disable an entry. Example: >lua
+    require('tex-tools').setup({
+      conceal = { symbols = { alpha = 'Α', beta = false, RR = 'ℝ' } },
+    })
+<
+Custom mappings replace the command itself without expanding its arguments.
+The built-in whitelist is lua/tex-tools/conceal_symbols.lua.
 
 The module loads only when enabled. Decorations are ephemeral and cached per
 window for visible source lines; buffer text, syntax and highlight queries are

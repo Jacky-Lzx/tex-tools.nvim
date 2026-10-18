@@ -71,7 +71,8 @@ return function(h)
     { 'sized and invisible delimiters', [=[$\bigl(a\bigr) + \left.x\right| + \{z\}$]=], '(a) + x| + {z}' },
     { 'styles', [=[\textbf{bold \emph{nested}} $\mathrm{abc}$]=], 'bold nested abc' },
     { 'UTF-8 byte columns', [=[é --- \textit{ö \ae{}}]=], 'é — ö æ' },
-    { 'math source stays intact', [=[$x_i^2 -- \alpha + \frac{a}{b}$]=], 'x_i^2 -- \\alpha + \\frac{a}{b}' },
+    { 'scripts and fractions stay intact', [=[$x_i^2 -- \alpha + \frac{a}{b}$]=], 'x_i^2 -- α + \\frac{a}{b}' },
+    { 'math symbols', [=[$\alpha \Gamma \times \leq \infty \to \sum_i$]=], 'α Γ × ≤ ∞ → ∑_i' },
     { 'nested text in math', [=[$x + \text{``words'' ---} + y$]=], 'x + “words” — + y' },
   }) do
     check(case[1] .. ' renders without changing source', function()
@@ -125,11 +126,12 @@ return function(h)
       fancy = [=[\dots]=],
       spacing = [=[\quad]=],
       math_bounds = '$x$',
+      math_symbols = [=[$\alpha$]=],
       math_delimiters = [=[$\left(x\right)$]=],
       styles = [=[\textbf{b}]=],
     }) do
       local options = { [name] = false }
-      if name == 'math_delimiters' then
+      if name == 'math_delimiters' or name == 'math_symbols' then
         options.math_bounds = false
       end
       fixture(source, options)
@@ -263,6 +265,56 @@ return function(h)
     if not ok then
       error(err)
     end
+  end)
+
+  check('symbol overrides, disabling and reconfiguration keep their source', function()
+    local source = [=[$\alpha \beta \RR \unknown$]=]
+    fixture(source, { symbols = { alpha = 'Α', beta = false, RR = 'ℝ' } })
+    eq([=[Α \beta ℝ \unknown]=], screen(1))
+    eq(source, h.content())
+    tex.setup({ conceal = { math_symbols = false, symbols = { RR = 'ℝ' } } })
+    eq([=[\alpha \beta \RR \unknown]=], screen(1))
+    tex.setup({ conceal = true })
+    eq([=[α β \RR \unknown]=], screen(1))
+  end)
+
+  check('symbols require math context and exact control words', function()
+    fixture([=[\alpha $\alpha + \alphabet + \text{\beta $\gamma$}$]=])
+    eq([=[\alpha α + \alphabet + \beta γ]=], screen(1))
+    fixture('\\begin{align}\n\\alpha & = \\beta\n\\end{align}')
+    eq('α & = β', screen(2))
+  end)
+
+  check('symbols protect comments, definitions, paths, citations and inline verbatim', function()
+    for _, source in ipairs({
+      [=[% $\alpha$]=],
+      [=[\newcommand{\foo}{$\alpha$}]=],
+      [=[\def\foo{$\alpha$}]=],
+      [=[\verb|$\alpha$|]=],
+      [=[\begin{verbatim}$\alpha$\end{verbatim}]=],
+      [=[\url{\alpha}]=],
+      [=[\label{\alpha}]=],
+    }) do
+      fixture(source)
+      eq(source, screen(1))
+    end
+  end)
+
+  check('symbol mappings reject malformed names and glyphs', function()
+    for _, symbols in ipairs({
+      { ['\\alpha'] = 'α' },
+      { ['frac{x}'] = '½' },
+      { [1] = 'α' },
+      { alpha = '' },
+      { alpha = 'ab' },
+      { alpha = true },
+      { alpha = '\n' },
+      { alpha = {} },
+    }) do
+      eq(false, pcall(tex.setup, { conceal = { symbols = symbols } }))
+    end
+    eq(false, pcall(tex.setup, { conceal = { symbols = false } }))
+    eq(false, pcall(tex.setup, { conceal = { math_symbols = 1 } }))
   end)
 
   check('configuration rejects unknown or nonboolean categories', function()

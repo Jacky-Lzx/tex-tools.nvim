@@ -191,6 +191,7 @@ end
 -- every sibling of large source_file/text nodes. Cached results contain no TSNodes.
 local function collect(bufnr, root, top, bottom, options)
   local accents = options.accents and require('tex-tools.conceal_accents') or {}
+  local symbols = options.math_symbols and require('tex-tools.conceal_symbols') or {}
   local marks, occupied, processed, containers = {}, {}, {}, {}
   local lines = vim.api.nvim_buf_get_lines(bufnr, top, bottom, false)
   local function add(sr, sc, er, ec, replacement)
@@ -328,6 +329,14 @@ local function collect(bufnr, root, top, bottom, options)
                 replacement = ligatures[bare]
                 if tail:sub(1, 2) == '{}' then
                   consumed = consumed + 2
+                end
+              elseif options.math_symbols and info.math and (options.symbols[name] ~= nil or symbols[name]) then
+                local glyph = options.symbols[name]
+                if glyph == nil then
+                  glyph = symbols[name]
+                end
+                if glyph ~= false then
+                  replacement = glyph
                 end
               elseif options.math_delimiters and info.math and sizes[bare] then
                 local whitespace = tail:match('^%s*')
