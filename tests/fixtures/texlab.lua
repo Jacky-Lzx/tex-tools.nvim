@@ -8,6 +8,27 @@ local function notify(method, params)
   send({ jsonrpc = '2.0', method = method, params = params })
 end
 local opened = {}
+local settings = {}
+local pull = vim.env.TEX_TOOLS_FIXTURE_PULL == '1'
+local pending, queries, next_id = {}, {}, 1000
+local function pull_settings()
+  next_id = next_id + 1
+  pending[next_id] = true
+  send({
+    jsonrpc = '2.0',
+    id = next_id,
+    method = 'workspace/configuration',
+    params = { items = { { section = 'texlab' } } },
+  })
+end
+local function flush_queries()
+  if next(pending) == nil then
+    for _, id in ipairs(queries) do
+      send({ jsonrpc = '2.0', id = id, result = settings })
+    end
+    queries = {}
+  end
+end
 while true do
   local length
   while true do
@@ -37,8 +58,23 @@ while true do
         },
       },
     })
+  elseif message.method == 'initialized' and pull then
+    pull_settings()
+  elseif message.method == nil and pending[message.id] then
+    pending[message.id] = nil
+    settings = { texlab = message.result and message.result[1] or vim.NIL }
+    flush_queries()
   elseif message.method == 'textDocument/didOpen' then
     opened[message.params.textDocument.uri] = true
+  elseif message.method == 'workspace/didChangeConfiguration' then
+    if pull then
+      pull_settings()
+    else
+      settings = message.params.settings
+    end
+  elseif message.method == 'tex-tools/fixtureSettings' then
+    queries[#queries + 1] = message.id
+    flush_queries()
   elseif message.method == 'workspace/executeCommand' and message.params.command:match('^texlab%.clean') then
     local uri = message.params.arguments[1].uri
     if opened[uri] then

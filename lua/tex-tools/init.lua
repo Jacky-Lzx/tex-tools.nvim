@@ -183,6 +183,22 @@ local function attach(bufnr)
       end,
       { desc = 'Show compilation status and automatic build setting' },
     },
+    TexToolsCompiler = {
+      function(args)
+        action('compiler', 'command', args.args ~= '' and args.args or nil)
+      end,
+      {
+        nargs = '?',
+        complete = function(lead)
+          local names = require('tex-tools.compiler').names()
+          names[#names + 1] = 'toggle'
+          return vim.tbl_filter(function(name)
+            return name:sub(1, #lead) == lead
+          end, names)
+        end,
+        desc = 'Show or switch the attached texlab compiler profile',
+      },
+    },
     TexToolsBuildOutput = {
       function()
         action('build_output', 'open')

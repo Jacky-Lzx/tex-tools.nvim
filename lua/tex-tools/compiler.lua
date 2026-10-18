@@ -97,4 +97,15 @@ function M.select(name)
   return true, M.snapshot(client)
 end
 
+function M.command(name)
+  local ok, snapshot = M.select(name)
+  if not ok then
+    return false, snapshot
+  end
+  local label = snapshot.profile and (snapshot.profile .. ' (' .. snapshot.executable .. ')')
+    or (snapshot.executable .. ' (texlab settings)')
+  vim.notify('Compiler: ' .. label, vim.log.levels.INFO, { title = 'tex-tools' })
+  return true, snapshot
+end
+
 return M

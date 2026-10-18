@@ -262,4 +262,159 @@ return function(h)
       eq(true, rawequal(original, require('tex-tools.config').options))
     end
   end)
+
+  check('buffer commands show current settings, switch, complete names and report errors', function()
+    local client, notifications = fixture()
+    local messages = {}
+    vim.notify = function(message, level)
+      messages[#messages + 1] = { message, level }
+    end
+    vim.cmd.TexToolsCompiler()
+    eq(true, messages[#messages][1]:find('custom-wrapper (texlab settings)', 1, true) ~= nil)
+    eq(0, #notifications)
+    eq({ 'tectonic' }, vim.fn.getcompletion('TexToolsCompiler te', 'cmdline'))
+    eq({ 'toggle' }, vim.fn.getcompletion('TexToolsCompiler tog', 'cmdline'))
+    eq({ 'latexmk', 'tectonic', 'toggle' }, vim.fn.getcompletion('TexToolsCompiler ', 'cmdline'))
+    vim.cmd.TexToolsCompiler('tectonic')
+    eq('tectonic', tex.build_status().profile)
+    eq(true, messages[#messages][1]:find('tectonic (', 1, true) ~= nil)
+    vim.cmd.TexToolsBuildStatus()
+    eq(true, messages[#messages][1]:find('[profile: tectonic]', 1, true) ~= nil)
+    vim.cmd.TexToolsCompiler('toggle')
+    eq('latexmk', tex.build_status().profile)
+    vim.cmd.TexToolsCompiler('missing')
+    eq(vim.log.levels.WARN, messages[#messages][2])
+    eq('latexmk', tex.build_status().profile)
+    eq(2, #notifications)
+    manager.state(client).cleaning = true
+    vim.cmd.TexToolsCompiler('tectonic')
+    eq(vim.log.levels.WARN, messages[#messages][2])
+    eq(2, #notifications)
+  end)
+
+  check('switching changes log discovery and chooses the matching cleanup backend', function()
+    local client = fixture()
+    profiles.latexmk.args = { '-pdf', '-outdir=latexmk-out', '%f' }
+    profiles.latexmk.auxDirectory = 'latexmk-out'
+    profiles.latexmk.logDirectory = 'latexmk-out'
+    profiles.latexmk.pdfDirectory = 'latexmk-out'
+    profiles.tectonic.args = { '-X', 'compile', '%f', '--outdir', 'tectonic-out' }
+    profiles.tectonic.auxDirectory = 'tectonic-out'
+    profiles.tectonic.logDirectory = 'tectonic-out'
+    profiles.tectonic.pdfDirectory = 'tectonic-out'
+    tex.setup({ build = { profiles = profiles } })
+    local source = vim.api.nvim_get_current_buf()
+    for _, path in ipairs({ 'latexmk-out', 'tectonic-out' }) do
+      vim.fn.mkdir(directory .. '/' .. path)
+      vim.fn.writefile({ path .. ' log' }, directory .. '/' .. path .. '/main.log')
+      vim.fn.writefile({ 'PDF' }, directory .. '/' .. path .. '/main.pdf')
+    end
+    local calls = {}
+    function client:request(method, params, callback)
+      calls[#calls + 1] = { method, params }
+      callback(nil)
+      return true, #calls
+    end
+    local ok, err = xpcall(function()
+      eq(true, tex.compiler('latexmk'))
+      eq({ true, directory .. '/latexmk-out/main.log' }, { tex.build_log() })
+      vim.cmd.close()
+      vim.api.nvim_set_current_buf(source)
+      eq(true, tex.clean())
+      eq('texlab.cleanAuxiliary', calls[1][2].command)
+      eq(true, tex.compiler('tectonic'))
+      eq({ true, directory .. '/tectonic-out/main.log' }, { tex.build_log() })
+      vim.cmd.close()
+      vim.api.nvim_set_current_buf(source)
+      eq({ true, 1 }, { tex.clean() })
+      eq(1, #calls)
+      eq(0, vim.fn.filereadable(directory .. '/tectonic-out/main.log'))
+      eq(1, vim.fn.filereadable(directory .. '/latexmk-out/main.log'))
+      eq({ true, 1 }, { tex.clean(true) })
+      eq(0, vim.fn.filereadable(directory .. '/tectonic-out/main.pdf'))
+      eq(1, vim.fn.filereadable(directory .. '/latexmk-out/main.pdf'))
+    end, debug.traceback)
+    vim.cmd('silent! only!')
+    if not ok then
+      error(err)
+    end
+  end)
+
+  check('real LSP configuration pull reads each profile and clears old overrides before building', function()
+    local bufnr = h.buffer('\\documentclass{article}')
+    vim.api.nvim_buf_set_name(bufnr, directory .. '/main.tex')
+    vim.fn.writefile({ '\\documentclass{article}' }, directory .. '/main.tex')
+    vim.bo.modified = false
+    vim.notify = function() end
+    profiles.latexmk.logDirectory = 'old-logs'
+    profiles.latexmk.filename = 'old.pdf'
+    tex.setup({ build = { profiles = profiles } })
+    local id = vim.lsp.start({
+      name = 'texlab',
+      root_dir = directory,
+      settings = {
+        texlab = { build = { onSave = false, forwardSearchAfter = true }, forwardSearch = { executable = 'viewer' } },
+      },
+      handlers = { ['window/logMessage'] = function() end },
+      cmd_env = { TEX_TOOLS_FIXTURE_PULL = '1' },
+      cmd = {
+        vim.fn.exepath('nvim'),
+        '--clean',
+        '--headless',
+        '-i',
+        'NONE',
+        '-l',
+        vim.fn.getcwd() .. '/tests/fixtures/texlab.lua',
+      },
+    })
+    local client = assert(vim.lsp.get_client_by_id(id))
+    local ok, err = xpcall(function()
+      eq(
+        true,
+        vim.wait(3000, function()
+          return client.initialized and vim.lsp.buf_is_attached(bufnr, id)
+        end)
+      )
+      for _, name in ipairs({ 'latexmk', 'tectonic' }) do
+        eq(true, tex.compiler(name))
+        local response, rpc_error
+        eq(
+          true,
+          client:request('tex-tools/fixtureSettings', {}, function(error, result)
+            rpc_error, response = error, result
+          end, bufnr)
+        )
+        eq(
+          true,
+          vim.wait(3000, function()
+            return response ~= nil or rpc_error ~= nil
+          end)
+        )
+        eq(nil, rpc_error)
+        eq(profiles[name].executable, response.texlab.build.executable)
+        eq(profiles[name].args, response.texlab.build.args)
+        eq(profiles[name].logDirectory, response.texlab.build.logDirectory)
+        eq(profiles[name].filename, response.texlab.build.filename)
+        eq(false, response.texlab.build.onSave)
+        eq(true, response.texlab.build.forwardSearchAfter)
+        eq('viewer', response.texlab.forwardSearch.executable)
+        eq(true, tex.build())
+        eq(
+          true,
+          vim.wait(3000, function()
+            return manager.snapshot(client).phase == 'failed'
+          end)
+        )
+        eq(name, tex.build_status().profile)
+        eq({ 'compiler output: line one', 'compiler output: line two' }, manager.state(client).output_lines)
+      end
+    end, debug.traceback)
+    client:stop(true)
+    vim.wait(1000, function()
+      return vim.lsp.get_client_by_id(id) == nil
+    end)
+    if not ok then
+      error(err)
+    end
+  end)
 end

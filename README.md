@@ -111,6 +111,67 @@ the compiler and other texlab settings are preserved.
 compiler's result. Automatic builds without an explicit response report
 `finished`; their diagnostics provide error details. Native LSP progress handling
 remains available to statuslines and progress plugins.
+The snapshot also includes the currently configured `compiler` executable and,
+when settings match a configured profile, its `profile` name.
+
+### Compiler profiles
+
+Define optional profiles in the plugin configuration:
+
+```lua
+require("tex-tools").setup({
+  build = {
+    profiles = {
+      latexmk = {
+        executable = "latexmk",
+        args = {
+          "-pdf", "-synctex=1", "-interaction=nonstopmode",
+          "-file-line-error", "%f",
+        },
+      },
+      tectonic = {
+        executable = "tectonic",
+        args = {
+          "-X", "compile", "%f", "--synctex",
+          "--keep-logs", "--keep-intermediates",
+        },
+      },
+    },
+  },
+})
+```
+
+Use `:TexToolsCompiler latexmk`, `:TexToolsCompiler tectonic`, or
+`:TexToolsCompiler toggle`. With no argument, the command shows the current
+profile and executable. Profile names support completion. `toggle` cycles names
+in alphabetical order, starting with the first when current settings match none.
+For XeLaTeX, define another profile with latexmk's `-xelatex` instead of `-pdf`.
+
+Profiles default to `{}`. Loading or repeating `setup()` does not select a
+compiler; your existing texlab configuration remains the startup default.
+Switching updates the attached client's settings without restarting texlab or
+starting a build. It affects every buffer sharing that client for the current
+session; it does not persist changes to your configuration files.
+
+Each profile requires `executable` and a string list `args`. Optional fields are
+`auxDirectory`, `logDirectory`, `pdfDirectory`, and `filename` (a basename).
+Switching replaces the entire argument list and clears any of these four
+overrides omitted by the new profile. Put shared output overrides in every
+profile that needs them. Directory settings tell texlab where to find artifacts;
+also set the compiler's output arguments as needed. These settings are used by
+the existing log and cleanup commands. Other texlab settings, including
+`onSave`, `forwardSearchAfter`, and PDF forward search, are preserved.
+
+Switching requires an available local executable and refuses an active build or
+cleanup. A failed configuration notification restores local settings. The LSP
+notification has no server acknowledgement: success means the update was sent;
+texlab applies it asynchronously. Lua:
+`require("tex-tools").compiler(name?)` returns `true, snapshot` or `false, error`;
+omit `name` to query. The snapshot contains `profile` (when matched), `executable`,
+`args` (when explicitly set), and the sorted available `profiles` names. No
+default key mapping is installed for compiler switching.
+
+### Output and cleanup
 
 `:TexToolsBuildOutput` opens bounded live compiler output without replacing
 existing LSP log handlers. In that window, `q` closes it and `F` toggles following
@@ -227,4 +288,6 @@ nvim --clean --headless -l tests/run.lua
 ```
 
 Set `TEX_TOOLS_TEST_PARSER=/path/to/latex.so` if the parser is outside Neovim's
-runtime path. Tests use the real parser and a texlab client double.
+runtime path. Tests use the real parser, texlab client doubles, temporary
+artifact directories, and a stdio LSP fixture. Running actual compiler binaries
+requires your local toolchain.

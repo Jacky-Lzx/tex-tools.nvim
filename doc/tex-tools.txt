@@ -178,7 +178,9 @@ the target buffer while a prompt is open invalidates the pending operation.
 :TexToolsCancelAllBuilds                            *:TexToolsCancelAllBuilds*
     Send cancellation to every running texlab server instance.
 :TexToolsBuildStatus                               *:TexToolsBuildStatus*
-    Show compilation state, elapsed time and the build-on-save setting.
+    Show compilation state, elapsed time, build-on-save and the current
+    compiler executable/profile. Compilation state describes the last build;
+    compiler/profile describe the current configuration for subsequent builds.
 :TexToolsBuildOnSave [on|off|toggle]                 *:TexToolsBuildOnSave*
     Change build.onSave for the attached client's current session. No argument
     toggles the setting. Other compiler settings remain intact.
@@ -194,6 +196,68 @@ Lua: cancel_build(), cancel_all_builds(), build_on_save([boolean]) return
 boolean[, result_or_error]. build_status() returns a copy with phase, uri,
 on_save, result (when known), elapsed seconds, and error (when available), or
 nil, error if no texlab client is attached. These functions need no setup().
+build_status() also includes compiler (current executable) and profile (name
+when current settings match a configured profile).
+
+COMPILER PROFILES                                       *tex-tools-compiler-profiles*
+
+:TexToolsCompiler [name|toggle]                     *:TexToolsCompiler*
+    Without arguments show the current compiler and matched profile. With a
+    name, switch the attached texlab client's configuration. toggle cycles
+    profile names alphabetically; unmatched settings start at the first name.
+    Names and toggle support command completion. No default mapping is added.
+
+Define build.profiles in setup() (default {}): >lua
+    require('tex-tools').setup({
+      build = {
+        profiles = {
+          latexmk = {
+            executable = 'latexmk',
+            args = { '-pdf', '-synctex=1', '-interaction=nonstopmode',
+                     '-file-line-error', '%f' },
+          },
+          tectonic = {
+            executable = 'tectonic',
+            args = { '-X', 'compile', '%f', '--synctex',
+                     '--keep-logs', '--keep-intermediates' },
+          },
+        },
+      },
+    })
+<
+Profile names contain ASCII letters, digits, underscores, dots and hyphens;
+the first character must be a letter, digit or underscore. toggle is reserved.
+Each profile requires executable (a nonempty program name/path) and args (a
+string list, replaced whole). Optional fields: auxDirectory, logDirectory,
+pdfDirectory and filename (a nonempty basename). Other profile keys are errors.
+Use latexmk's -xelatex instead of -pdf in a profile for XeLaTeX compilation.
+
+Switching replaces all six profile fields. Omitted directory/filename overrides
+are cleared to prevent a previous profile's paths from leaking into the next.
+Repeat shared overrides in each profile that needs them. These settings locate
+artifacts for texlab, log viewing and cleanup; also pass the compiler's output
+arguments when needed. Deprecated texlab.auxDirectory is preserved alongside
+other settings; prefer per-profile build directory overrides when switching.
+onSave, forwardSearchAfter, forwardSearch and unrelated LSP settings are kept.
+
+Switching checks local executable availability and refuses active builds or
+cleaning. It sends workspace/didChangeConfiguration, without restarting texlab
+or compiling. Local settings roll back if sending fails. The notification has
+no server acknowledgement: success means sent; texlab applies asynchronously.
+All buffers sharing the client see the change;
+other clients keep their settings. No configuration files are written.
+setup() does not select a profile, probe executables or start an LSP client.
+Your LSP configuration determines the initial compiler, including after a
+restart. Repeated setup() replaces the profiles without switching the compiler.
+
+compiler([name])                                       *tex-tools.compiler()*
+    Query when name is omitted; otherwise switch to name or 'toggle'. Return
+    true, snapshot or false, error. snapshot contains profile (when matched),
+    executable, args (when explicitly configured), and sorted profiles names.
+    Returned tables are copies. Matching compares all six profile fields,
+    independently of automatic compilation/PDF search settings. When identical
+    profiles have multiple names, the selected name is retained while it still
+    matches; otherwise the first matching name is used.
 
 :TexToolsBuildOutput                               *:TexToolsBuildOutput*
     Open a read-only live compiler output split. q closes it; F toggles following

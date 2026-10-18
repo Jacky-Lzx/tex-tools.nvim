@@ -168,6 +168,10 @@ function M.show_build_status()
     return false, err
   end
   local message = ('Build: %s; build on save: %s'):format(snapshot.phase, snapshot.on_save and 'on' or 'off')
+  message = message .. '; compiler: ' .. snapshot.compiler
+  if snapshot.profile then
+    message = message .. ' [profile: ' .. snapshot.profile .. ']'
+  end
   if snapshot.elapsed then
     message = message .. ('; %.1fs'):format(snapshot.elapsed)
   end
