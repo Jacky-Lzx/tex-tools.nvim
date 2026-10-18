@@ -521,6 +521,10 @@ for _, entry in ipairs(tests) do
   vim.cmd.stopinsert()
   vim.ui.input, vim.notify, vim.lsp.get_clients, vim.treesitter.get_parser = input, notify, get_clients, get_parser
   vim.o.selection = 'inclusive'
+  -- Finish scheduled notifications before the next test installs its own mocks.
+  vim.wait(1, function()
+    return false
+  end, 1)
   if ok then
     passed = passed + 1
     print('PASS ' .. entry[1])

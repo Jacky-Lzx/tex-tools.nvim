@@ -28,18 +28,10 @@ end
 local cached
 
 local function inspect(opts)
-  local node, err = ts.node(opts)
+  local node, err, bufnr, pos = ts.node(opts)
   if not node then
     return nil, err
   end
-  local bufnr = ts.buffer(opts and opts.bufnr)
-  local pos = opts and opts.pos
-  if not pos then
-    local cursor = vim.api.nvim_win_get_cursor(0)
-    pos = { cursor[1] - 1, cursor[2] }
-  end
-  local line = vim.api.nvim_buf_get_lines(bufnr, pos[1], pos[1] + 1, false)[1]
-  pos = { pos[1], math.min(pos[2], #line) }
   local tick, id = vim.api.nvim_buf_get_changedtick(bufnr), node:id()
   local config = require('tex-tools.config').options
   if

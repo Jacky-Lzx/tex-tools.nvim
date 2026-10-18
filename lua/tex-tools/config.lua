@@ -95,13 +95,20 @@ function M.setup(opts)
   vim.validate('conceal', options.conceal, { 'boolean', 'table' })
   if options.conceal ~= false then
     local conceal = type(options.conceal) == 'table' and options.conceal or {}
-    local normalized = { enabled = true, symbols = {} }
+    local normalized = { enabled = true, symbols = {}, max_line_length = 10000 }
     for _, category in ipairs(conceal_categories) do
       normalized[category] = true
     end
     for name, value in pairs(conceal) do
       assert(normalized[name] ~= nil, 'Unknown conceal option: ' .. tostring(name))
-      if name == 'symbols' then
+      if name == 'max_line_length' then
+        vim.validate('conceal.max_line_length', value, 'number')
+        assert(
+          value >= 0 and value < math.huge and value % 1 == 0,
+          'conceal.max_line_length must be a nonnegative integer'
+        )
+        normalized[name] = value
+      elseif name == 'symbols' then
         vim.validate('conceal.symbols', value, 'table')
         for command, glyph in pairs(value) do
           assert(

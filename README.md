@@ -256,8 +256,11 @@ category, for example `conceal = { cites = false, styles = false }`.
 | `styles` | Hide supported formatting wrappers such as `\textbf{…}` |
 | `math_symbols` | Math-only symbols: `\alpha` → α, `\times` → ×, `\leq` → ≤ |
 
-The feature loads on demand, scans visible source lines, and caches decorations
-between edits and viewport changes. Expensive Tree-sitter parses yield, keeping
+The feature loads on demand, scans visible source lines, and reuses decorations
+in overlapping regions when scrolling. Lines longer than 10,000 bytes retain
+their source to bound redraw work; set `conceal = { max_line_length = 0 }` to
+disable this limit, or choose another nonnegative byte limit.
+Expensive Tree-sitter parses yield, keeping
 source visible until ready. Buffer text, Tree-sitter colors, and window conceal
 options are preserved. Comments, verbatim/code environments, inline verbatim,
 macro definitions, paths, labels, and citation keys retain their source spelling.
@@ -474,6 +477,12 @@ close. An optional command query applies an initial case-insensitive substring
 filter. Unsaved source buffers are read without writing them. Cross-file jumps
 preserve a modified origin even when `hidden` is off.
 
+Heading and include data are cached across opens, refreshes and filters. Buffer
+edits (including unsaved edits and undo) and disk-file changes invalidate the
+relevant file. Ordinary buffers reuse their current LaTeX syntax tree; inline
+verbatim is masked in a separate parse when needed. The cache retains plain
+data for at most 128 sources and 8 MiB of source size.
+
 Project discovery resolves includes against the compilation working directory,
 then the including file's directory. It skips definitions, comments, literal
 content and inline verbatim. Missing files, cycles and nonliteral includes are
@@ -488,3 +497,15 @@ project }` or `nil, error`; opts also accepts `bufnr` and zero-based `pos`.
 Entries contain `path`, optional `bufnr`, zero-based `row`/`col`, numeric `level`,
 `kind`, `title`, `starred`, and optional `current`. Snapshots contain no TSNodes.
 Plug mappings: `<Plug>(TexToolsOutline)` / `<Plug>(TexToolsProjectOutline)`.
+
+For local performance comparisons, run
+`nvim --clean --headless -l scripts/benchmark.lua`. Set `TEX_TOOLS_TEST_PARSER`
+if the LaTeX parser is outside the runtime path. `TEX_TOOLS_BENCH` selects
+`runtime` (default), `conceal`, `stress`, `long-line`, or `load`;
+`TEX_TOOLS_BENCH_RTP` selects another checkout for comparison. Output is JSON
+with timings in milliseconds. Runtime results separate first parsing from warm
+queries and repeated outlines; conceal timings measure the decoration callback
+with an already parsed tree. The `stress` mode scrolls and edits a large buffer,
+then replaces it with single formula-dense lines of different lengths. Keep the
+headless screen's default dimensions: directly changing `lines`/`columns`
+without an attached UI can crash Neovim's screen redraw on 0.11 and 0.12.

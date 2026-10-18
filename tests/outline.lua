@@ -29,6 +29,30 @@ child
 \mintinline{tex}|\section{Still fake}| \section{Real}]=])
     eq({ 'Real' }, titles(assert(tex.outline_entries())))
   end)
+  test('outline snapshots follow edits and cursor movement without sharing mutable entries', function()
+    local source = buffer('\\section{First}\nbody\n\\section{Second}\nlast')
+    at('body')
+    local first = assert(tex.outline_entries())
+    eq(true, first.entries[1].current)
+    first.entries[1].title = 'caller mutation'
+    at('last')
+    local second = assert(tex.outline_entries())
+    eq({ 'First', 'Second' }, titles(second))
+    eq(nil, second.entries[1].current)
+    eq(true, second.entries[2].current)
+    vim.bo.undolevels = vim.bo.undolevels
+    vim.api.nvim_buf_set_lines(source, 2, 3, false, { '\\section{Changed}' })
+    eq({ 'Changed' }, titles(assert(tex.outline_entries({ query = 'Changed' }))))
+    vim.cmd.undo()
+    eq({ 'First', 'Second' }, titles(assert(tex.outline_entries())))
+  end)
+  test('outline excludes headings in heading arguments and primitive definitions', function()
+    buffer([=[\def\example#1{\section{Definition}}
+\section[Short \subsection{Not a heading}]{Title}
+\subsection{Child}
+\textbf{\subsubsection{Nested}}]=])
+    eq({ 'Short \\subsection{Not a heading}', 'Child', 'Nested' }, titles(assert(tex.outline_entries())))
+  end)
   local function project_test(name, fn)
     test('project outline: ' .. name, function()
       local directory = vim.fn.tempname() .. ' with spaces'
@@ -76,6 +100,30 @@ child
     local snapshot = assert(tex.outline_entries({ project = true }))
     eq({ 'Main', 'Child', 'Child' }, titles(snapshot))
     eq(2, #snapshot.warnings)
+  end)
+  project_test('cached includes follow disk edits, removal and unsaved buffer changes', function(dir)
+    local child = dir .. '/child.tex'
+    vim.fn.writefile({ '\\section{Disk}' }, child)
+    local main = buffer('\\documentclass{article}\n\\input{child}')
+    vim.api.nvim_buf_set_name(main, dir .. '/main.tex')
+    vim.lsp.get_clients = function()
+      return {}
+    end
+    eq({ 'Disk' }, titles(assert(tex.outline_entries({ project = true }))))
+    vim.fn.writefile({ '\\section{Disk edited}' }, child)
+    eq({ 'Disk edited' }, titles(assert(tex.outline_entries({ project = true }))))
+    local loaded_child = vim.fn.bufadd(child)
+    vim.fn.bufload(loaded_child)
+    vim.api.nvim_buf_set_lines(loaded_child, 0, -1, false, { '\\section{Unsaved}' })
+    eq({ 'Unsaved' }, titles(assert(tex.outline_entries({ project = true }))))
+    vim.api.nvim_buf_delete(loaded_child, { force = true })
+    eq({ 'Disk edited' }, titles(assert(tex.outline_entries({ project = true }))))
+    vim.fn.delete(child)
+    local missing = assert(tex.outline_entries({ project = true }))
+    eq({}, titles(missing))
+    eq(1, #missing.warnings)
+    vim.fn.writefile({ '\\section{Created}' }, child)
+    eq({ 'Created' }, titles(assert(tex.outline_entries({ project = true }))))
   end)
   project_test('respects selected texlab main file', function(dir)
     local main = buffer('\\documentclass{article}\n\\section{Chosen}')
@@ -156,11 +204,13 @@ child
   test('outline errors are actionable for unknown project roots and missing parsers', function()
     buffer('child')
     eq(nil, tex.outline_entries({ project = true }))
-    local parser = vim.treesitter.get_string_parser
+    local parser, buffer_parser = vim.treesitter.get_string_parser, vim.treesitter.get_parser
     vim.treesitter.get_string_parser = function()
       error('missing parser')
     end
+    vim.treesitter.get_parser = vim.treesitter.get_string_parser
     eq(nil, tex.outline_entries())
     vim.treesitter.get_string_parser = parser
+    vim.treesitter.get_parser = buffer_parser
   end)
 end

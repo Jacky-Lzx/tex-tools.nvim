@@ -68,15 +68,26 @@ end
 -- The latex grammar does not model inline verbatim consistently. Mask only
 -- those literal spans, keeping byte positions stable for headings and jumps.
 function M.mask_inline(content)
+  if
+    not content:find('\\verb', 1, true)
+    and not content:find('\\lstinline', 1, true)
+    and not content:find('\\mintinline', 1, true)
+  then
+    return content
+  end
   local lines = vim.split(content, '\n', { plain = true })
   for index, line in ipairs(lines) do
     local i = 1
     while i <= #line do
+      i = line:find('[\\%%]', i)
+      if not i then
+        break
+      end
       local char = line:sub(i, i)
       if char == '%' then
         break
       elseif char == '\\' then
-        local name = line:sub(i + 1):match('^([A-Za-z@]+%*?)') or line:sub(i + 1, i + 1)
+        local name = line:match('^([A-Za-z@]+%*?)', i + 1) or line:sub(i + 1, i + 1)
         local length = #name + 1
         if name:match('^verb%*?$') or name:match('^lstinline%*?$') or name == 'mintinline' then
           local start = i + length

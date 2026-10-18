@@ -147,6 +147,48 @@ return function(h)
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { '% after ---' })
     eq('% after ---', screen(1))
   end)
+  check('long source lines stay visible and the limit can be disabled', function()
+    local source = '--- ' .. string.rep('x', 10001)
+    fixture(source)
+    eq('--- ', screen(1):sub(1, 4))
+    tex.setup({ conceal = { max_line_length = 0 } })
+    eq('— ', screen(1):sub(1, #'— '))
+    fixture('\\textbf{---\n' .. string.rep('x', 30) .. '\n---}', { max_line_length = 20 })
+    eq('—', screen(1))
+    eq(string.rep('x', 30), screen(2))
+    eq('—', screen(3))
+  end)
+  check('line-length limits reject negative, fractional and infinite values', function()
+    for _, value in ipairs({ -1, 1.5, math.huge, '1000' }) do
+      eq(false, pcall(tex.setup, { conceal = { max_line_length = value } }))
+    end
+  end)
+
+  check('scrolled and edited buffers can shrink to dense formula lines', function()
+    local line = [=[$x_i + \alpha + \frac{a}{b}$ and \textbf{bold} --- words]=]
+    local bufnr = fixture(table.concat(vim.fn['repeat']({ line }, 1000), '\n'))
+    screen(1)
+    for row = 2, 51 do
+      vim.api.nvim_win_set_cursor(0, { row, 0 })
+      vim.cmd('normal! zt')
+      screen(1)
+    end
+    for i = 1, 20 do
+      vim.api.nvim_buf_set_lines(bufnr, 50, 51, false, { line .. string.rep(' ', i % 2) })
+      vim.treesitter.get_parser(bufnr, 'latex'):parse()
+      screen(1)
+    end
+    for _, count in ipairs({ 100, 1000, 3000, 1 }) do
+      local source = string.rep([=[$\alpha+\beta$ ]=], count)
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { source })
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      vim.treesitter.get_parser(bufnr, 'latex'):parse()
+      local expected = #source <= 10000 and 'α+β' or [=[$\alpha+\beta$]=]
+      eq(expected, screen(1):sub(1, #expected))
+      eq(source, h.content())
+      eq({}, vim.api.nvim_buf_get_extmarks(bufnr, vim.api.nvim_create_namespace('tex-tools.conceal'), 0, -1, {}))
+    end
+  end)
 
   check('native window options and cursor line behavior', function()
     fixture('--- \\ae{}\n--- \\ae{}')
@@ -232,6 +274,34 @@ return function(h)
     if not ok then
       error(err)
     end
+  end)
+  check('scrolling reuses overlapping lines, including multiline wrappers', function()
+    local lines = { '\\textbf{' }
+    for _ = 1, 100 do
+      lines[#lines + 1] = '--- \\ae{}'
+    end
+    lines[#lines + 1] = '}'
+    fixture(table.concat(lines, '\n'))
+    eq('— æ', screen(2))
+    local get_lines, scanned = vim.api.nvim_buf_get_lines, 0
+    vim.api.nvim_buf_get_lines = function(buf, first, last, strict)
+      scanned = scanned + last - first
+      return get_lines(buf, first, last, strict)
+    end
+    local ok, err = pcall(function()
+      vim.api.nvim_win_set_cursor(0, { 2, 0 })
+      vim.cmd('normal! zt')
+      eq('— æ', screen(1))
+      assert(scanned <= 2, 'scroll rescanned ' .. scanned .. ' lines')
+      scanned = 0
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      vim.cmd('normal! zt')
+      eq('', screen(1))
+      eq('— æ', screen(2))
+      assert(scanned <= 2, 'reverse scroll rescanned ' .. scanned .. ' lines')
+    end)
+    vim.api.nvim_buf_get_lines = get_lines
+    assert(ok, err)
   end)
 
   check('pending async parse preserves source and redraws after completion', function()

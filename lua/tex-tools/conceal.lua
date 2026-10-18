@@ -194,21 +194,28 @@ local function collect(bufnr, root, top, bottom, options)
   local symbols = options.math_symbols and require('tex-tools.conceal_symbols') or {}
   local marks, occupied, processed, containers = {}, {}, {}, {}
   local lines = vim.api.nvim_buf_get_lines(bufnr, top, bottom, false)
+  local function eligible(row)
+    return options.max_line_length == 0 or #lines[row - top + 1] <= options.max_line_length
+  end
   local function add(sr, sc, er, ec, replacement)
     for row = math.max(sr, top), math.min(er, bottom - 1) do
       local first = row == sr and sc or 0
       local last = row == er and ec or #lines[row - top + 1]
-      if first < last then
+      if first < last and eligible(row) then
         occupied[row] = occupied[row] or {}
-        local overlaps = false
-        for _, span in ipairs(occupied[row]) do
-          if first < span[2] and last > span[1] then
-            overlaps = true
-            break
+        local spans = occupied[row]
+        local low, high = 1, #spans + 1
+        while low < high do
+          local middle = math.floor((low + high) / 2)
+          if spans[middle][1] < first then
+            low = middle + 1
+          else
+            high = middle
           end
         end
+        local overlaps = (low > 1 and spans[low - 1][2] > first) or (spans[low] and spans[low][1] < last)
         if not overlaps then
-          occupied[row][#occupied[row] + 1] = { first, last }
+          table.insert(spans, low, { first, last })
           marks[#marks + 1] = { row, first, last, row == sr and replacement or '' }
         end
       end
@@ -282,29 +289,35 @@ local function collect(bufnr, root, top, bottom, options)
 
   for index, line in ipairs(lines) do
     local row, i = top + index - 1, 1
-    if #line > 0 then
+    if not eligible(row) then
+      i = #line + 1
+    elseif #line > 0 then
       decorate_containers(inspect(root, bufnr, row, 0))
     end
     while i <= #line do
+      i = line:find(options.ligatures and "[\\$~%-`',!?]" or '[\\$~]', i)
+      if not i then
+        break
+      end
       local char = line:sub(i, i)
       local name, length
       if char == '\\' then
-        name = line:sub(i + 1):match('^([a-zA-Z@]+%*?)') or line:sub(i + 1, i + 1)
+        name = line:match('^([a-zA-Z@]+%*?)', i + 1) or line:sub(i + 1, i + 1)
         length = #name + 1
       end
       -- Inline verbatim is not a distinct node in all latex parser versions.
       if name and (name:match('^verb%*?$') or name:match('^lstinline%*?$') or name == 'mintinline') then
         local start = i + length
         if not name:match('^verb') then
-          local prefix = line:sub(start):match('^%s*%b[]%s*') or line:sub(start):match('^%s*')
+          local prefix = line:match('^%s*%b[]%s*', start) or line:match('^%s*', start)
           start = start + #prefix
           if name == 'mintinline' then
-            local language = line:sub(start):match('^%b{}%s*')
+            local language = line:match('^%b{}%s*', start)
             start = language and start + #language or #line + 1
           end
         end
         local delimiter = line:sub(start, start)
-        local group = not name:match('^verb') and line:sub(start):match('^%b{}')
+        local group = not name:match('^verb') and line:match('^%b{}', start)
         local finish = group and start + #group - 1 or (delimiter ~= '' and line:find(delimiter, start + 1, true))
         i = finish and finish + 1 or #line + 1
       else
@@ -318,16 +331,16 @@ local function collect(bufnr, root, top, bottom, options)
             end
             if name then
               local bare = name:gsub('%*$', '')
-              local tail, replacement, consumed = line:sub(i + length), nil, length
+              local tail, replacement, consumed = i + length, nil, length
               if options.accents and accents[bare] and not info.math then
-                local argument = tail:match('^%s*{([A-Za-z])}') or tail:match('^%s*([A-Za-z])')
+                local argument = line:match('^%s*{([A-Za-z])}', tail) or line:match('^%s*([A-Za-z])', tail)
                 if argument and accents[bare][argument] then
-                  local matched = tail:match('^%s*{[A-Za-z]}') or tail:match('^%s*[A-Za-z]')
+                  local matched = line:match('^%s*{[A-Za-z]}', tail) or line:match('^%s*[A-Za-z]', tail)
                   replacement, consumed = accents[bare][argument], length + #matched
                 end
               elseif options.ligatures and ligatures[bare] and not info.math then
                 replacement = ligatures[bare]
-                if tail:sub(1, 2) == '{}' then
+                if line:sub(tail, tail + 1) == '{}' then
                   consumed = consumed + 2
                 end
               elseif options.math_symbols and info.math and (options.symbols[name] ~= nil or symbols[name]) then
@@ -339,12 +352,12 @@ local function collect(bufnr, root, top, bottom, options)
                   replacement = glyph
                 end
               elseif options.math_delimiters and info.math and sizes[bare] then
-                local whitespace = tail:match('^%s*')
-                local marker = tail:sub(#whitespace + 1)
-                local control = marker:match('^\\([A-Za-z]+)') or marker:match('^\\(.)')
-                if marker:match('^[%(%)[%]|.<>]') or delimiters[control] then
+                local whitespace = line:match('^%s*', tail)
+                local marker = tail + #whitespace
+                local control = line:match('^\\([A-Za-z]+)', marker) or line:match('^\\(.)', marker)
+                if line:match('^[%(%)[%]|.<>]', marker) or delimiters[control] then
                   replacement = ''
-                  if marker:sub(1, 1) == '.' then
+                  if line:sub(marker, marker) == '.' then
                     consumed = consumed + #whitespace + 1
                   end
                 end
@@ -412,18 +425,24 @@ local function render(_, winid, bufnr, top, bottom)
     pending[bufnr] = request
     -- Neovim yields expensive cold/incremental parses instead of blocking a
     -- redraw. Until completion the source remains visible; reuse warm trees.
-    local parsed, trees = pcall(parser.parse, parser, nil, function(err, result)
-      if pending[bufnr] ~= request then
-        return
+    local parsed, trees = pcall(function()
+      if parser.is_valid and parser:is_valid(true) then
+        pending[bufnr] = nil
+        return parser:trees()
       end
-      pending[bufnr] = nil
-      if not synchronous and not err and result and result[1] then
-        vim.schedule(function()
-          if buffers[bufnr] and vim.api.nvim_buf_is_loaded(bufnr) then
-            vim.cmd.redraw({ bang = true })
-          end
-        end)
-      end
+      return parser:parse(nil, function(err, result)
+        if pending[bufnr] ~= request then
+          return
+        end
+        pending[bufnr] = nil
+        if not synchronous and not err and result and result[1] then
+          vim.schedule(function()
+            if buffers[bufnr] and vim.api.nvim_buf_is_loaded(bufnr) then
+              vim.cmd.redraw({ bang = true })
+            end
+          end)
+        end
+      end)
     end)
     synchronous = false
     if not parsed then
@@ -432,13 +451,38 @@ local function render(_, winid, bufnr, top, bottom)
     if not parsed or not trees or not trees[1] then
       return false
     end
+    local root, marks = trees[1]:root(), {}
+    if
+      cached
+      and cached.bufnr == bufnr
+      and cached.tick == tick
+      and cached.options == options
+      and cached.top < bottom
+      and top < cached.bottom
+    then
+      -- Every mark is row-local. Preserve the overlap and inspect only newly
+      -- exposed lines; a text change still invalidates the whole window.
+      if top < cached.top then
+        vim.list_extend(marks, collect(bufnr, root, top, cached.top, options))
+      end
+      for _, mark in ipairs(cached.marks) do
+        if mark[1] >= top and mark[1] < bottom then
+          marks[#marks + 1] = mark
+        end
+      end
+      if bottom > cached.bottom then
+        vim.list_extend(marks, collect(bufnr, root, cached.bottom, bottom, options))
+      end
+    else
+      marks = collect(bufnr, root, top, bottom, options)
+    end
     cached = {
       bufnr = bufnr,
       tick = tick,
       top = top,
       bottom = bottom,
       options = options,
-      marks = collect(bufnr, trees[1]:root(), top, bottom, options),
+      marks = marks,
     }
     windows[winid] = cached
   end
@@ -455,7 +499,11 @@ end
 
 function M.attach(bufnr, options)
   buffers[bufnr] = options or nil
-  windows = {}
+  for winid, cached in pairs(windows) do
+    if cached.bufnr == bufnr then
+      windows[winid] = nil
+    end
+  end
   if options and not registered then
     registered = true
     vim.api.nvim_set_decoration_provider(namespace, { on_win = render })

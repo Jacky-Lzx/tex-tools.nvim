@@ -1,6 +1,29 @@
 local ts = require('tex-tools.treesitter')
 local section = require('tex-tools.section')
 local M = {}
+local snapshots, clock, cache_bytes = {}, 0, 0
+local query
+
+-- Retain only plain heading/include data, bounded by both file count and size.
+local function remember(key, snapshot)
+  if snapshots[key] then
+    cache_bytes = cache_bytes - snapshots[key].bytes
+  end
+  clock = clock + 1
+  snapshot.used = clock
+  snapshots[key] = snapshot
+  cache_bytes = cache_bytes + snapshot.bytes
+  while vim.tbl_count(snapshots) > 128 or cache_bytes > 8 * 1024 * 1024 do
+    local oldest
+    for candidate, value in pairs(snapshots) do
+      if not oldest or value.used < snapshots[oldest].used then
+        oldest = candidate
+      end
+    end
+    cache_bytes = cache_bytes - snapshots[oldest].bytes
+    snapshots[oldest] = nil
+  end
+end
 
 local function normalize(path)
   return vim.fs.normalize(vim.fs.abspath(path), { expand_env = false })
@@ -16,18 +39,117 @@ end
 
 local function source(path, bufnr)
   bufnr = bufnr or loaded(path)
+  local key = path == '' and ('buffer:' .. bufnr) or path
+  local stamp, size
   if bufnr then
-    return table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n')
+    stamp = { bufnr = bufnr, tick = vim.api.nvim_buf_get_changedtick(bufnr) }
+    size = math.max(0, vim.api.nvim_buf_get_offset(bufnr, vim.api.nvim_buf_line_count(bufnr)) - 1)
+  else
+    local stat = vim.uv.fs_stat(path)
+    if not stat or stat.type ~= 'file' then
+      return nil, 'Could not read included file: ' .. path
+    end
+    if stat.size > 2 * 1024 * 1024 then
+      return nil, 'Outline source exceeds 2 MiB: ' .. path
+    end
+    stamp = { size = stat.size, mtime = stat.mtime, ctime = stat.ctime, ino = stat.ino, dev = stat.dev }
+    size = stat.size
   end
-  local stat = vim.uv.fs_stat(path)
-  if not stat or stat.type ~= 'file' then
-    return nil, 'Could not read included file: ' .. path
+  local cached = snapshots[key]
+  if cached and vim.deep_equal(cached.stamp, stamp) then
+    clock = clock + 1
+    cached.used = clock
+    return cached, nil, bufnr
   end
-  if stat.size > 2 * 1024 * 1024 then
-    return nil, 'Outline source exceeds 2 MiB: ' .. path
+  local content
+  if bufnr then
+    content = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n')
+  else
+    local ok, lines = pcall(vim.fn.readfile, path)
+    if not ok then
+      return nil, 'Could not read included file: ' .. path
+    end
+    content = table.concat(lines, '\n')
   end
-  local ok, lines = pcall(vim.fn.readfile, path)
-  return ok and table.concat(lines, '\n') or nil, not ok and ('Could not read included file: ' .. path) or nil
+  return { key = key, stamp = stamp, bytes = size, content = content }, nil, bufnr
+end
+
+local function allowed(node)
+  while node do
+    if section.blocked(node) then
+      return false
+    end
+    local parent = node:parent()
+    if parent and section.is_heading(parent) then
+      -- Heading arguments may contain macros, but are not document structure.
+      for _, field in ipairs({ 'command', 'text', 'toc' }) do
+        local value = ts.field(parent, field)
+        if value and value:id() == node:id() then
+          return false
+        end
+      end
+    end
+    node = parent
+  end
+  return true
+end
+
+local function index(snapshot, bufnr)
+  local content = snapshot.content
+  local masked = section.mask_inline(content)
+  local root, err
+  if bufnr and masked == content then
+    root, err = ts.root(bufnr)
+  else
+    local ok, parser = pcall(vim.treesitter.get_string_parser, masked, 'latex')
+    if not ok then
+      return nil, 'LaTeX Tree-sitter parser unavailable; install the latex parser first'
+    end
+    local parsed, trees = pcall(parser.parse, parser)
+    if parsed and trees and trees[1] then
+      root = trees[1]:root()
+    end
+  end
+  if not root then
+    return nil, err or 'Could not parse outline source'
+  end
+  query = query
+    or vim.treesitter.query.parse(
+      'latex',
+      [[
+    [(part) (chapter) (section) (subsection) (subsubsection) (paragraph) (subparagraph)] @heading
+    (latex_include) @include
+  ]]
+    )
+  local events = {}
+  for id, node in query:iter_captures(root, masked) do
+    if allowed(node) then
+      local command = ts.field(node, 'command')
+      if query.captures[id] == 'heading' then
+        local title, toc = ts.field(node, 'text'), ts.field(node, 'toc')
+        if command and title and not title:has_error() and not (toc and toc:has_error()) then
+          local row, col = command:range()
+          events[#events + 1] = {
+            row = row,
+            col = col,
+            level = vim.fn.index(section.levels, node:type()) + 1,
+            kind = node:type(),
+            starred = ts.text(command, content):sub(-1) == '*',
+            title = ts.text(toc or title, content):sub(2, -2):gsub('%s+', ' '),
+          }
+        end
+      else
+        local name = command and ts.text(command, content)
+        if name == '\\input' or name == '\\include' then
+          local include = ts.field(ts.field(node, 'path'), 'path')
+          events[#events + 1] = { kind = 'include', name = include and ts.text(include, content) }
+        end
+      end
+    end
+  end
+  snapshot.events, snapshot.content = events, nil
+  remember(snapshot.key, snapshot)
+  return snapshot
 end
 
 function M.entries(opts)
@@ -94,8 +216,8 @@ function M.entries(opts)
       failure = 'Outline exceeds 256 file visits or 32 nested includes'
       return
     end
-    local content, err = source(file, explicit_buffer)
-    if not content then
+    local snapshot, err, source_buffer = source(file, explicit_buffer)
+    if not snapshot then
       if depth == 0 then
         failure = err
       else
@@ -103,74 +225,38 @@ function M.entries(opts)
       end
       return
     end
-    bytes = bytes + #content
+    bytes = bytes + snapshot.bytes
     if bytes > 8 * 1024 * 1024 then
       failure = 'Outline sources exceed 8 MiB'
       return
     end
-    local ok, parser = pcall(vim.treesitter.get_string_parser, section.mask_inline(content), 'latex')
-    if not ok then
-      failure = 'LaTeX Tree-sitter parser unavailable; install the latex parser first'
-      return
-    end
-    local parsed, trees = pcall(parser.parse, parser)
-    if not parsed or not trees or not trees[1] then
-      failure = 'Could not parse outline source: ' .. file
-      return
+    if not snapshot.events then
+      snapshot, err = index(snapshot, source_buffer)
+      if not snapshot then
+        failure = err
+        return
+      end
     end
     active[key] = true
-    local function visit(node)
-      if failure or section.blocked(node) then
-        return
+    for _, event in ipairs(snapshot.events) do
+      if failure then
+        break
       end
-      if section.is_heading(node) then
-        local command, title = ts.field(node, 'command'), ts.field(node, 'text')
-        local toc = ts.field(node, 'toc')
-        if command and title and not title:has_error() and not (toc and toc:has_error()) then
-          local row, col = command:range()
-          local entry = {
-            path = file,
-            bufnr = explicit_buffer or loaded(file),
-            row = row,
-            col = col,
-            level = vim.fn.index(section.levels, node:type()) + 1,
-            kind = node:type(),
-            starred = ts.text(command, content):sub(-1) == '*',
-            title = ts.text(toc or title, content):sub(2, -2):gsub('%s+', ' '),
-          }
-          result.entries[#result.entries + 1] = entry
-          if file == path and cursor and (row < cursor[1] or row == cursor[1] and col <= cursor[2]) then
-            current = entry
-          end
+      if event.kind ~= 'include' then
+        local entry = vim.tbl_extend('force', event, { path = file, bufnr = source_buffer })
+        result.entries[#result.entries + 1] = entry
+        if file == path and cursor and (entry.row < cursor[1] or entry.row == cursor[1] and entry.col <= cursor[2]) then
+          current = entry
         end
-        -- Heading arguments can contain macros: inspect only the body below.
-        for child, field in node:iter_children() do
-          if not field then
-            visit(child)
-          end
+      elseif opts.project then
+        local target = event.name and resolve_include(event.name, file)
+        if target then
+          visit_file(target, depth + 1)
+        else
+          warn('Nonliteral include skipped in ' .. file)
         end
-        return
-      elseif opts.project and node:type() == 'latex_include' then
-        local command = ts.field(node, 'command')
-        local name = command and ts.text(command, content)
-        if name == '\\input' or name == '\\include' then
-          local group = ts.field(node, 'path')
-          local include = group and ts.field(group, 'path')
-          local literal = include and ts.text(include, content)
-          local target = literal and resolve_include(literal, file)
-          if target then
-            visit_file(target, depth + 1)
-          else
-            warn('Nonliteral include skipped in ' .. file)
-          end
-        end
-        return
-      end
-      for child in node:iter_children() do
-        visit(child)
       end
     end
-    visit(trees[1]:root())
     active[key] = nil
   end
   visit_file(root, 0, root == path and bufnr or nil)
