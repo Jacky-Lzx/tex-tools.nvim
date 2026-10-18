@@ -545,15 +545,24 @@ system opener. Skim uses open -a Skim (executable overrides open); Zathura uses
 zathura; generic uses open, explorer.exe or xdg-open. Generic openers do not
 configure synchronization. Viewing does not require an existing SyncTeX file.
 
-:TexToolsInverseSearch [skim|zathura] displays a native callback for this
-Neovim session. Skim: copy Command and Arguments into Settings > Sync > Custom.
+:TexToolsInverseSearch [skim|zathura] displays a stable native callback.
+Skim: copy Command and Arguments into Settings > Sync > Custom once.
 Zathura started through :TexToolsView receives its callback automatically.
+The same command works after restarting Neovim; open a local TeX file with
+this plugin enabled to register the new session. PDF windows can stay open.
+Replace the older session-specific callback once when upgrading. Regenerate
+only if the executable, plugin path or cache location/NVIM_APPNAME changes.
 No nvim-texlabconfig, service, or extra plugin is needed. A clean headless
-Neovim connects to this instance using RPC, passes filenames as data, and
-opens the source at the requested line. The callback uses POSIX quoting and
-currently supports macOS/Linux. Both processes need access to the same host's
-socket. Regenerate after restarting Neovim; existing viewer windows retain
-their previous callbacks. Viewer preferences are never modified automatically.
+Neovim discovers the owning instance and passes filenames as RPC arguments.
+
+Routing prefers an already-loaded source, then the most specific matching
+texlab workspace, then the instance most recently active in a TeX buffer.
+Unrelated instances are not used. Unopened children need a matching workspace.
+Private per-process records live in stdpath('cache')/tex-tools/inverse-search.
+Writes are atomic; normal exit removes the record. Lookup prunes dead or
+unreachable sessions; unresponsive sessions time out. Callback generation
+supports POSIX systems (macOS/Linux). The viewer and editor must share access
+to the registry and socket. Viewer preferences are never modified automatically.
 
 Forward search normally uses texlab. An explicit main (TexToolsMain or
 build.main_file) instead expands texlab.forwardSearch executable/args directly:
@@ -565,7 +574,11 @@ view() returns true, job_id or false, error.
 inverse_search(file, line [, column]) returns true or false, error. Positions
 are one-based; column counts bytes. A modified buffer is preserved.
 inverse_search_command(kind) returns {command, arguments, argv, shell_command,
-server} or nil, error. It starts an RPC server on demand, unlike setup/health.
+registry, server} or nil, error. server is informational and not in the command.
+RPC starts on demand when registering a named local TeX buffer or generating
+a callback. Registration is scheduled after buffer setup, once per process.
+Subsequent buffer/focus events update activity in memory. Setup with no named
+local TeX buffer and health checks do not start a server.
 The User TexToolsInverseSearch event supplies file/line/column data. External
 terminal activation can be configured on that event; it is not automatic.
 

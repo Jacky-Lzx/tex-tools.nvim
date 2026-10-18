@@ -19,13 +19,10 @@ function M.callback(kind)
   if vim.fn.has('win32') == 1 then
     return nil, 'Generated viewer callbacks currently require POSIX argument quoting'
   end
-  local server = vim.v.servername
-  if server == '' then
-    local ok, result = pcall(vim.fn.serverstart)
-    if not ok or result == '' then
-      return nil, 'Could not start a Neovim RPC server: ' .. tostring(result)
-    end
-    server = result
+  local inverse = require('tex-tools.inverse')
+  local server, err = inverse.register()
+  if not server then
+    return nil, err
   end
   local argv = {
     vim.v.progpath,
@@ -36,7 +33,8 @@ function M.callback(kind)
     '-n',
     '-l',
     callback_script,
-    server,
+    '--registry',
+    inverse.directory(),
     kind == 'skim' and '%line' or '%{line}',
     kind == 'skim' and '%file' or '%{input}',
   }
@@ -51,6 +49,7 @@ function M.callback(kind)
     argv = argv,
     shell_command = join({ argv[1] }) .. ' ' .. arguments,
     server = server,
+    registry = inverse.directory(),
   }
 end
 
@@ -61,7 +60,7 @@ function M.show_callback(kind)
   end
   local lines = kind == 'zathura' and { 'Zathura synctex-editor-command:', result.shell_command }
     or { 'Skim > Settings > Sync > Preset: Custom', 'Command: ' .. result.command, 'Arguments: ' .. result.arguments }
-  lines[#lines + 1] = 'This callback targets this Neovim session; regenerate it after restarting Neovim.'
+  lines[#lines + 1] = 'Configure this callback once; it discovers the matching Neovim session after restarts.'
   vim.notify(table.concat(lines, '\n'), vim.log.levels.INFO, { title = 'tex-tools' })
   return true
 end

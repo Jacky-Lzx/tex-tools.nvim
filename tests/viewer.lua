@@ -1,4 +1,6 @@
 return function(h)
+  local child_env = vim.fn.environ()
+  child_env.VIMRUNTIME = nil
   local tex, eq = require('tex-tools'), h.eq
   local directory
   local real_jobstart = vim.fn.jobstart
@@ -51,13 +53,14 @@ return function(h)
     eq(true, calls[1].opts.detach)
     eq(nil, package.loaded['tex-tools.viewer'].last_process)
   end)
-  check('Zathura receives a session-specific inverse callback without forward flags', function()
+  check('Zathura receives a stable inverse callback without forward flags', function()
     local _, calls = fixture()
     tex.setup({ viewer = { method = 'zathura', executable = vim.v.progpath } })
     vim.fn.writefile({ 'pdf' }, directory .. '/main.pdf')
     eq(true, tex.view())
     eq('--synctex-editor-command', calls[1].argv[2])
-    assert(calls[1].argv[3]:find(vim.v.servername, 1, true))
+    assert(calls[1].argv[3]:find('--registry', 1, true))
+    assert(not calls[1].argv[3]:find(vim.v.servername, 1, true))
     assert(calls[1].argv[3]:find('%{input}', 1, true))
     eq(directory .. '/main.pdf', calls[1].argv[4])
   end)
@@ -171,7 +174,7 @@ return function(h)
     argv[1] = vim.fn.exepath('nvim') -- portable test launcher for the extracted 0.11 binary
     argv[#argv - 1], argv[#argv] = '2', file
     local result
-    vim.system(argv, { text = true, env = { VIMRUNTIME = vim.NIL } }, function(value)
+    vim.system(argv, { text = true, env = child_env, clear_env = true }, function(value)
       result = value
     end)
     assert(
@@ -196,7 +199,7 @@ return function(h)
       return special:gsub('[$"`\\]', '\\%0')
     end)
     result = nil
-    vim.system({ 'sh', '-c', command }, { text = true, env = { VIMRUNTIME = vim.NIL } }, function(value)
+    vim.system({ 'sh', '-c', command }, { text = true, env = child_env, clear_env = true }, function(value)
       result = value
     end)
     assert(

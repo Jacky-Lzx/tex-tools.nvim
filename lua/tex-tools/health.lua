@@ -64,10 +64,13 @@ function M.check()
   if viewer.method == 'generic' then
     vim.health.info('The system PDF opener does not configure inverse search; use Skim or Zathura for callbacks')
   end
+  vim.health.info('Stable inverse-search registry: ' .. require('tex-tools.inverse').directory())
   if vim.v.servername ~= '' then
     vim.health.ok('Neovim RPC address: ' .. vim.v.servername)
   else
-    vim.health.info('RPC starts on demand when generating a callback; setup and health checks do not start a server')
+    vim.health.info(
+      'RPC starts when a local TeX buffer registers or a callback is generated; health checks do not start it'
+    )
   end
 end
 

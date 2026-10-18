@@ -344,14 +344,29 @@ Generic viewing uses `open` on macOS, `explorer.exe` on Windows, or `xdg-open`
 on other platforms. Generic openers do not configure source synchronization.
 
 **No `nvim-texlabconfig` is needed.** Zathura started with `:TexToolsView` receives
-a callback pointing to this Neovim instance. In Skim, run
+a stable callback that discovers the appropriate Neovim instance. In Skim, run
 `:TexToolsInverseSearch skim`, then copy the reported **Command** and
 **Arguments** into Skim's **Settings → Sync → Preset: Custom**. The command starts
 a clean headless Neovim, which sends the source path/line through Neovim RPC.
 It opens the source and moves the cursor; it does not automatically focus an
-external terminal. The callback is tied to the current Neovim session: after
-restarting Neovim, regenerate the Skim command or reopen Zathura through the
-plugin. Callback generation currently supports POSIX systems (macOS/Linux).
+external terminal. **Configure it once: the same callback works after restarting
+Neovim**, including from a PDF window left open. Open a local TeX file with the
+plugin enabled in the new session; it automatically registers its RPC address.
+The callback command includes a stable cache directory instead of a session
+socket. Callback generation currently supports POSIX systems (macOS/Linux).
+
+For multiple Neovim instances, routing prefers an instance that already has the
+source loaded, then the most specific matching texlab workspace. Ties prefer
+the instance most recently active in a TeX buffer. Unrelated projects are never
+used as a fallback. An unopened child source needs a matching texlab workspace.
+Each process owns a private, atomically written registry file under
+`stdpath("cache")/tex-tools/inverse-search`; normal exit removes it. Dead or
+unreachable records are pruned on lookup, and unresponsive sessions time out.
+This uses Neovim's built-in RPC without an additional service.
+
+If you configured the earlier session-specific callback, replace it with the
+new output once. Regenerate only if the Neovim executable, plugin installation
+path, or cache location changes, including a different `NVIM_APPNAME`.
 
 `:TexToolsInverseSearch zathura` displays the callback for manual Zathura setup.
 A viewer process needs to run on the same host with access to the RPC socket.
@@ -370,8 +385,12 @@ with SyncTeX enabled (for Tectonic, `--synctex`).
 Lua: `view()` returns `true, job_id` or `false, error`;
 `inverse_search(file, line, column?)` jumps using one-based line/byte column;
 `inverse_search_command("skim"|"zathura")` returns a table with `command`,
-`arguments`, `argv`, `shell_command`, `server`, or `nil, error`. Generating this
-command starts an RPC server only if needed; plugin setup does not.
+`arguments`, `argv`, `shell_command`, `registry`, `server`, or `nil, error`.
+`server` describes the generating session and is not embedded in the command.
+An RPC server starts on demand when registering the first named local TeX
+buffer or generating a callback. Registration is scheduled after buffer setup;
+subsequent buffer/focus events update routing activity in memory. Setup without
+a named TeX buffer and health checks do not start a server.
 After a jump, the `User TexToolsInverseSearch` event carries `file`, `line`,
 and `column` in its data, allowing your configuration to focus a terminal.
 

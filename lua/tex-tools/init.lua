@@ -26,6 +26,7 @@ local function attach(bufnr)
   if vim.b[bufnr].tex_tools_generation == generation then
     return
   end
+  require('tex-tools.inverse').track(bufnr)
   clear_default_mappings(bufnr)
   local installed = {}
   local enter_plug = '<Plug>(TexToolsSmartEnter)'
@@ -652,6 +653,16 @@ function M.setup(opts)
     end
   end
   generation = generation + 1
+  local inverse_group = vim.api.nvim_create_augroup('TexToolsInverseTracking', { clear = true })
+  vim.api.nvim_create_autocmd({ 'BufEnter', 'BufFilePost', 'FocusGained' }, {
+    group = inverse_group,
+    callback = function(event)
+      local bufnr = event.buf
+      if vim.api.nvim_buf_is_valid(bufnr) and vim.tbl_contains({ 'tex', 'plaintex' }, vim.bo[bufnr].filetype) then
+        require('tex-tools.inverse').track(bufnr)
+      end
+    end,
+  })
   local group = vim.api.nvim_create_augroup('TexTools', { clear = true })
   vim.api.nvim_create_autocmd('FileType', {
     group = group,
