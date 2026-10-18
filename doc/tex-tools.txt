@@ -1,0 +1,141 @@
+*tex-tools.txt*  LaTeX editing tools built on Tree-sitter and texlab
+
+Authoring LaTeX in Neovim with Lua. Inspired by VimTeX's editing workflows.
+Requires Neovim 0.11+ and the upstream latex Tree-sitter parser.
+
+SETUP                                                   *tex-tools-setup*
+
+Add this repository to 'runtimepath' with your plugin manager, then: >lua
+    require('tex-tools').setup({
+      mappings = true,
+      math_environments = {},
+    })
+<
+The latex parser must be installed separately, e.g. :TSInstall latex.
+No nvim-treesitter Lua API is required. No parser or LSP is started by setup.
+Commands and mappings attach to tex/plaintex buffers, including buffers that
+were already open when setup ran. Repeated setup resets configuration.
+
+mappings: boolean, default true. Existing user mappings are preserved.
+Set false to use commands, Lua functions and <Plug> mappings only.
+
+math_environments: list of additional math environment names. Starred versions
+are also recognized. TeX macros are not expanded.
+
+COMMANDS                                                *tex-tools-commands*
+
+:TexToolsRenameEnvironment [name]                 *:TexToolsRenameEnvironment*
+    Rename both markers of the innermost environment. With no argument,
+    use vim.ui.input. A cancelled/empty prompt does nothing. Edits to the
+    buffer while the prompt is open invalidate the pending rename.
+    Accepts literal names starting with an ASCII letter or @ and containing
+    letters, digits, @, *, _ or -. Mismatched/incomplete markers are rejected.
+    Both changes belong to one undo operation.
+
+:TexToolsToggleEnvironmentStar                *:TexToolsToggleEnvironmentStar*
+    Append/remove a trailing * on both markers. Does not check whether the
+    starred environment is defined by the document's packages.
+
+:TexToolsJumpEnvironment                           *:TexToolsJumpEnvironment*
+    Jump from the end marker to begin, or from begin/body to end. Sets the
+    previous-context mark so that <C-o> can return.
+
+:TexToolsBuild                                             *:TexToolsBuild*
+    Save the current file with :update when modified, then send
+    textDocument/build to its attached texlab client. A save failure stops
+    the build. Does not start or configure a compiler itself.
+
+:TexToolsForwardSearch                             *:TexToolsForwardSearch*
+    Send textDocument/forwardSearch to the attached texlab client. Positions
+    use the client's negotiated encoding. Does not save the buffer.
+
+For build/search, configure texlab.settings, the compiler and PDF viewer in
+your normal LSP configuration. See the README for an example. Completion,
+diagnostics, references, formatting and root-file discovery belong to texlab.
+
+MAPPINGS                                                *tex-tools-mappings*
+
+Default normal-mode mappings:
+    cse                 <Plug>(TexToolsRenameEnvironment)
+    tss                 <Plug>(TexToolsToggleEnvironmentStar)
+    <LocalLeader>lm     <Plug>(TexToolsJumpEnvironment)
+    <LocalLeader>ll     <Plug>(TexToolsBuild)
+    <LocalLeader>lv     <Plug>(TexToolsForwardSearch)
+
+Default Visual/operator-pending mappings:
+    ae                  <Plug>(TexToolsAroundEnvironment)
+    ie                  <Plug>(TexToolsInsideEnvironment)
+
+<Plug> mappings are always installed in tex/plaintex buffers, even when
+default mappings are disabled. Use |vim.keymap.set()| to choose other keys.
+
+TEXT OBJECTS                                            *tex-tools-textobjects*
+
+ae selects the innermost complete environment, including its begin/end
+markers. ie selects its body, excluding begin options and marker lines
+when the markers are on their own lines. An empty body cancels the operator.
+These are characterwise selections; both 'selection' settings and UTF-8
+characters are supported. document is included. Counts to select enclosing
+environments are not implemented yet.
+
+LUA API                                                 *tex-tools-api*
+
+All functions are available from require('tex-tools').
+
+in_math([opts])                                          *tex-tools.in_math()*
+    Return boolean[, error]. Recognizes inline/display math, mathematical
+    environments, and configured custom math environments. Comments and
+    literal/code environments suppress math. text_mode nodes (e.g. \text)
+    suppress outer math, while an inner formula enables math again.
+
+in_comment([opts])                                    *tex-tools.in_comment()*
+    Return boolean[, error]. Recognizes line/block/comment-environment
+    comments. Verbatim/code content is not a LaTeX comment.
+
+environment([opts])                                  *tex-tools.environment()*
+    Return table[, error] or nil, error. Fields: bufnr, name, node,
+    begin_node, end_node, begin_name, end_name. Nodes are upstream TSNodes;
+    use them immediately and query again after buffer edits.
+
+For these three query functions, opts is an optional table:
+    bufnr: buffer handle (0/current by default).
+    pos: {row, byte_column}, both zero-based; current cursor by default.
+When querying a different buffer, pos must be supplied explicitly.
+Queries never notify. Missing parser: false/nil plus a descriptive error.
+
+rename_environment([name])                    *tex-tools.rename_environment()*
+toggle_environment_star()                  *tex-tools.toggle_environment_star()*
+jump_environment()                               *tex-tools.jump_environment()*
+    Operate on the current cursor's environment. Return true on success or
+    false, error. With no name, rename opens an asynchronous prompt;
+    true means the prompt was opened, not that an edit has completed.
+
+build()                                                    *tex-tools.build()*
+forward_search()                                  *tex-tools.forward_search()*
+    Return true, request_id when accepted, or false, error. The asynchronous
+    server result is reported via vim.notify. No new LSP client is created.
+
+Snippet condition example: >lua
+    local in_math = function()
+      return require('tex-tools').in_math()
+    end
+<
+HEALTH                                                  *tex-tools-health*
+
+:checkhealth tex-tools
+    Checks the Neovim version, latex parser and running/installed texlab.
+    Does not validate compiler binaries or PDF viewer configuration.
+
+DEVELOPMENT                                             *tex-tools-development*
+
+From the repository root:
+    stylua --check lua tests
+    nvim --clean --headless -l tests/run.lua
+
+If necessary, set TEX_TOOLS_TEST_PARSER to an absolute latex parser library
+path (e.g. latex.so). Tests use a real syntax tree; texlab protocol tests use
+a client double. End-to-end PDF integration requires your own toolchain.
+
+See README.md for the phased roadmap and upstream reference links.
+
+vim:tw=78:ts=4:ft=help:norl:

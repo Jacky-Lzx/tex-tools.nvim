@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: v2.5.2
+          args: --check lua tests
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        neovim: [v0.11.5, stable]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          version: ${{ matrix.neovim }}
+          neovim: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build upstream LaTeX parser for tests
+        run: |
+          npm install --global tree-sitter-cli@0.25.10
+          mkdir -p "$RUNNER_TEMP/tex-tools-parser"
+          cd "$RUNNER_TEMP/tex-tools-parser"
+          git init
+          git fetch --depth=1 https://github.com/latex-lsp/tree-sitter-latex fa8df448fc2c0192a8c2f8cfc97de53cb2b4ecb9
+          git checkout --detach FETCH_HEAD
+          tree-sitter generate --abi 14
+          cc -O2 -shared -fPIC -I src src/parser.c src/scanner.c -o latex.so
+      - name: Run tests
+        env:
+          TEX_TOOLS_TEST_PARSER: ${{ runner.temp }}/tex-tools-parser/latex.so
+        run: nvim --clean --headless -l tests/run.lua
+      - name: Validate help tags
+        run: nvim --clean --headless '+helptags doc' +qa

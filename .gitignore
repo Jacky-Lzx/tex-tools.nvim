@@ -1,0 +1,4 @@
+doc/tags
+nvim.log
+.nvimlog
+.test-parser/
