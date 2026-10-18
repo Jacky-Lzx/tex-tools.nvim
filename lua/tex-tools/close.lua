@@ -28,6 +28,7 @@ function M.text()
     node = node:parent()
   end
   local stack, captured = {}, nil
+  local pending_left = false
   local function event(value, range, opening, closing)
     if not captured and (range[1] > row or range[1] == row and range[2] >= col) then
       captured = vim.list_slice(stack)
@@ -94,6 +95,18 @@ function M.text()
     end
     if current:child_count() == 0 then
       local value = ts.text(current, 0)
+      -- Incomplete sized brackets are parsed as ERROR siblings, rather than
+      -- math_delimiter nodes. Retain the sizing command when completing them.
+      if value == '\\left' then
+        pending_left = true
+        return
+      elseif pending_left then
+        pending_left = false
+        if right[value] then
+          event('', ts.range(current), '\\right' .. right[value])
+          return
+        end
+      end
       if
         pairs[value]
         or value == '}'

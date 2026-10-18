@@ -78,6 +78,9 @@ return function(h)
   end)
   for i, fixture in ipairs({
     { '{abc', '}' },
+    { '(abc', ')' },
+    { '[abc', ']' },
+    { '$\\left(abc', '\\right)' },
     { '$abc', '$' },
     { '\\(abc', '\\)' },
     { '\\begin{align}\nabc', '\\end{align}' },
