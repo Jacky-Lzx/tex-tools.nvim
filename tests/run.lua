@@ -434,6 +434,7 @@ end)
 dofile('tests/editing.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
 dofile('tests/list.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
 dofile('tests/enter.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
+dofile('tests/navigation.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
 
 for _, entry in ipairs(tests) do
   local input, notify, get_clients, get_parser =

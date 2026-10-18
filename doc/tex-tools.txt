@@ -83,6 +83,18 @@ COMMANDS                                                *tex-tools-commands*
     Refuse comments, literal content, incomplete/mismatched lists, and
     unmodifiable buffers. Independent of the optional smart Enter mapping.
 
+:[count]TexToolsNextSection                       *:TexToolsNextSection*
+:[count]TexToolsPreviousSection               *:TexToolsPreviousSection*
+    Jump to the next/previous section command marker at any section level.
+    Default count: 1. Example: :3TexToolsNextSection.
+    See |tex-tools-navigation| for scope and boundary behavior.
+
+:[count]TexToolsNextItem                             *:TexToolsNextItem*
+:[count]TexToolsPreviousItem                     *:TexToolsPreviousItem*
+    Jump to the next/previous item marker within the current list level.
+    Default count: 1. Example: :2TexToolsPreviousItem.
+    See |tex-tools-navigation| for scope and boundary behavior.
+
 :TexToolsBuild                                             *:TexToolsBuild*
     Save the current file with :update when modified, then send
     textDocument/build to its attached texlab client. A save failure stops
@@ -108,6 +120,10 @@ Default normal-mode mappings:
     dse                 <Plug>(TexToolsUnwrapEnvironment)
     ts$                 <Plug>(TexToolsToggleMathDelimiters)
     <LocalLeader>li     <Plug>(TexToolsInsertItem)
+    ]]                  <Plug>(TexToolsNextSection)
+    [[                  <Plug>(TexToolsPreviousSection)
+    ]i                  <Plug>(TexToolsNextItem)
+    [i                  <Plug>(TexToolsPreviousItem)
 
 Default Insert-mode mapping:
     <LocalLeader>li     <Plug>(TexToolsInsertItem)
@@ -131,6 +147,38 @@ Default Visual/operator-pending mappings:
 
 <Plug> mappings are always installed in tex/plaintex buffers, even when
 default mappings are disabled. Use |vim.keymap.set()| to choose other keys.
+
+NAVIGATION                                              *tex-tools-navigation*
+
+Normal-mode ]] / [[ search forward/backward for section command markers at
+any level: part, chapter, section, subsection, subsubsection, paragraph, and
+subparagraph. Include starred forms and the parser's addpart/addchap/addsec
+aliases. Skip incomplete headers, comments, literal environments, and
+recognized definition bodies. A syntax error in a section's body does not
+hide its complete header. No texlab client is needed.
+
+Normal-mode ]i / [i search forward/backward for item markers at the current
+list level. The nearest environment must be itemize, enumerate, or description
+with complete matching begin/end markers. Do not enter nested environments;
+items under paragraph nodes are included. Empty items, labels, and starred
+markers are supported. List navigation is refused inside comments, literal
+content, and recognized definitions. The list's begin/end markers and blank
+gaps can be used as starting positions.
+
+Search strictly before/after the cursor and land on the command's backslash.
+From a heading/item body, the previous motion returns to its own marker;
+from a marker it moves to the preceding marker. Counts such as 3]] and 2[i
+are supported. An oversized count stops at the furthest available target
+without wrapping. With no target, preserve the cursor and jump history.
+
+Successful jumps set the previous-context mark and jump history for <C-o>
+and open folds at the destination. Navigation also works in unmodifiable
+buffers. Lua APIs return errors to the caller; commands/mappings notify.
+These mappings are installed in Normal mode only, and respect mappings=false
+and existing user mappings. All four <Plug> mappings remain available.
+
+Only structures represented in the upstream syntax tree are used. Macros are
+not expanded; legacy \def bodies are not identified as definition bodies.
 
 LIST ENTER                                              *tex-tools-smart-enter*
 
@@ -257,6 +305,14 @@ smart_enter()                                         *tex-tools.smart_enter()*
     expression evaluation; the returned action checks current syntax when
     executed, then splits the item or queues native Enter without remapping.
     Never notifies. Does not require setup(). See |tex-tools-smart-enter|.
+
+jump_section(direction [, count])                 *tex-tools.jump_section()*
+jump_item(direction [, count])                       *tex-tools.jump_item()*
+    Jump in the current buffer/window. direction is 1 (next) or -1 (previous).
+    count is a positive integer, default 1. Return true on movement or
+    false, error without moving or changing jump history. Never notify.
+    Does not require setup(). Custom Normal-mode mappings can pass
+    vim.v.count1 for count support. See |tex-tools-navigation|.
 
 build()                                                    *tex-tools.build()*
 forward_search()                                  *tex-tools.forward_search()*

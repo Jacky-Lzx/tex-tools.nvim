@@ -90,6 +90,35 @@ vim.keymap.set("i", "<CR>", function()
 end, { buffer = true, expr = true, replace_keycodes = false })
 ```
 
+## Phase 4: Structural navigation
+
+- `]]` / `[[` jump to the next / previous section marker at any section level.
+- `]i` / `[i` jump between item markers in the current list, skipping nested environments.
+- Counts such as `3]]` and `2[i` skip multiple targets; `<C-o>` returns to the jump's origin.
+
+These Normal-mode mappings land on the command's backslash and open folds
+containing the destination. Section navigation recognizes `part`, `chapter`,
+`section`, `subsection`, `subsubsection`, `paragraph`, and `subparagraph`,
+including starred forms and the parser's `addpart` / `addchap` / `addsec` aliases.
+Incomplete headers, comments, literal environments, and recognized definition
+bodies are excluded. Valid headings remain reachable when their body has a
+syntax error. Navigation follows the upstream syntax tree; macros are not
+expanded, and legacy `\def` bodies are not identified as definition bodies.
+
+List navigation stays in the nearest environment, which must be `itemize`,
+`enumerate`, or `description` with matching begin/end markers. Items under
+paragraph nodes are included; nested environments are skipped. Empty items,
+labels, and starred markers are supported. From a list's begin/end marker or
+a whitespace gap, the same position-based search applies. List navigation
+is refused inside comments, literal content, and recognized definitions.
+
+Both motions search strictly before/after the cursor. From inside a heading
+or item body, the previous motion returns to its own marker; from the marker,
+it moves to the preceding marker. Oversized counts stop at the furthest
+available target without wrapping. If there is no target, the cursor and
+jump history are preserved. All navigation works without texlab and in
+unmodifiable buffers.
+
 ## Installation
 
 Requires **Neovim ≥ 0.11** and an installed **`latex` Tree-sitter parser**.
@@ -140,6 +169,11 @@ Set `mappings = false` to disable the defaults.
 - `ts$` → `:TexToolsToggleMathDelimiters`; switches between dollar and backslash delimiters, preserving inline/display mode.
 - `<localleader>li` (Normal / Insert) → `:TexToolsInsertItem`; inserts a sibling item and enters Insert mode in its body or description label.
 - `<CR>` (Insert, only with `smart_enter = true`) → `<Plug>(TexToolsSmartEnter)`; splits at the cursor or uses native Enter.
+- `]]` / `[[` (Normal) → `:TexToolsNextSection` / `:TexToolsPreviousSection`.
+- `]i` / `[i` (Normal) → `:TexToolsNextItem` / `:TexToolsPreviousItem`.
+
+Navigation commands accept a count prefix too, for example
+`:3TexToolsNextSection` or `:2TexToolsPreviousItem`.
 
 `ie` excludes the begin marker's optional arguments. When markers occupy their
 own lines, it also excludes the newlines surrounding the body. An empty body
@@ -169,6 +203,7 @@ You can also define your own `<Plug>` mappings:
 vim.keymap.set("n", "<leader>te", "<Plug>(TexToolsRenameEnvironment)")
 vim.keymap.set({ "x", "o" }, "aE", "<Plug>(TexToolsAroundEnvironment)")
 vim.keymap.set({ "n", "i" }, "<C-j>", "<Plug>(TexToolsInsertItem)")
+vim.keymap.set("n", "]s", "<Plug>(TexToolsNextSection)")
 ```
 
 See [doc/tex-tools.txt](doc/tex-tools.txt) for all `<Plug>` names and API details.
@@ -226,6 +261,8 @@ tex.unwrap_environment()
 tex.toggle_math_delimiters()
 tex.insert_item() -- insert a sibling list item and enter Insert mode
 tex.smart_enter() -- encoded keys for an Insert-mode expression mapping
+tex.jump_section(1, 3) -- next section marker, repeated three times
+tex.jump_item(-1) -- preceding item marker at the current list level
 tex.build()
 tex.forward_search()
 
@@ -262,6 +299,12 @@ expression evaluation. The returned action checks the syntax when executed,
 then splits the item or queues native Enter without remapping or notifications.
 It works without `setup()`; only automatic mapping installation requires setup.
 
+`jump_section(direction, count)` and `jump_item(direction, count)` use `1` for
+next and `-1` for previous. `count` defaults to `1` and must be a positive
+integer. They return `true` on movement or `false, error` without moving.
+They do not notify or require `setup()`; commands and mappings display errors.
+Custom Normal-mode Lua mappings can pass `vim.v.count1` to retain count support.
+
 Example LuaSnip condition:
 
 ```lua
@@ -280,7 +323,7 @@ expanded.
 1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
 2. **Implemented: Editing** — Command, argument, and formula text objects; adding and removing surrounding environments; math delimiter switching.
 3. **In progress: Input** — Explicit `\item` insertion and optional context-aware Enter are implemented. Further input helpers should compose with existing snippet and pairs plugins.
-4. **Navigation** — Section and list-item motions and a table of contents, reusing texlab symbols and definitions where possible.
+4. **In progress: Navigation** — Section and same-level list-item jumps are implemented. A table of contents using texlab document symbols is planned.
 
 Each phase is tested against the real parser. Parsing, LSP communication,
 compiler processes, and log diagnostics remain the responsibility of
@@ -305,7 +348,8 @@ Tests cover context boundaries, environment editing, line and Visual surrounds,
 math delimiter round trips, undo, UTF-8 text objects, actual operator mappings,
 stale asynchronous prompts, nested list insertion, Normal/Insert-mode typing,
 description labels, indentation, smart Enter splits/fallbacks, rapid repeated
-Enter input, and texlab request parameter encoding. texlab tests
+Enter input, section and list-item navigation, counted mappings, jump history,
+fold opening, and texlab request parameter encoding. texlab tests
 use a client double and do not start a LaTeX compiler or PDF viewer. Verify
 actual builds and PDF navigation with your configured local toolchain.
 

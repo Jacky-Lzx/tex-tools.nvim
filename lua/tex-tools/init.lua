@@ -103,6 +103,16 @@ local function attach(bufnr)
       { desc = 'Forward search with the attached texlab client' },
     },
   }
+  for _, kind in ipairs({ 'Section', 'Item' }) do
+    for _, direction in ipairs({ { 'Next', 1 }, { 'Previous', -1 } }) do
+      commands['TexTools' .. direction[1] .. kind] = {
+        function(args)
+          action('navigation', kind:lower(), direction[2], args.count)
+        end,
+        { count = 1, desc = 'Jump to the ' .. direction[1]:lower() .. ' LaTeX ' .. kind:lower() },
+      }
+    end
+  end
   for name, command in pairs(commands) do
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
@@ -204,6 +214,18 @@ local function attach(bufnr)
       end,
     },
   }
+  for _, kind in ipairs({ { 'Section', ']]', '[[' }, { 'Item', ']i', '[i' } }) do
+    for _, direction in ipairs({ { 'Next', 1, 2 }, { 'Previous', -1, 3 } }) do
+      maps[#maps + 1] = {
+        'n',
+        kind[direction[3]],
+        direction[1] .. kind[1],
+        function()
+          action('navigation', kind[1]:lower(), direction[2], vim.v.count1)
+        end,
+      }
+    end
+  end
   for _, object in ipairs({ { 'command', 'c', 'Command' }, { 'argument', 'a', 'Argument' }, { 'math', '$', 'Math' } }) do
     for _, variant in ipairs({ { 'a', 'Around', false }, { 'i', 'Inside', true } }) do
       maps[#maps + 1] = {
@@ -296,6 +318,12 @@ function M.insert_item()
 end
 function M.smart_enter()
   return require('tex-tools.list').smart_enter()
+end
+function M.jump_section(direction, count)
+  return require('tex-tools.navigation').section(direction, count)
+end
+function M.jump_item(direction, count)
+  return require('tex-tools.navigation').item(direction, count)
 end
 function M.textobject_range(kind, inner, opts)
   return require('tex-tools.textobjects').range(kind, inner, opts)
