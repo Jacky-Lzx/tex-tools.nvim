@@ -5,7 +5,8 @@
 Lua tools for writing LaTeX in Neovim, inspired by [VimTeX](https://github.com/lervag/vimtex).
 Provides structural editing, text objects, navigation, optional conceal, list input, and snippet
 context queries using [Tree-sitter](https://github.com/latex-lsp/tree-sitter-latex).
-Build and PDF forward search use your existing texlab client; texlab handles
+Build and PDF forward search use your existing texlab client, with native PDF
+viewing and inverse search available without another plugin; texlab handles
 completion, diagnostics, references, and formatting.
 
 ## Installation
@@ -55,7 +56,8 @@ and `d` (math brackets). Normal mode unless stated otherwise.
 | `<localleader>lg` | Show build status |
 | `<localleader>lo` / `lq` / `le` | Live compiler output / full log / texlab diagnostics |
 | `<localleader>lc` / `lC` | Clean auxiliary files / all artifacts including PDF |
-| `]]` / `[[` | Next / previous section |
+| `]]` / `[[` | Next / previous section (Normal) |
+| `]]` (Insert) | Insert the nearest missing closing marker |
 | `]i` / `[i` | Next / previous item at the current list level |
 | `]e` / `[e` | Next / previous environment opening |
 | `]m` / `[m` | Next / previous formula opening |
@@ -76,11 +78,12 @@ Use in Visual mode or with operators such as `d`, `c`, and `y`.
 | `a$` / `i$` | Formula including delimiters / body |
 | `ad` / `id` | Math brackets including size commands / contents |
 | `ai` / `ii` | List item including marker and label / body |
+| `aP` / `iP` | Section including heading / body and subsections |
 
 Counts select enclosing depth: `d2ac` deletes the second enclosing command,
 `2ai` selects the parent item. Bracket jumps also count enclosing depth;
 section/item/environment/formula motions count successive targets.
-Whole-line `ai` selections are linewise; other objects are characterwise.
+Whole-line `ai` and `aP` selections are linewise; other objects are characterwise.
 An empty inner object or unavailable depth cancels the operator.
 
 ### Lists and repeat
@@ -315,3 +318,63 @@ requires your local toolchain.
 - Insert-mode `]]` inserts the nearest missing closing brace, bracket, math delimiter or `\end{…}`. It inserts literal `]]` when no safe completion is available, including when a real closing marker already exists later. `:TexToolsCloseDelimiter` exposes the same operation at the current byte position.
 
 The new normal-mode edits have commands and `<Plug>(TexToolsToggleCommandStar)`, `<Plug>(TexToolsToggleFraction)` and `<Plug>(TexToolsToggleMathMode)` mappings, without default normal-mode keys. Section objects and insert completion respect `mappings = false`. Public Lua methods are `toggle_command_star()`, `toggle_fraction()`, `convert_math(target)`, `toggle_math_mode()`, `close_delimiter()` and `close_delimiter_keys()`. Structural conversions support semantic dot repeat and a single undo step; insert completion uses native insert undo/repeat.
+
+
+### PDF viewing and native inverse search
+
+`:TexToolsView` opens the resolved PDF without jumping to the source line. It
+requires an attached texlab client to resolve the project, but does not send a
+forward-search request. It detects Skim from texlab's `displayline` setting,
+Zathura from texlab or `PATH`, then falls back to the system PDF opener.
+Override detection when needed:
+
+```lua
+require("tex-tools").setup({
+  viewer = {
+    method = "zathura", -- auto (default), zathura, skim, generic
+    executable = false, -- optional executable override
+    args = {},          -- extra arguments before the PDF path
+  },
+})
+```
+
+Skim viewing uses `open -a Skim`; an executable override replaces `open`.
+Zathura uses `zathura`, with any configured texlab Zathura path reused.
+Generic viewing uses `open` on macOS, `explorer.exe` on Windows, or `xdg-open`
+on other platforms. Generic openers do not configure source synchronization.
+
+**No `nvim-texlabconfig` is needed.** Zathura started with `:TexToolsView` receives
+a callback pointing to this Neovim instance. In Skim, run
+`:TexToolsInverseSearch skim`, then copy the reported **Command** and
+**Arguments** into Skim's **Settings → Sync → Preset: Custom**. The command starts
+a clean headless Neovim, which sends the source path/line through Neovim RPC.
+It opens the source and moves the cursor; it does not automatically focus an
+external terminal. The callback is tied to the current Neovim session: after
+restarting Neovim, regenerate the Skim command or reopen Zathura through the
+plugin. Callback generation currently supports POSIX systems (macOS/Linux).
+
+`:TexToolsInverseSearch zathura` displays the callback for manual Zathura setup.
+A viewer process needs to run on the same host with access to the RPC socket.
+Existing PDF windows opened outside the plugin keep their own callback settings.
+The plugin does not modify viewer preferences or your Neovim configuration.
+
+`:TexToolsForwardSearch` continues using texlab normally. When a main file is
+explicitly selected through `:TexToolsMain` or `build.main_file`, it launches
+texlab's configured `forwardSearch.executable` and `args` directly, replacing
+`%p`, `%f`, and `%l` with the selected PDF, current source and current line.
+This avoids texlab's independent dependency graph choosing another main file.
+Arguments are passed as an argv list; they are not shell commands. Both forward
+and inverse synchronization need a PDF viewer with SyncTeX support and compilation
+with SyncTeX enabled (for Tectonic, `--synctex`).
+
+Lua: `view()` returns `true, job_id` or `false, error`;
+`inverse_search(file, line, column?)` jumps using one-based line/byte column;
+`inverse_search_command("skim"|"zathura")` returns a table with `command`,
+`arguments`, `argv`, `shell_command`, `server`, or `nil, error`. Generating this
+command starts an RPC server only if needed; plugin setup does not.
+After a jump, the `User TexToolsInverseSearch` event carries `file`, `line`,
+and `column` in its data, allowing your configuration to focus a terminal.
+
+`:checkhealth tex-tools` now also reports compiler/viewer executables, the
+current main file, artifact/SyncTeX paths, and the existing RPC address. The
+health check does not compile, open a PDF or start an RPC server.

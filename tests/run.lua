@@ -502,6 +502,8 @@ dofile('tests/clean.lua')({ test = test, eq = eq, buffer = buffer, content = con
 dofile('tests/compiler.lua')({ test = test, eq = eq, buffer = buffer, content = content })
 dofile('tests/editing_extra.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
 
+dofile('tests/viewer.lua')({ test = test, eq = eq, buffer = buffer })
+
 dofile('tests/project.lua')({ test = test, eq = eq, buffer = buffer, content = content })
 
 for _, entry in ipairs(tests) do

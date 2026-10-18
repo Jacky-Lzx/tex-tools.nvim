@@ -4,6 +4,7 @@ local defaults = {
   mappings = true,
   smart_enter = false,
   conceal = false,
+  viewer = { method = 'auto', executable = false, args = {} },
   build = { output_lines = 2000, main_file = false, profiles = {} },
   -- Additional math environments defined by your document class or packages.
   math_environments = {},
@@ -75,6 +76,22 @@ function M.setup(opts)
     'build.main_file must be false or a nonempty path'
   )
   validate_profiles(options.build.profiles)
+  vim.validate('viewer', options.viewer, 'table')
+  assert(vim.tbl_contains({ 'auto', 'skim', 'zathura', 'generic' }, options.viewer.method), 'Unknown viewer.method')
+  assert(
+    options.viewer.executable == false
+      or (
+        type(options.viewer.executable) == 'string'
+        and options.viewer.executable ~= ''
+        and not options.viewer.executable:find('%z')
+      ),
+    'viewer.executable must be false or a nonempty executable path'
+  )
+  vim.validate('viewer.args', options.viewer.args, 'table')
+  assert(vim.islist(options.viewer.args), 'viewer.args must be a list')
+  for _, value in ipairs(options.viewer.args) do
+    assert(type(value) == 'string' and not value:find('%z'), 'viewer.args entries must be strings without NUL bytes')
+  end
   vim.validate('conceal', options.conceal, { 'boolean', 'table' })
   if options.conceal ~= false then
     local conceal = type(options.conceal) == 'table' and options.conceal or {}

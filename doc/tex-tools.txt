@@ -474,7 +474,7 @@ jump_math(direction [, count])                       *tex-tools.jump_math()*
 
 textobject_range(kind, inner [, opts])            *tex-tools.textobject_range()*
     Return a byte range or nil, error. kind: 'environment', 'command',
-    'argument', 'math', 'delimiter', or 'item'; inner: boolean. opts accepts
+    'argument', 'math', 'delimiter', 'section', or 'item'; inner: boolean. opts accepts
     bufnr, pos, and a positive count (enclosing depth, default 1).
 select_textobject(kind, inner [, count])         *tex-tools.select_textobject()*
     Enter Visual mode in the current buffer; return true or false, error.
@@ -495,7 +495,8 @@ forward_search()                                  *tex-tools.forward_search()*
 HEALTH                                                  *tex-tools-health*
 
 :checkhealth tex-tools checks Neovim, the latex parser, and texlab.
-Compiler and PDF viewer configuration must be checked separately.
+It also reports the current compiler, main file, PDF/SyncTeX artifacts, viewer
+executable and RPC address. It does not start a server, compiler or viewer.
 
 DEVELOPMENT                                             *tex-tools-development*
 
@@ -531,5 +532,41 @@ Normal-mode Plug mappings (no default key):
 Lua: toggle_command_star(), toggle_fraction(), convert_math(target),
 toggle_math_mode(), close_delimiter(), close_delimiter_keys().
 Conversions support dot repeat and one-step undo.
+
+PDF VIEWING AND INVERSE SEARCH                     *tex-tools-viewer*
+
+:TexToolsView opens the resolved PDF without a source-line jump. An attached
+texlab client is required for project resolution. No forward request is sent.
+viewer.method: auto (default), zathura, skim, generic.
+viewer.executable: false (default) or an executable override.
+viewer.args: extra arguments before the PDF path (default {}).
+Auto detects Skim from texlab displayline, Zathura from texlab/PATH, then the
+system opener. Skim uses open -a Skim (executable overrides open); Zathura uses
+zathura; generic uses open, explorer.exe or xdg-open. Generic openers do not
+configure synchronization. Viewing does not require an existing SyncTeX file.
+
+:TexToolsInverseSearch [skim|zathura] displays a native callback for this
+Neovim session. Skim: copy Command and Arguments into Settings > Sync > Custom.
+Zathura started through :TexToolsView receives its callback automatically.
+No nvim-texlabconfig, service, or extra plugin is needed. A clean headless
+Neovim connects to this instance using RPC, passes filenames as data, and
+opens the source at the requested line. The callback uses POSIX quoting and
+currently supports macOS/Linux. Both processes need access to the same host's
+socket. Regenerate after restarting Neovim; existing viewer windows retain
+their previous callbacks. Viewer preferences are never modified automatically.
+
+Forward search normally uses texlab. An explicit main (TexToolsMain or
+build.main_file) instead expands texlab.forwardSearch executable/args directly:
+%p selected PDF, %f current source, %l current line. Configure these texlab
+settings first. Arguments are argv entries, not shell commands. Synchronization
+requires SyncTeX support in the compiler and viewer (Tectonic: --synctex).
+
+view() returns true, job_id or false, error.
+inverse_search(file, line [, column]) returns true or false, error. Positions
+are one-based; column counts bytes. A modified buffer is preserved.
+inverse_search_command(kind) returns {command, arguments, argv, shell_command,
+server} or nil, error. It starts an RPC server on demand, unlike setup/health.
+The User TexToolsInverseSearch event supplies file/line/column data. External
+terminal activation can be configured on that event; it is not automatic.
 
 vim:tw=78:ts=4:ft=help:norl:

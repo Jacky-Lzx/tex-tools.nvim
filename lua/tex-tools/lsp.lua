@@ -132,6 +132,13 @@ function M.build()
 end
 
 function M.forward_search()
+  local client, err = M.client()
+  if not client then
+    return false, err
+  end
+  if require('tex-tools.project').explicit(client) then
+    return require('tex-tools.viewer').forward_search(client)
+  end
   return request('forward', 'textDocument/forwardSearch')
 end
 

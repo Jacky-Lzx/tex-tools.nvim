@@ -88,6 +88,24 @@ local function attach(bufnr)
       end,
       { desc = 'Insert the nearest missing closing marker' },
     },
+    TexToolsView = {
+      function()
+        action('viewer', 'view')
+      end,
+      { desc = 'Open the resolved PDF without forward search' },
+    },
+    TexToolsInverseSearch = {
+      function(args)
+        action('viewer', 'show_callback', args.args ~= '' and args.args or 'skim')
+      end,
+      {
+        nargs = '?',
+        complete = function()
+          return { 'skim', 'zathura' }
+        end,
+        desc = 'Show the native inverse-search callback',
+      },
+    },
     TexToolsMain = {
       function(args)
         action('project', 'command', args.args ~= '' and args.args or nil)
@@ -760,6 +778,15 @@ function M.select_textobject(kind, inner, count)
 end
 function M.build()
   return require('tex-tools.lsp').build()
+end
+function M.view()
+  return require('tex-tools.viewer').view()
+end
+function M.inverse_search(file, line, column)
+  return require('tex-tools.viewer').inverse_search(file, line, column)
+end
+function M.inverse_search_command(kind)
+  return require('tex-tools.viewer').callback(kind or 'skim')
 end
 function M.forward_search()
   return require('tex-tools.lsp').forward_search()
