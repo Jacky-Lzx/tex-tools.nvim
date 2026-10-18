@@ -96,11 +96,14 @@ end, { buffer = true, expr = true, replace_keycodes = false })
 
 - `]]` / `[[` jump to the next / previous section marker at any section level.
 - `]i` / `[i` jump between item markers in the current list, skipping nested environments.
+- `]e` / `[e` jump to environment begin markers throughout the buffer, including nested environments.
+- `]m` / `[m` jump to inline/display formula openings and named math environments.
 - Counts such as `3]]` and `2[i` skip multiple targets; `<C-o>` returns to the jump's origin.
 
-These Normal-mode mappings land on the command's backslash and open folds
-containing the destination. Section navigation recognizes `part`, `chapter`,
-`section`, `subsection`, `subsubsection`, `paragraph`, and `subparagraph`,
+These Normal-mode mappings land on the opening delimiter or command's
+backslash and open folds containing the destination. Section navigation
+recognizes `part`, `chapter`, `section`, `subsection`, `subsubsection`,
+`paragraph`, and `subparagraph`,
 including starred forms and the parser's `addpart` / `addchap` / `addsec` aliases.
 Incomplete headers, comments, literal environments, and recognized definition
 bodies are excluded. Valid headings remain reachable when their body has a
@@ -114,9 +117,19 @@ labels, and starred markers are supported. From a list's begin/end marker or
 a whitespace gap, the same position-based search applies. List navigation
 is refused inside comments, literal content, and recognized definitions.
 
-Both motions search strictly before/after the cursor. From inside a heading
-or item body, the previous motion returns to its own marker; from the marker,
-it moves to the preceding marker. Oversized counts stop at the furthest
+Environment navigation includes `document` and requires complete, matching
+begin/end markers. Formula navigation includes `$...$`, `\(...\)`, `$$...$$`,
+`\[...\]`, parser-recognized math environments, and configured
+`math_environments`. Delimited formulas must be complete and have matching
+delimiters. Nested formulas inside `\text{...}` are separate targets.
+Both traverse in source order, skipping comments, literal/code environments
+(including their markers), and recognized definition bodies. They can start
+inside excluded content to reach a valid target elsewhere in the buffer.
+`<localleader>lm` continues to jump between the current environment's markers.
+
+All motions search strictly before/after the cursor. Moving backward from a
+marker selects the preceding marker. Nested openings count as separate
+targets in environment and formula navigation. Oversized counts stop at the furthest
 available target without wrapping. If there is no target, the cursor and
 jump history are preserved. All navigation works without texlab and in
 unmodifiable buffers.
@@ -255,9 +268,14 @@ Set `vim.g.maplocalleader` before loading the plugin to choose the prefix key.
 - `<CR>` (Insert, only with `smart_enter = true`) → `<Plug>(TexToolsSmartEnter)`; splits at the cursor or uses native Enter.
 - `]]` / `[[` (Normal) → `:TexToolsNextSection` / `:TexToolsPreviousSection`.
 - `]i` / `[i` (Normal) → `:TexToolsNextItem` / `:TexToolsPreviousItem`.
+- `]e` / `[e` (Normal) → `:TexToolsNextEnvironment` / `:TexToolsPreviousEnvironment`.
+- `]m` / `[m` (Normal) → `:TexToolsNextMath` / `:TexToolsPreviousMath`.
 
 Navigation commands accept a count prefix too, for example
-`:3TexToolsNextSection` or `:2TexToolsPreviousItem`.
+`:3TexToolsNextSection`, `:2TexToolsPreviousItem`, or `:2TexToolsNextMath`.
+Lua callers can use `jump_environment_start(direction, count)` and
+`jump_math(direction, count)`, with direction `1` (next) or `-1` (previous)
+and an optional positive count. `jump_environment()` retains its begin/end jump.
 
 `ie` excludes the begin marker's optional arguments. When markers occupy their
 own lines, it also excludes the newlines surrounding the body. An empty body
@@ -466,7 +484,7 @@ expanded.
 1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
 2. **Implemented: Editing** — Command, argument, formula, and math bracket text objects; command renaming and surrounds; adding and removing surrounding environments; formula delimiter switching and math bracket editing/sizing; native dot repeat for cursor-based structural edits.
 3. **In progress: Input** — Explicit `\item` insertion and optional context-aware Enter are implemented. Further input helpers should compose with existing snippet and pairs plugins.
-4. **Implemented: Navigation** — Section and same-level list-item jumps with counts, jump history, and fold opening.
+4. **Implemented: Navigation** — Section, same-level list-item, environment, and formula jumps with counts, jump history, and fold opening.
 
 Each phase is tested against the real parser. Parsing, LSP communication,
 compiler processes, and log diagnostics remain the responsibility of
@@ -491,7 +509,7 @@ Tests cover context boundaries, environment editing, line and Visual surrounds,
 math delimiter round trips, undo, UTF-8 text objects, actual operator mappings,
 stale asynchronous prompts, nested list insertion, Normal/Insert-mode typing,
 description labels, indentation, smart Enter splits/fallbacks, rapid repeated
-Enter input, section and list-item navigation, counted mappings, jump history,
+Enter input, section/list-item/environment/formula navigation, counted mappings, jump history,
 fold opening, command renaming/unwrapping, exact Visual command surrounds,
 math bracket matching, paired edits, automatic sizing, alignment and middle guards,
 syntax-boundary guards, native and counted dot repeat, native editing compatibility,

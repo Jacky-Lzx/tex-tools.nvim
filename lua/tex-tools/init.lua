@@ -139,7 +139,7 @@ local function attach(bufnr)
       { desc = 'Forward search with the attached texlab client' },
     },
   }
-  for _, kind in ipairs({ 'Section', 'Item' }) do
+  for _, kind in ipairs({ 'Section', 'Item', 'Environment', 'Math' }) do
     for _, direction in ipairs({ { 'Next', 1 }, { 'Previous', -1 } }) do
       commands['TexTools' .. direction[1] .. kind] = {
         function(args)
@@ -306,7 +306,12 @@ local function attach(bufnr)
       end,
     },
   }
-  for _, kind in ipairs({ { 'Section', ']]', '[[' }, { 'Item', ']i', '[i' } }) do
+  for _, kind in ipairs({
+    { 'Section', ']]', '[[' },
+    { 'Item', ']i', '[i' },
+    { 'Environment', ']e', '[e' },
+    { 'Math', ']m', '[m' },
+  }) do
     for _, direction in ipairs({ { 'Next', 1, 2 }, { 'Previous', -1, 3 } }) do
       maps[#maps + 1] = {
         'n',
@@ -442,6 +447,12 @@ function M.jump_section(direction, count)
 end
 function M.jump_item(direction, count)
   return require('tex-tools.navigation').item(direction, count)
+end
+function M.jump_environment_start(direction, count)
+  return require('tex-tools.navigation').environment(direction, count)
+end
+function M.jump_math(direction, count)
+  return require('tex-tools.navigation').math(direction, count)
 end
 function M.textobject_range(kind, inner, opts)
   return require('tex-tools.textobjects').range(kind, inner, opts)

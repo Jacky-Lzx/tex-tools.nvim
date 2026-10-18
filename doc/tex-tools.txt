@@ -130,6 +130,19 @@ COMMANDS                                                *tex-tools-commands*
     Default count: 1. Example: :2TexToolsPreviousItem.
     See |tex-tools-navigation| for scope and boundary behavior.
 
+:[count]TexToolsNextEnvironment             *:TexToolsNextEnvironment*
+:[count]TexToolsPreviousEnvironment     *:TexToolsPreviousEnvironment*
+    Jump to the next/previous environment begin marker in the buffer.
+    Include nested environments and document. Default count: 1.
+    Distinct from |:TexToolsJumpEnvironment|, which jumps between the current
+    environment's begin/end markers. See |tex-tools-navigation|.
+
+:[count]TexToolsNextMath                             *:TexToolsNextMath*
+:[count]TexToolsPreviousMath                     *:TexToolsPreviousMath*
+    Jump to the next/previous formula opening or math environment begin
+    marker, including nested formulas. Default count: 1.
+    See |tex-tools-navigation| for scope and boundary behavior.
+
 :TexToolsBuild                                             *:TexToolsBuild*
     Save the current file with :update when modified, then send
     textDocument/build to its attached texlab client. A save failure stops
@@ -172,6 +185,10 @@ Default normal-mode mappings:
     [[                  <Plug>(TexToolsPreviousSection)
     ]i                  <Plug>(TexToolsNextItem)
     [i                  <Plug>(TexToolsPreviousItem)
+    ]e                  <Plug>(TexToolsNextEnvironment)
+    [e                  <Plug>(TexToolsPreviousEnvironment)
+    ]m                  <Plug>(TexToolsNextMath)
+    [m                  <Plug>(TexToolsPreviousMath)
 
 Default Insert-mode mapping:
     <LocalLeader>li     <Plug>(TexToolsInsertItem)
@@ -329,17 +346,36 @@ markers are supported. List navigation is refused inside comments, literal
 content, and recognized definitions. The list's begin/end markers and blank
 gaps can be used as starting positions.
 
-Search strictly before/after the cursor and land on the command's backslash.
-From a heading/item body, the previous motion returns to its own marker;
-from a marker it moves to the preceding marker. Counts such as 3]] and 2[i
-are supported. An oversized count stops at the furthest available target
-without wrapping. With no target, preserve the cursor and jump history.
+Normal-mode ]e / [e search for environment begin markers throughout the
+buffer in source order, including nested environments and document. Require
+complete begin/end markers with matching names. Body errors do not hide
+otherwise valid environment markers.
+
+Normal-mode ]m / [m search for formula openings throughout the buffer:
+$...$, \(...\), $$...$$, \[...\], parser-recognized math environments,
+and configured math_environments. Delimited formulas must be complete and
+have matching delimiters. Named environments require complete, matching
+begin/end markers. Nested formulas in \text{...} are separate targets.
+
+Environment and formula navigation skip comments, literal/code environments
+(including their markers), and recognized definition bodies. Both can start
+inside excluded content and jump to a valid target elsewhere. The existing
+<LocalLeader>lm begin/end jump remains available independently.
+
+Search strictly before/after the cursor and land on the opening delimiter or
+command's backslash. Moving backward from a marker selects the preceding
+marker. Nested openings count as separate targets in environment and formula
+navigation. Counts such as 3]] and 2[i are supported.
+An oversized count stops at the furthest
+available target without wrapping. With no target, preserve the cursor and
+jump history.
 
 Successful jumps set the previous-context mark and jump history for <C-o>
 and open folds at the destination. Navigation also works in unmodifiable
 buffers. Lua APIs return errors to the caller; commands/mappings notify.
 These mappings are installed in Normal mode only, and respect mappings=false
-and existing user mappings. All four <Plug> mappings remain available.
+and existing user mappings. All eight navigation <Plug> mappings remain
+available when defaults are disabled.
 
 Only structures represented in the upstream syntax tree are used. Macros are
 not expanded; legacy \def bodies are not identified as definition bodies.
@@ -507,11 +543,17 @@ smart_enter()                                         *tex-tools.smart_enter()*
 
 jump_section(direction [, count])                 *tex-tools.jump_section()*
 jump_item(direction [, count])                       *tex-tools.jump_item()*
+jump_environment_start(direction [, count])
+                                        *tex-tools.jump_environment_start()*
+jump_math(direction [, count])                       *tex-tools.jump_math()*
     Jump in the current buffer/window. direction is 1 (next) or -1 (previous).
     count is a positive integer, default 1. Return true on movement or
     false, error without moving or changing jump history. Never notify.
     Does not require setup(). Custom Normal-mode mappings can pass
     vim.v.count1 for count support. See |tex-tools-navigation|.
+    jump_environment_start() visits environment openings in source order;
+    jump_environment() retains its existing current-environment begin/end
+    behavior. jump_math() visits formula openings and math environments.
 
 build()                                                    *tex-tools.build()*
 forward_search()                                  *tex-tools.forward_search()*

@@ -1,5 +1,6 @@
 local ts = require('tex-tools.treesitter')
 local environment = require('tex-tools.environment')
+local context = require('tex-tools.context')
 local M = {}
 
 local sections = {
@@ -46,16 +47,36 @@ local function marker(node, section)
   return { row, col }
 end
 
+local function structure_marker(node, kind)
+  if ts.environment(node) and (kind == 'environment' or context.is_math_environment(node, 0)) then
+    local env = environment.from_node(node, 0)
+    if env and complete(env.begin_node) and complete(env.end_node) then
+      local row, col = env.begin_node:range()
+      return { row, col }
+    end
+  elseif kind == 'math' and (node:type() == 'inline_formula' or node:type() == 'displayed_equation') then
+    local opening, closing = node:child(0), node:child(node:child_count() - 1)
+    local pairs = { ['$'] = '$', ['$$'] = '$$', ['\\('] = '\\)', ['\\['] = '\\]' }
+    if complete(node) and complete(opening) and complete(closing) and pairs[opening:type()] == closing:type() then
+      local row, col = opening:range()
+      return { row, col }
+    end
+  end
+end
+
 local function collect(node, targets, kind, root)
   if blocked(node) or (kind == 'item' and node ~= root and ts.environment(node)) then
     return
   end
   local section = kind == 'section'
-  if (section and sections[node:type()]) or (not section and node:type() == 'enum_item') then
-    local pos = marker(node, section)
-    if pos then
-      targets[#targets + 1] = pos
-    end
+  local pos
+  if (section and sections[node:type()]) or (kind == 'item' and node:type() == 'enum_item') then
+    pos = marker(node, section)
+  elseif kind == 'environment' or kind == 'math' then
+    pos = structure_marker(node, kind)
+  end
+  if pos then
+    targets[#targets + 1] = pos
   end
   for child in node:iter_children() do
     if child:named() then
@@ -69,7 +90,7 @@ local function scope(kind)
   if not node then
     return nil, err
   end
-  if kind == 'section' then
+  if kind ~= 'item' then
     while node:parent() do
       node = node:parent()
     end
@@ -146,6 +167,14 @@ end
 
 function M.item(direction, count)
   return jump('item', direction, count)
+end
+
+function M.environment(direction, count)
+  return jump('environment', direction, count)
+end
+
+function M.math(direction, count)
+  return jump('math', direction, count)
 end
 
 return M
