@@ -4,12 +4,56 @@ local defaults = {
   mappings = true,
   smart_enter = false,
   conceal = false,
-  build = { output_lines = 2000, main_file = false },
+  build = { output_lines = 2000, main_file = false, profiles = {} },
   -- Additional math environments defined by your document class or packages.
   math_environments = {},
 }
 
 M.options = vim.deepcopy(defaults)
+
+M.profile_fields = { 'executable', 'args', 'auxDirectory', 'logDirectory', 'pdfDirectory', 'filename' }
+
+local function validate_profiles(profiles)
+  vim.validate('build.profiles', profiles, 'table')
+  for name, profile in pairs(profiles) do
+    assert(
+      type(name) == 'string' and name:match('^[%w_][%w_.-]*$') and name ~= 'toggle',
+      'Compiler profile names must be identifiers other than toggle'
+    )
+    local key = 'build.profiles.' .. name
+    vim.validate(key, profile, 'table')
+    for field in pairs(profile) do
+      assert(
+        vim.tbl_contains(M.profile_fields, field),
+        'Unknown compiler profile option: ' .. key .. '.' .. tostring(field)
+      )
+    end
+    vim.validate(key .. '.executable', profile.executable, 'string')
+    assert(
+      profile.executable ~= '' and not profile.executable:find('%z'),
+      key .. '.executable must be a nonempty executable path'
+    )
+    vim.validate(key .. '.args', profile.args, 'table')
+    assert(vim.islist(profile.args), key .. '.args must be a list')
+    for _, argument in ipairs(profile.args) do
+      vim.validate(key .. '.args entry', argument, 'string')
+      assert(not argument:find('%z'), key .. '.args must not contain NUL bytes')
+    end
+    for _, field in ipairs({ 'auxDirectory', 'logDirectory', 'pdfDirectory', 'filename' }) do
+      local value = profile[field]
+      if value ~= nil then
+        vim.validate(key .. '.' .. field, value, 'string')
+        assert(value ~= '' and not value:find('%z'), key .. '.' .. field .. ' must be a nonempty path')
+      end
+    end
+    if profile.filename then
+      assert(
+        not profile.filename:find('[/\\]') and profile.filename ~= '.' and profile.filename ~= '..',
+        key .. '.filename must be a basename without directory components'
+      )
+    end
+  end
+end
 
 local conceal_categories =
   { 'accents', 'ligatures', 'cites', 'fancy', 'spacing', 'math_bounds', 'math_delimiters', 'styles' }
@@ -30,6 +74,7 @@ function M.setup(opts)
     options.build.main_file == false or (type(options.build.main_file) == 'string' and options.build.main_file ~= ''),
     'build.main_file must be false or a nonempty path'
   )
+  validate_profiles(options.build.profiles)
   vim.validate('conceal', options.conceal, { 'boolean', 'table' })
   if options.conceal ~= false then
     local conceal = type(options.conceal) == 'table' and options.conceal or {}

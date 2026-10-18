@@ -96,6 +96,7 @@ end
 
 function M.snapshot(client)
   local state = M.state(client)
+  local compiler = require('tex-tools.compiler').snapshot(client)
   local result = {
     client_id = client.id,
     phase = state.phase,
@@ -103,6 +104,8 @@ function M.snapshot(client)
     result = state.result,
     error = state.error,
     on_save = (((client.settings or {}).texlab or {}).build or {}).onSave == true,
+    compiler = compiler.executable,
+    profile = compiler.profile,
   }
   if state.started_at then
     result.elapsed = ((state.finished_at or vim.uv.hrtime()) - state.started_at) / 1e9

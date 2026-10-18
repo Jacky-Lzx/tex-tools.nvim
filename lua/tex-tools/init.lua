@@ -661,6 +661,9 @@ end
 function M.build_on_save(enabled)
   return require('tex-tools.lsp').build_on_save(enabled)
 end
+function M.compiler(name)
+  return require('tex-tools.compiler').select(name)
+end
 function M.build_output()
   return require('tex-tools.build_output').open()
 end
