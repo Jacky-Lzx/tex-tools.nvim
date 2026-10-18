@@ -65,6 +65,48 @@ function M.is_heading(node)
   return kinds[node:type()] == true
 end
 
+-- The latex grammar does not model inline verbatim consistently. Mask only
+-- those literal spans, keeping byte positions stable for headings and jumps.
+function M.mask_inline(content)
+  local lines = vim.split(content, '\n', { plain = true })
+  for index, line in ipairs(lines) do
+    local i = 1
+    while i <= #line do
+      local char = line:sub(i, i)
+      if char == '%' then
+        break
+      elseif char == '\\' then
+        local name = line:sub(i + 1):match('^([A-Za-z@]+%*?)') or line:sub(i + 1, i + 1)
+        local length = #name + 1
+        if name:match('^verb%*?$') or name:match('^lstinline%*?$') or name == 'mintinline' then
+          local start = i + length
+          if not name:match('^verb') then
+            local prefix = line:sub(start):match('^%s*%b[]%s*') or line:sub(start):match('^%s*')
+            start = start + #prefix
+            if name == 'mintinline' then
+              local language = line:sub(start):match('^%b{}%s*')
+              start = language and start + #language or #line + 1
+            end
+          end
+          local delimiter = line:sub(start, start)
+          local group = not name:match('^verb') and line:sub(start):match('^%b{}')
+          local finish = group and start + #group - 1
+            or (delimiter ~= '' and line:find(delimiter, start + 1, true))
+            or #line
+          line = line:sub(1, i - 1) .. string.rep(' ', finish - i + 1) .. line:sub(finish + 1)
+          i = finish + 1
+        else
+          i = i + length
+        end
+      else
+        i = i + 1
+      end
+    end
+    lines[index] = line
+  end
+  return table.concat(lines, '\n')
+end
+
 function M.shift(direction, count)
   count = count or 1
   if
@@ -79,6 +121,21 @@ function M.shift(direction, count)
   local section, err = M.current(nil, 1)
   if not section then
     return false, err
+  end
+  local bufnr = vim.api.nvim_get_current_buf()
+  local source = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n')
+  local masked = M.mask_inline(source)
+  if masked ~= source then
+    local parser = vim.treesitter.get_string_parser(masked, 'latex')
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local node = parser:parse()[1]:root():named_descendant_for_range(cursor[1] - 1, cursor[2], cursor[1] - 1, cursor[2])
+    while node and not M.is_heading(node) do
+      node = node:parent()
+    end
+    if not node then
+      return false, 'No surrounding LaTeX section'
+    end
+    section.node = node
   end
   local ancestor = section.node
   while ancestor do
@@ -107,8 +164,10 @@ function M.shift(direction, count)
       local star = ts.text(command, 0):sub(-1) == '*' and '*' or ''
       changes[#changes + 1] = { range = ts.range(command), text = '\\' .. target .. star }
     end
-    for child in node:iter_children() do
-      visit(child)
+    for child, field in node:iter_children() do
+      if not M.is_heading(node) or not field then
+        visit(child)
+      end
     end
   end
   visit(section.node)

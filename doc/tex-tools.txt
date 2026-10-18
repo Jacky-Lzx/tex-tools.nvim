@@ -632,3 +632,34 @@ SECTION LEVELS                                          *tex-tools-section-level
 Lua: shift_section(direction [, count]) returns true or false, error.
 direction: -1 promotes, 1 demotes. Plug mappings: TexToolsPromoteSection,
 TexToolsDemoteSection. A count shifts levels, rather than selecting ancestors.
+
+OUTLINE                                                 *tex-tools-outline*
+
+:TexToolsOutline[!] [query]                           *:TexToolsOutline*
+    Show a searchable outline in a native split. Without ! use this buffer;
+    with ! resolve the main document and expand literal input/include files
+    in source order. Main selection follows TexToolsMain/build.main_file/root
+    directives; texlab is optional. Unnamed buffers support current-file mode.
+    Default mapping: <LocalLeader>lt. Plug mappings: TexToolsOutline and
+    TexToolsProjectOutline (no default project key).
+
+The panel shows title (short title preferred), hierarchy, stars and file:line.
+> marks the current section. / searches; f prompts for a case-insensitive title
+or path substring (empty clears); <CR> jumps; r refreshes; q closes. query sets
+the initial filter. Modified buffers are read without saving. A cross-file jump
+preserves an unsaved origin even when 'hidden' is off.
+
+Includes resolve against the compilation working directory, then the including
+file's directory. Cycles, missing files and nonliteral includes produce warnings;
+repeated noncyclic includes are shown. Definitions/comments/literal content and
+inline verbatim are skipped. No macro, conditional, includeonly or TEXINPUTS
+evaluation occurs. Limits per refresh: 256 file visits, 32 nested includes,
+2 MiB per disk file, 8 MiB total source. Exceeding a limit returns an error.
+
+outline([opts])                                      *tex-tools.outline()*
+    Return true, panel_buffer or false, error. opts: project=false, query=''.
+outline_entries([opts])                      *tex-tools.outline_entries()*
+    Return {entries, warnings, root, project} or nil, error. opts also accepts
+    bufnr and zero-based pos. Entries have path, optional bufnr, zero-based
+    row/col, level (part=1 through subparagraph=7), kind, title, starred and
+    optional current. Returned data contains no Tree-sitter nodes.

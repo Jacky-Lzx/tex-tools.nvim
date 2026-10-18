@@ -53,6 +53,20 @@ sibling]=]
     eq(false, tex.shift_section(1))
     vim.bo.modifiable = true
   end)
+  test('section shifts preserve inline verbatim and all actual descendants', function()
+    local source_text = [=[\section{A}
+\verb|\subsection{Fake}| literal
+\subsection{Real}
+body
+\section{Sibling}]=]
+    buffer(source_text)
+    at('Fake')
+    eq(true, tex.shift_section(1))
+    eq(
+      source_text:gsub('\\section{A}', '\\subsection{A}'):gsub('\\subsection{Real}', '\\subsubsection{Real}'),
+      content()
+    )
+  end)
   test('section commands and Plug mappings support dot repeat', function()
     buffer('\\section{A}\nbody\n\\section{B}\nother')
     at('body')

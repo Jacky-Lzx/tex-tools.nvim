@@ -437,3 +437,33 @@ buffer, support dot repeat and one-step undo, and have no default keys.
 
 Lua: `shift_section(-1|1, count?)` (promote/demote). Plug mappings:
 `<Plug>(TexToolsPromoteSection)` and `<Plug>(TexToolsDemoteSection)`.
+
+### Searchable outline
+
+`<localleader>lt` or `:TexToolsOutline [query]` opens the current file's section
+outline. `:TexToolsOutline! [query]` expands the main document's literal
+`\input` / `\include` files in source order. Main-file selection follows
+`:TexToolsMain`, `build.main_file`, and root directives; an attached texlab
+client is optional. Current-file mode also works for unnamed buffers.
+
+The outline shows section levels, short titles (when present), stars, source
+locations, and `>` at the current section. Use `/` for native search, `f` to
+filter titles/paths (empty clears), `<CR>` to jump, `r` to refresh, and `q` to
+close. An optional command query applies an initial case-insensitive substring
+filter. Unsaved source buffers are read without writing them. Cross-file jumps
+preserve a modified origin even when `hidden` is off.
+
+Project discovery resolves includes against the compilation working directory,
+then the including file's directory. It skips definitions, comments, literal
+content and inline verbatim. Missing files, cycles and nonliteral includes are
+reported in the outline; repeated noncyclic includes retain their source order.
+Macro expansion, TeX conditionals, `includeonly`, TEXINPUTS and custom inclusion
+commands are not evaluated. Limits: 256 file visits, 32 nested includes, 2 MiB
+per disk file and 8 MiB of source per refresh; exceeding a limit returns an error.
+
+Lua: `outline({ project = false, query = '' })` returns `true, outline_buffer`
+or `false, error`. `outline_entries(opts?)` returns `{ entries, warnings, root,
+project }` or `nil, error`; opts also accepts `bufnr` and zero-based `pos`.
+Entries contain `path`, optional `bufnr`, zero-based `row`/`col`, numeric `level`,
+`kind`, `title`, `starred`, and optional `current`. Snapshots contain no TSNodes.
+Plug mappings: `<Plug>(TexToolsOutline)` / `<Plug>(TexToolsProjectOutline)`.

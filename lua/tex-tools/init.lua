@@ -53,6 +53,12 @@ local function attach(bufnr)
     end)
   end
   local commands = {
+    TexToolsOutline = {
+      function(args)
+        action('outline', 'open', { project = args.bang, query = args.args })
+      end,
+      { bang = true, nargs = '?', desc = 'Search and navigate file or project sections' },
+    },
     TexToolsToggleCommandStar = {
       function()
         action('command', 'toggle_star')
@@ -348,6 +354,22 @@ local function attach(bufnr)
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
   local maps = {
+    {
+      'n',
+      '<localleader>lt',
+      'Outline',
+      function()
+        action('outline', 'open')
+      end,
+    },
+    {
+      'n',
+      false,
+      'ProjectOutline',
+      function()
+        action('outline', 'open', { project = true })
+      end,
+    },
     {
       'n',
       false,
@@ -845,6 +867,12 @@ function M.jump_environment_start(direction, count)
 end
 function M.jump_math(direction, count)
   return require('tex-tools.navigation').math(direction, count)
+end
+function M.outline(opts)
+  return require('tex-tools.outline').open(opts)
+end
+function M.outline_entries(opts)
+  return require('tex-tools.outline').entries(opts)
 end
 function M.shift_section(direction, count)
   return require('tex-tools.section').shift(direction, count)
