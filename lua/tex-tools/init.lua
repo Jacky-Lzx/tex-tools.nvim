@@ -52,6 +52,42 @@ local function attach(bufnr)
     end)
   end
   local commands = {
+    TexToolsToggleCommandStar = {
+      function()
+        action('command', 'toggle_star')
+      end,
+      { desc = 'Toggle the surrounding command star' },
+    },
+    TexToolsToggleFraction = {
+      function()
+        action('fraction', 'toggle')
+      end,
+      { desc = 'Toggle a braced fraction and a slash expression' },
+    },
+    TexToolsConvertMath = {
+      function(args)
+        action('math', 'convert', args.args)
+      end,
+      {
+        nargs = 1,
+        complete = function()
+          return { 'inline', 'display', 'equation', 'equation*', 'align', 'align*', 'gather', 'gather*' }
+        end,
+        desc = 'Convert the surrounding formula or math environment',
+      },
+    },
+    TexToolsToggleMathMode = {
+      function()
+        action('math', 'toggle_mode')
+      end,
+      { desc = 'Toggle inline and display math' },
+    },
+    TexToolsCloseDelimiter = {
+      function()
+        action('close', 'insert')
+      end,
+      { desc = 'Insert the nearest missing closing marker' },
+    },
     TexToolsMain = {
       function(args)
         action('project', 'command', args.args ~= '' and args.args or nil)
@@ -264,6 +300,39 @@ local function attach(bufnr)
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
   local maps = {
+    {
+      'n',
+      false,
+      'ToggleCommandStar',
+      function()
+        action('command', 'toggle_star')
+      end,
+    },
+    {
+      'n',
+      false,
+      'ToggleFraction',
+      function()
+        action('fraction', 'toggle')
+      end,
+    },
+    {
+      'n',
+      false,
+      'ToggleMathMode',
+      function()
+        action('math', 'toggle_mode')
+      end,
+    },
+    {
+      'i',
+      ']]',
+      'CloseDelimiter',
+      function()
+        return require('tex-tools.close').keys()
+      end,
+      expr = true,
+    },
     {
       'n',
       '<localleader>lc',
@@ -497,6 +566,7 @@ local function attach(bufnr)
     { 'math', '$', 'Math' },
     { 'delimiter', 'd', 'MathDelimiter' },
     { 'item', 'i', 'Item' },
+    { 'section', 'P', 'Section' },
   }) do
     for _, variant in ipairs({ { 'a', 'Around', false }, { 'i', 'Inside', true } }) do
       maps[#maps + 1] = {
@@ -518,7 +588,7 @@ local function attach(bufnr)
       plug_options.replace_keycodes = false
     end
     vim.keymap.set(map[1], plug, map[4], plug_options)
-    if options.mappings then
+    if options.mappings and map[2] then
       -- Do not replace an existing global or buffer-local user mapping.
       vim.api.nvim_buf_call(bufnr, function()
         for _, mode in ipairs(type(map[1]) == 'table' and map[1] or { map[1] }) do
@@ -633,6 +703,24 @@ function M.unwrap_environment()
 end
 function M.toggle_math_delimiters()
   return require('tex-tools.math').toggle_delimiters()
+end
+function M.toggle_command_star()
+  return require('tex-tools.command').toggle_star()
+end
+function M.toggle_fraction()
+  return require('tex-tools.fraction').toggle()
+end
+function M.convert_math(target)
+  return require('tex-tools.math').convert(target)
+end
+function M.toggle_math_mode()
+  return require('tex-tools.math').toggle_mode()
+end
+function M.close_delimiter()
+  return require('tex-tools.close').insert()
+end
+function M.close_delimiter_keys()
+  return require('tex-tools.close').keys()
 end
 function M.change_math_delimiters(name)
   return require('tex-tools.delimiter').change(name)

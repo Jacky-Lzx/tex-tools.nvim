@@ -44,7 +44,14 @@ function M.range(kind, inner, opts)
   if kind == 'environment' then
     return M.environment_range(inner, opts)
   end
-  if kind ~= 'command' and kind ~= 'argument' and kind ~= 'math' and kind ~= 'delimiter' and kind ~= 'item' then
+  if
+    kind ~= 'command'
+    and kind ~= 'argument'
+    and kind ~= 'math'
+    and kind ~= 'delimiter'
+    and kind ~= 'item'
+    and kind ~= 'section'
+  then
     return nil, 'Unknown text object: ' .. tostring(kind)
   end
   local count, message = depth(opts)
@@ -52,7 +59,9 @@ function M.range(kind, inner, opts)
     return nil, message
   end
   local object, err
-  if kind == 'delimiter' then
+  if kind == 'section' then
+    object, err = require('tex-tools.section').current(opts, count)
+  elseif kind == 'delimiter' then
     object, err = require('tex-tools.delimiter').current(opts, count)
   elseif kind == 'item' then
     object, err = require('tex-tools.item').current(opts, count)
@@ -82,7 +91,7 @@ function M.select(kind, inner, count)
     return false, err
   end
   local sr, sc, er, ec = unpack(range)
-  local whole_lines = kind == 'item' and not inner and sc == 0 and ec == 0 and er > sr
+  local whole_lines = (kind == 'item' or kind == 'section') and not inner and sc == 0 and ec == 0 and er > sr
   if ec == 0 and er > sr then
     er = er - 1
     ec = #vim.api.nvim_buf_get_lines(0, er, er + 1, false)[1]

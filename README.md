@@ -305,3 +305,13 @@ Set `TEX_TOOLS_TEST_PARSER=/path/to/latex.so` if the parser is outside Neovim's
 runtime path. Tests use the real parser, texlab client doubles, temporary
 artifact directories, and a stdio LSP fixture. Running actual compiler binaries
 requires your local toolchain.
+
+### Additional editing operations
+
+- `:TexToolsToggleCommandStar` toggles a command's trailing `*`, preserving its arguments and options.
+- `:TexToolsToggleFraction` toggles a single-line math expression between `a/b` and `\frac{a}{b}`. Brace compound operands (`{a+b}/{c+d}`); chained slashes and comment-bearing operands are refused. `\dfrac` and `\tfrac` also unwrap to slash form.
+- `:TexToolsConvertMath inline|display|equation|equation*|align|align*|…` converts complete math structures. Additional names come from `math_environments`. Inline conversion requires one line without comments, labels or tags; alignment columns/row breaks require `align` or `align*`. `:TexToolsToggleMathMode` switches inline/display mode; delimiter spelling alone is still handled by `:TexToolsToggleMathDelimiters`.
+- `aP` / `iP` select a section with/without its heading. Counts climb through enclosing section levels, e.g. `d2aP` deletes the enclosing parent section and its subsections.
+- Insert-mode `]]` inserts the nearest missing closing brace, bracket, math delimiter or `\end{…}`. It inserts literal `]]` when no safe completion is available, including when a real closing marker already exists later. `:TexToolsCloseDelimiter` exposes the same operation at the current byte position.
+
+The new normal-mode edits have commands and `<Plug>(TexToolsToggleCommandStar)`, `<Plug>(TexToolsToggleFraction)` and `<Plug>(TexToolsToggleMathMode)` mappings, without default normal-mode keys. Section objects and insert completion respect `mappings = false`. Public Lua methods are `toggle_command_star()`, `toggle_fraction()`, `convert_math(target)`, `toggle_math_mode()`, `close_delimiter()` and `close_delimiter_keys()`. Structural conversions support semantic dot repeat and a single undo step; insert completion uses native insert undo/repeat.

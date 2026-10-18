@@ -57,6 +57,19 @@ function M.rename(name)
   end)
 end
 
+function M.toggle_star()
+  local object, err, bufnr = current()
+  if not object then
+    return false, err
+  end
+  local name = contents(bufnr, object.inner)
+  local value = name:sub(-1) == '*' and name:sub(1, -2) or (name .. '*')
+  if value:match('[A-Za-z@]$') and after(bufnr, object.inner[3], object.inner[4]):match('[A-Za-z@]') then
+    return false, 'Removing the star would merge the command with following text'
+  end
+  return edit.apply(bufnr, { { range = object.inner, text = value } }, { module = 'command', method = 'toggle_star' })
+end
+
 function M.unwrap()
   local object, err, bufnr = current()
   if not object then
