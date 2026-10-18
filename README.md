@@ -39,6 +39,7 @@ the command node; selecting `\section{Title}` never includes its section body.
 - Support `itemize`, `enumerate`, and `description`, preserving the current item's indentation.
 - Insert `\item[]` in a description list and enter Insert mode inside the empty label.
 - Create the first item in an empty list and split inline item/end markers when needed.
+- Optionally split a list item at the cursor with Enter, keeping the suffix in the new item.
 
 Use `:TexToolsInsertItem` or `<localleader>li` in Normal or Insert mode. New items
 are inserted at the current list level, with the cursor ready for typing.
@@ -53,7 +54,41 @@ labels and stars are not copied; surrounding text and comments are preserved.
 One undo removes the new marker and the text typed immediately into it, while
 preserving text previously typed in the old item.
 
-The operation is explicit; context-aware Enter behavior remains planned.
+Enable the optional Insert-mode Enter mapping with:
+
+```lua
+require("tex-tools").setup({ smart_enter = true })
+```
+
+At the end of a nonempty item, Enter creates a sibling. Inside its body, Enter
+splits at the cursor, moving the suffix and following continuation lines into
+the new item. Adjacent horizontal whitespace is trimmed; the original marker
+keeps its separating space, and escaped spaces are preserved. Description
+lists create an empty label and place
+the cursor inside it. The current item's indentation is reused.
+
+Empty items/lists, blank gaps after an item, comments, literal content, list
+markers, and positions inside commands, arguments, or formulas use native
+Enter. Unsupported or incomplete lists and a missing parser also fall back
+silently. Native indentation and comment continuation apply on fallback.
+One undo restores a split and removes immediately typed text, preserving
+text typed before Enter. Use the explicit insert command to create the first
+item in an empty list or insert after the entire item.
+
+`smart_enter` defaults to `false`. Enabling it preserves existing Enter
+mappings; `mappings = false` disables this default too. For a custom key in a
+TeX buffer, use `<Plug>(TexToolsSmartEnter)` in Insert mode. For an existing
+completion mapping, call `smart_enter()` in its fallback branch:
+
+```lua
+-- In after/ftplugin/tex.lua, or your own TeX FileType callback.
+vim.keymap.set("i", "<CR>", function()
+  if vim.fn.pumvisible() == 1 then
+    return vim.keycode("<C-y>")
+  end
+  return require("tex-tools").smart_enter()
+end, { buffer = true, expr = true, replace_keycodes = false })
+```
 
 ## Installation
 
@@ -70,6 +105,7 @@ Currently, load the plugin from a local checkout. Example for lazy.nvim:
   ft = { "tex", "plaintex" },
   opts = {
     mappings = true,
+    smart_enter = false, -- Optional list Enter mapping; preserves existing mappings.
     math_environments = {}, -- e.g. { "myequation" }; starred variants are also recognized.
   },
 }
@@ -103,6 +139,7 @@ Set `mappings = false` to disable the defaults.
 - `dse` → `:TexToolsUnwrapEnvironment`; removes both markers and begin options while preserving the body.
 - `ts$` → `:TexToolsToggleMathDelimiters`; switches between dollar and backslash delimiters, preserving inline/display mode.
 - `<localleader>li` (Normal / Insert) → `:TexToolsInsertItem`; inserts a sibling item and enters Insert mode in its body or description label.
+- `<CR>` (Insert, only with `smart_enter = true`) → `<Plug>(TexToolsSmartEnter)`; splits at the cursor or uses native Enter.
 
 `ie` excludes the begin marker's optional arguments. When markers occupy their
 own lines, it also excludes the newlines surrounding the body. An empty body
@@ -188,6 +225,7 @@ tex.surround_environment("quote", { line1 = 2, line2 = 5 }) -- one-based, inclus
 tex.unwrap_environment()
 tex.toggle_math_delimiters()
 tex.insert_item() -- insert a sibling list item and enter Insert mode
+tex.smart_enter() -- encoded keys for an Insert-mode expression mapping
 tex.build()
 tex.forward_search()
 
@@ -218,6 +256,12 @@ without notifying, and accepts the same optional `{ bufnr, pos }` query options.
 other editing APIs, it reports errors to its caller; commands and mappings
 display those errors as notifications.
 
+`smart_enter()` returns encoded keystrokes for an Insert-mode expression mapping
+with `replace_keycodes = false`. It does not edit or query the buffer during
+expression evaluation. The returned action checks the syntax when executed,
+then splits the item or queues native Enter without remapping or notifications.
+It works without `setup()`; only automatic mapping installation requires setup.
+
 Example LuaSnip condition:
 
 ```lua
@@ -235,7 +279,7 @@ expanded.
 
 1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
 2. **Implemented: Editing** — Command, argument, and formula text objects; adding and removing surrounding environments; math delimiter switching.
-3. **In progress: Input** — Explicit smart `\item` insertion is implemented. Context-aware Enter behavior and completion helpers that compose with existing snippet and pairs plugins are planned.
+3. **In progress: Input** — Explicit `\item` insertion and optional context-aware Enter are implemented. Further input helpers should compose with existing snippet and pairs plugins.
 4. **Navigation** — Section and list-item motions and a table of contents, reusing texlab symbols and definitions where possible.
 
 Each phase is tested against the real parser. Parsing, LSP communication,
@@ -260,7 +304,8 @@ TEX_TOOLS_TEST_PARSER=/path/to/latex.so nvim --clean --headless -l tests/run.lua
 Tests cover context boundaries, environment editing, line and Visual surrounds,
 math delimiter round trips, undo, UTF-8 text objects, actual operator mappings,
 stale asynchronous prompts, nested list insertion, Normal/Insert-mode typing,
-description labels, indentation, and texlab request parameter encoding. texlab tests
+description labels, indentation, smart Enter splits/fallbacks, rapid repeated
+Enter input, and texlab request parameter encoding. texlab tests
 use a client double and do not start a LaTeX compiler or PDF viewer. Verify
 actual builds and PDF navigation with your configured local toolchain.
 

@@ -86,8 +86,8 @@ local function body_indent(bufnr, env)
   return indent .. string.rep(' ', target - width)
 end
 
-local function current()
-  local node, err = ts.editable_node()
+local function current(opts)
+  local node, err = ts.editable_node(opts)
   if not node then
     return nil, err
   end
@@ -142,6 +142,111 @@ local function current()
   return { env = env, item = item, bufnr = bufnr }
 end
 
+local function item_indent(bufnr, env, item)
+  local row, col = item:range()
+  local prefix = line(bufnr, row):sub(1, col)
+  return prefix:match('^[ \t]*$') and prefix or body_indent(bufnr, env)
+end
+
+-- A split may fall between complete structures, but never inside an argument,
+-- command, formula, or nested environment. Plain text can be split freely.
+local function can_split(node, row, col)
+  for child in node:iter_children() do
+    local sr, sc, er, ec = child:range()
+    if before(sr, sc, row, col) and before(row, col, er, ec) then
+      if child:type() ~= 'text' and child:type() ~= 'word' then
+        return false
+      end
+      if not can_split(child, row, col) then
+        return false
+      end
+    end
+  end
+  return true
+end
+
+local function split_edit()
+  local bufnr = vim.api.nvim_get_current_buf()
+  if not vim.bo[bufnr].modifiable or vim.o.paste then
+    return nil
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local row, col = cursor[1] - 1, cursor[2]
+  -- At end-of-line the point query can be outside the comment/item node.
+  -- Inspect the preceding byte as well, including for UTF-8 text boundaries.
+  local probe = col > 0 and { pos = { row, col - 1 } } or nil
+  local context = current(probe)
+  if not context or not context.item then
+    return nil
+  end
+  -- The point itself may start a comment or literal region.
+  if not ts.editable_node() then
+    return nil
+  end
+  local item, env = context.item, context.env
+  local header = ts.field(item, 'label') or ts.field(item, 'command')
+  if not header then
+    return nil
+  end
+  local _, _, hr, hc = header:range()
+  local _, _, er, ec = item:range()
+  if not before(hr, hc, row, col) or not can_split(item, row, col) then
+    return nil
+  end
+  local body = table.concat(vim.api.nvim_buf_get_text(bufnr, hr, hc, er, ec, {}), '\n')
+  if body:match('^%s*$') then
+    return nil
+  end
+  -- Only trailing horizontal whitespace may separate the item and cursor.
+  if before(er, ec, row, col) then
+    if er ~= row or not line(bufnr, row):sub(ec + 1, col):match('^[ \t]*$') then
+      return nil
+    end
+  end
+  local text = line(bufnr, row)
+  local left = col - #(text:sub(1, col):match('[ \t]*$'))
+  if row == hr then
+    -- Keep whitespace separating the original marker from its body.
+    left = math.max(left, hc + 1)
+  end
+  -- An escaped space is part of a command, not disposable whitespace.
+  if not can_split(item, row, left) then
+    left = col
+  end
+  local right = col + #(text:sub(col + 1):match('^[ \t]*'))
+  local indent = item_indent(bufnr, env, item)
+  local description = env.name == 'description'
+  local marker = indent .. (description and '\\item[] ' or '\\item ')
+  return {
+    row = row,
+    left = math.min(left, col),
+    right = right,
+    marker = marker,
+    col = #indent + (description and #'\\item[' or #'\\item '),
+  }
+end
+
+---Return encoded keys for an Insert-mode expression mapping, without editing.
+function M.smart_enter()
+  -- Expressions can run before preceding typeahead reaches the buffer.
+  -- Defer both the context check and the edit until <Cmd> executes.
+  return vim.keycode('<Cmd>lua require("tex-tools.list").split()<CR>')
+end
+
+---Internal mapping action; recheck context after leaving expression textlock.
+function M.split()
+  local edit = split_edit()
+  if not edit then
+    vim.api.nvim_feedkeys(vim.keycode('<CR>'), 'in', false)
+    return
+  end
+  local bufnr = vim.api.nvim_get_current_buf()
+  clear_pending(bufnr)
+  vim.bo[bufnr].undolevels = vim.bo[bufnr].undolevels
+  vim.api.nvim_buf_set_text(bufnr, edit.row, edit.left, edit.row, edit.right, { '', edit.marker })
+  vim.api.nvim_win_set_cursor(0, { edit.row + 2, edit.col })
+end
+
 ---Insert after the entire current item, place the cursor, and enter Insert mode.
 function M.insert()
   local context, err = current()
@@ -159,11 +264,8 @@ function M.insert()
   local indent = body_indent(bufnr, env)
   local row, boundary, boundary_col
   if item then
-    local sr, sc, er = item:range()
-    local prefix = line(bufnr, sr):sub(1, sc)
-    if prefix:match('^[ \t]*$') then
-      indent = prefix
-    end
+    local _, _, er = item:range()
+    indent = item_indent(bufnr, env, item)
     row = er
     -- Extra comments can be siblings rather than part of an enum_item.
     -- Keep trailing comments on their original line when adding a new item.

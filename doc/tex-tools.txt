@@ -8,6 +8,7 @@ SETUP                                                   *tex-tools-setup*
 Add this repository to 'runtimepath' with your plugin manager, then: >lua
     require('tex-tools').setup({
       mappings = true,
+      smart_enter = false,
       math_environments = {},
     })
 <
@@ -18,6 +19,10 @@ were already open when setup ran. Repeated setup resets configuration.
 
 mappings: boolean, default true. Existing user mappings are preserved.
 Set false to use commands, Lua functions and <Plug> mappings only.
+
+smart_enter: boolean, default false. When true and mappings is true, install
+an Insert-mode <CR> mapping for list input. Preserve existing global/local
+<CR> mappings. The <Plug> mapping and Lua API are available regardless.
 
 math_environments: list of additional math environment names. Starred versions
 are also recognized. TeX macros are not expanded.
@@ -76,7 +81,7 @@ COMMANDS                                                *tex-tools-commands*
     One undo removes the new marker and its immediately typed text together,
     preserving text already typed in the preceding item.
     Refuse comments, literal content, incomplete/mismatched lists, and
-    unmodifiable buffers. No Enter mapping is installed.
+    unmodifiable buffers. Independent of the optional smart Enter mapping.
 
 :TexToolsBuild                                             *:TexToolsBuild*
     Save the current file with :update when modified, then send
@@ -107,6 +112,9 @@ Default normal-mode mappings:
 Default Insert-mode mapping:
     <LocalLeader>li     <Plug>(TexToolsInsertItem)
 
+Optional Insert-mode mapping (smart_enter = true):
+    <CR>                <Plug>(TexToolsSmartEnter)
+
 Default Visual mapping:
     <LocalLeader>le     <Plug>(TexToolsSurroundEnvironment)
     Surround operates on whole selected lines, also for character/block mode.
@@ -124,6 +132,39 @@ Default Visual/operator-pending mappings:
 <Plug> mappings are always installed in tex/plaintex buffers, even when
 default mappings are disabled. Use |vim.keymap.set()| to choose other keys.
 
+LIST ENTER                                              *tex-tools-smart-enter*
+
+<Plug>(TexToolsSmartEnter) works in Insert mode. In a nonempty itemize,
+enumerate, or description item, split at the cursor and insert a sibling
+\item at the same list level. Preserve the suffix and following continuation
+lines/nested lists. Trim horizontal whitespace adjacent to the split, keeping
+the original marker's separating space and preserving escaped spaces.
+Reuse the current item's indentation.
+Description lists get \item[] with the cursor inside the empty label.
+
+Native Enter is used for empty items/lists, blank gaps after items, list
+markers, comments, literal content, and positions inside commands, arguments,
+or formulas. Unsupported/incomplete/mismatched lists and a missing parser also
+fall back silently. Native indentation and comment continuation still apply.
+Fallback bypasses mappings to avoid recursively invoking <CR>.
+
+One undo restores the split and removes text typed immediately into the new
+item, preserving text typed before Enter. Unlike |:TexToolsInsertItem|, this
+operation splits at the cursor rather than after the entire item. Use the
+explicit command to create the first item in an empty list.
+
+Enable automatic <CR> mapping with: >lua
+    require('tex-tools').setup({ smart_enter = true })
+<
+To integrate into an existing completion expression mapping, use
+|tex-tools.smart_enter()| in its fallback branch. Example in a TeX ftplugin: >lua
+    vim.keymap.set('i', '<CR>', function()
+      if vim.fn.pumvisible() == 1 then
+        return vim.keycode('<C-y>')
+      end
+      return require('tex-tools').smart_enter()
+    end, { buffer = true, expr = true, replace_keycodes = false })
+<
 TEXT OBJECTS                                            *tex-tools-textobjects*
 
 ae selects the innermost complete environment, including its begin/end
@@ -209,6 +250,13 @@ insert_item()                                         *tex-tools.insert_item()*
     Return true, or false, error without editing or moving the cursor. Does
     not notify; the command and <Plug> mappings report errors to the user.
     See |:TexToolsInsertItem| for scope and indentation behavior.
+
+smart_enter()                                         *tex-tools.smart_enter()*
+    Return encoded keystrokes for an Insert-mode expression mapping. Use
+    expr = true and replace_keycodes = false. Does not edit or query during
+    expression evaluation; the returned action checks current syntax when
+    executed, then splits the item or queues native Enter without remapping.
+    Never notifies. Does not require setup(). See |tex-tools-smart-enter|.
 
 build()                                                    *tex-tools.build()*
 forward_search()                                  *tex-tools.forward_search()*

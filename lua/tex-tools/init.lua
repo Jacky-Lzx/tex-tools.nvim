@@ -22,6 +22,26 @@ end
 local function attach(bufnr)
   clear_default_mappings(bufnr)
   local installed = {}
+  local enter_plug = '<Plug>(TexToolsSmartEnter)'
+  vim.keymap.set('i', enter_plug, M.smart_enter, {
+    buffer = bufnr,
+    expr = true,
+    replace_keycodes = false,
+    desc = 'tex-tools: SmartEnter',
+  })
+  local options = require('tex-tools.config').options
+  if options.mappings and options.smart_enter then
+    vim.api.nvim_buf_call(bufnr, function()
+      if vim.fn.maparg('<CR>', 'i') == '' then
+        vim.keymap.set('i', '<CR>', enter_plug, { buffer = bufnr, remap = true, desc = 'tex-tools: SmartEnter' })
+        installed[#installed + 1] = {
+          mode = 'i',
+          lhs = vim.fn.maparg('<CR>', 'i', false, true).lhs,
+          rhs = enter_plug,
+        }
+      end
+    end)
+  end
   local commands = {
     TexToolsRenameEnvironment = {
       function(args)
@@ -273,6 +293,9 @@ function M.toggle_math_delimiters()
 end
 function M.insert_item()
   return require('tex-tools.list').insert()
+end
+function M.smart_enter()
+  return require('tex-tools.list').smart_enter()
 end
 function M.textobject_range(kind, inner, opts)
   return require('tex-tools.textobjects').range(kind, inner, opts)
