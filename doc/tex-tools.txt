@@ -516,12 +516,52 @@ in_comment([opts])                                    *tex-tools.in_comment()*
     Return boolean[, error]. Recognizes line/block/comment-environment
     comments. Verbatim/code content is not a LaTeX comment.
 
+in_subscript([opts])                                *tex-tools.in_subscript()*
+in_superscript([opts])                            *tex-tools.in_superscript()*
+    Return boolean[, error] for a mathematical _ / ^ payload. Braced payloads
+    include the insertion position before the closing brace, including empty
+    groups; opening braces and the _ / ^ tokens are excluded. Unbraced letters
+    and command names use end-exclusive syntax ranges. Nested scripts can
+    satisfy both queries. Text mode suppresses math roles; an inner formula
+    starts a new scope independent of outer scripts or fractions.
+
+in_numerator([opts])                                *tex-tools.in_numerator()*
+in_denominator([opts])                            *tex-tools.in_denominator()*
+    Return boolean[, error] for the nearest \frac, \dfrac, or \tfrac with
+    two complete braced arguments. The insertion boundary rule above applies.
+    Command names, extra arguments, unbraced fractions, custom aliases, and
+    incomplete arguments do not match. Nested fractions use the inner role:
+    in \frac{outer}{\frac{inner}{bottom}}, inner is a numerator, while bottom
+    is a denominator. Outer fraction roles do not leak into an inner fraction.
+
+in_table_cell([opts])                              *tex-tools.in_table_cell()*
+    Return boolean[, error] inside a supported table/alignment body cell.
+    Supported environments (including stars): tabular, tabular*, tabularx,
+    array, matrix, pmatrix, bmatrix, Bmatrix, vmatrix, Vmatrix, smallmatrix,
+    cases, aligned, alignedat, align, alignat, flalign, split.
+    Exclude environment markers/options, mandatory width/column-count/column-
+    format arguments, structural &, row breaks (\\ or \tabularnewline),
+    their star/spacing options, and common table rules (\hline, \vline,
+    \cline, \toprule, \midrule, \bottomrule, \cmidrule, \addlinespace).
+    Whitespace and nested command/group/formula contents count as cell context;
+    their separators cannot split outer cells. The nearest environment must
+    be supported and complete. This is a syntactic body-context condition;
+    visual columns, spans, and custom macro signatures are not inferred.
+
+All five detailed predicates return false in comments and parser-recognized
+literal content. They work without setup(), remain read-only, and never notify.
+Ordinary nonmatching/unsupported syntax returns false without an error.
+Use a wrapper when passing them to LuaSnip, which supplies its own arguments: >lua
+    local in_power = function() return require('tex-tools').in_superscript() end
+    -- s({ trig = '...', condition = in_power }, { ... })
+<
+
 environment([opts])                                  *tex-tools.environment()*
     Return table[, error] or nil, error. Fields: bufnr, name, node,
     begin_node, end_node, begin_name, end_name. Nodes are upstream TSNodes;
     use them immediately and query again after buffer edits.
 
-For these three query functions, opts is an optional table:
+For these context queries and environment(), opts is an optional table:
     bufnr: buffer handle (0/current by default).
     pos: {row, byte_column}, both zero-based; current cursor by default.
 When querying a different buffer, pos must be supplied explicitly.

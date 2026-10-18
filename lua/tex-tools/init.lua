@@ -400,6 +400,21 @@ end
 function M.in_comment(opts)
   return require('tex-tools.context').in_comment(opts)
 end
+function M.in_subscript(opts)
+  return require('tex-tools.context').in_subscript(opts)
+end
+function M.in_superscript(opts)
+  return require('tex-tools.context').in_superscript(opts)
+end
+function M.in_numerator(opts)
+  return require('tex-tools.context').in_numerator(opts)
+end
+function M.in_denominator(opts)
+  return require('tex-tools.context').in_denominator(opts)
+end
+function M.in_table_cell(opts)
+  return require('tex-tools.context').in_table_cell(opts)
+end
 function M.environment(opts)
   return require('tex-tools.environment').current(opts)
 end

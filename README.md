@@ -437,6 +437,11 @@ local tex = require("tex-tools")
 
 tex.in_math()                  -- boolean, optional error message
 tex.in_comment()               -- boolean, optional error message
+tex.in_subscript()             -- inside a mathematical subscript payload
+tex.in_superscript()           -- inside a mathematical superscript payload
+tex.in_numerator()             -- numerator of the nearest supported fraction
+tex.in_denominator()           -- denominator of the nearest supported fraction
+tex.in_table_cell()            -- inside a supported table/alignment body cell
 tex.environment()              -- environment table or nil, optional error message
 tex.rename_command("emph")
 tex.unwrap_command()
@@ -526,11 +531,53 @@ without notifying; `true` for a prompt means it has opened. They work without
 `setup()` and edit the original buffer even if a different buffer is current
 when the prompt finishes, provided the original buffer is unchanged.
 
-Example LuaSnip condition:
+### Snippet context conditions
+
+All `in_*` queries return a boolean and an optional error, accept `{ bufnr,
+pos }`, and work without `setup()` or an LSP client. They do not notify or
+change text, cursor, registers, undo history, or repeat state. A missing
+parser or invalid position returns `false, error`; ordinary nonmatching
+contexts return `false`. Rows and byte columns are zero-based; querying a
+hidden buffer requires an explicit position.
+
+`in_subscript()` / `in_superscript()` recognize parser-owned `_` / `^`
+payloads in math mode. Braced payloads include the insertion position just
+before the closing brace, so `$x^{}$` supports a condition inside the empty
+group. The opening brace and the `_` / `^` token are excluded. Unbraced
+letters and command names use their end-exclusive syntax ranges. Nested
+scripts can satisfy both queries. Text-mode regions suppress math roles;
+an inner formula starts a new scope, independent of outer scripts/fractions.
+
+`in_numerator()` / `in_denominator()` inspect the nearest `\frac`, `\dfrac`,
+or `\tfrac` with two complete braced arguments. They share the insertion
+boundary rule above. Command names, extra arguments, unbraced fractions,
+custom aliases, and incomplete arguments do not match. In
+`\frac{outer}{\frac{inner}{bottom}}`, `inner` is a numerator and `bottom`
+is a denominator; the outer fraction's role does not leak into the inner one.
+
+`in_table_cell()` recognizes `tabular`, `tabular*`, `tabularx`, `array`,
+`matrix`, `pmatrix`, `bmatrix`, `Bmatrix`, `vmatrix`, `Vmatrix`, `smallmatrix`,
+`cases`, `aligned`, `alignedat`, `align`, `alignat`, `flalign`, and `split`,
+including starred variants. It excludes environment markers/options,
+mandatory width/column-count/column-format arguments, structural `&`, row
+breaks (`\\` / `\tabularnewline`) and their star/spacing options, and common
+table rule commands such as `\hline`, `\cline`, and booktabs rules.
+Whitespace in a cell and nested command/group/formula contents count as
+cell context; their separators do not split the outer table. The nearest
+environment must be supported and complete. This is a syntactic body-context
+condition; it does not infer visual columns, spans, or custom macro signatures.
+Comments and parser-recognized literal content suppress all five queries.
+
+Example LuaSnip conditions:
 
 ```lua
-local in_math = function() return require("tex-tools").in_math() end
+local tex = require("tex-tools")
+local in_math = function() return tex.in_math() end
+local in_power = function() return tex.in_superscript() end
+local in_denominator = function() return tex.in_denominator() end
+local in_cell = function() return tex.in_table_cell() end
 -- s({ trig = "...", condition = in_math }, { ... })
+-- Use in_power, in_denominator, or in_cell for more specific snippets.
 ```
 
 Math context follows the syntax tree, recognizing `$...$`, `\(...\)`, `$$...$$`,
@@ -541,7 +588,7 @@ expanded.
 
 ## Roadmap
 
-1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
+1. **Implemented: Foundation** — Math/comment, script, fraction-part, and table-cell context queries; environment detection, renaming, jumps, text objects, texlab requests, and health checks.
 2. **Implemented: Editing** — Counted environment, command, argument, formula, math bracket, and list-item text objects; command renaming and surrounds; adding and removing surrounding environments; formula delimiter switching and math bracket editing/sizing; native dot repeat for cursor-based structural edits.
 3. **In progress: Input** — Explicit `\item` insertion and optional context-aware Enter are implemented. Further input helpers should compose with existing snippet and pairs plugins.
 4. **Implemented: Navigation** — Section, same-level list-item, environment, formula, and matching math bracket jumps with counts, jump history, and fold opening.
