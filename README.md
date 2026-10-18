@@ -3,7 +3,7 @@
 # tex-tools.nvim
 
 Lua tools for writing LaTeX in Neovim, inspired by [VimTeX](https://github.com/lervag/vimtex).
-Provides structural editing, text objects, navigation, list input, and snippet
+Provides structural editing, text objects, navigation, optional conceal, list input, and snippet
 context queries using [Tree-sitter](https://github.com/latex-lsp/tree-sitter-latex).
 Build and PDF forward search use your existing texlab client; texlab handles
 completion, diagnostics, references, and formatting.
@@ -23,6 +23,7 @@ Load this local checkout with lazy.nvim:
   opts = {
     mappings = true,
     smart_enter = false,    -- Optional list-aware Insert-mode Enter.
+    conceal = false,        -- Optional visible-range LaTeX conceal.
     math_environments = {}, -- Additional math environments; stars are recognized.
   },
 }
@@ -88,6 +89,47 @@ other contexts use native Enter.
 Cursor-based rename, unwrap, and toggle edits support `.` and single-step
 undo. Surrounds and list input do not register structural repeats;
 text-object operators use native repeat behavior.
+
+## Conceal
+
+Conceal is editor rendering; texlab does not provide it. Enable it with:
+
+```lua
+require("tex-tools").setup({ conceal = true })
+vim.opt.conceallevel = 2
+-- Optional: keep conceal on the cursor line in Normal mode.
+vim.opt.concealcursor = "nc"
+```
+
+`conceal = true` enables these eight categories. Pass a table to disable any
+category, for example `conceal = { cites = false, styles = false }`.
+
+| Option | Examples |
+| --- | --- |
+| `accents` | `\'{e}` → é, `\"o` → ö, `\c c` → ç |
+| `ligatures` | `\ae{}` → æ, `---` → —, LaTeX quotation marks |
+| `cites` | `\cite[see]{key}` → [key], `\citep{key}` → (key) |
+| `fancy` | `\dots` → …, `\_` → _, `\item` → ○ |
+| `spacing` | Hide spacing commands and phantom arguments; `~` → space |
+| `math_bounds` | Hide matched `$…$`, `$$…$$`, `\(…\)`, `\[…\]` markers |
+| `math_delimiters` | Hide bracket sizing commands; `\langle` → ⟨ |
+| `styles` | Hide supported formatting wrappers such as `\textbf{…}` |
+
+The feature loads on demand, scans visible source lines, and caches decorations
+between edits and viewport changes. Expensive Tree-sitter parses yield, keeping
+source visible until ready. Buffer text, Tree-sitter colors, and window conceal
+options are preserved. Comments, verbatim/code environments, inline verbatim,
+macro definitions, paths, labels, and citation keys retain their source spelling.
+Styles keep the original contents and colors; they do not emulate TeX fonts.
+Accents support single ASCII letters with a precomposed Unicode equivalent.
+Citation notes are hidden; keys remain visible. Greek letters, general math
+symbols, fractions, scripts, section headings, and custom macro expansion are
+outside these eight categories. Unrecognized constructs retain their source.
+
+Requires the `latex` parser but does not start a Tree-sitter highlighter. Disable
+VimTeX's conceal rules or legacy TeX syntax conceal when using this renderer to
+avoid overlapping replacements. `conceal = false` (the default), or
+`conceal = { enabled = false }`, disables it; missing parsers leave source visible.
 
 ## Context queries
 

@@ -7,6 +7,7 @@ Requires Neovim 0.11+ and the latex Tree-sitter parser, installed separately
     require('tex-tools').setup({
       mappings = true,
       smart_enter = false,
+      conceal = false,
       math_environments = {},
     })
 <
@@ -15,6 +16,45 @@ loading. Existing mappings are preserved; mappings=false keeps commands and
 <Plug> mappings. smart_enter enables list-aware Insert-mode <CR> when default
 mappings are enabled. math_environments adds names, including starred forms.
 Configure texlab, the compiler, and PDF viewer through your usual LSP setup.
+
+CONCEAL                                                 *tex-tools-conceal*
+
+Conceal is provided by Neovim, not texlab. Opt in with: >lua
+    require('tex-tools').setup({ conceal = true })
+    vim.opt.conceallevel = 2
+    vim.opt.concealcursor = 'nc' -- Optional: conceal on the Normal cursor line.
+<
+All categories below default to true when conceal is enabled. A table enables
+the feature with per-category overrides, e.g. conceal={cites=false, styles=false}.
+conceal=false (default) or conceal={enabled=false} disables the renderer.
+
+    accents          Single-letter accents: \'{e} -> é, \"o -> ö, \c c -> ç.
+                     Only precomposed Unicode equivalents of ASCII letters.
+    ligatures        Text ligatures (\ae{}, \OE{}, \ss{}, ...), dashes, quotes.
+    cites            Parser-recognized citations: hide command/notes, preserve
+                     keys in [] (or () for citep/parencite/autocite).
+    fancy            \dots, \ldots, \textellipsis, \colon, \slash, \_, \item.
+    spacing          Hide \, \; \: \! \quad \qquad and related spacing macros;
+                     hide hspace/vspace/phantom arguments. ~ becomes a space.
+    math_bounds      Hide matched $, $$, \(\), \[\] formula markers.
+    math_delimiters  Hide left/right/middle and big/Big/bigg/Bigg sizing;
+                     display directional bracket macros as Unicode.
+    styles           Hide wrappers of common text/math formatting commands
+                     (textbf, emph, textit, mathrm, mathbf, text, ...), keeping
+                     their body and existing colors. Does not emulate fonts.
+
+No Greek/general math-symbol, fraction, script, or section conceal is provided.
+Custom macro expansion is not inferred. Unknown/unsupported constructs remain
+visible. Text accents/ligatures are disabled in math except within \text{...}.
+Comments, literal/code environments, inline verbatim, definitions, paths, labels,
+and citation-key spelling are protected. Citation notes are hidden by cites.
+
+The module loads only when enabled. Decorations are ephemeral and cached per
+window for visible source lines; buffer text, syntax and highlight queries are
+untouched. Expensive parses yield; source stays visible until ready. Missing
+parsers fall back to source. A Tree-sitter highlighter is not started.
+Native 'conceallevel' and 'concealcursor' control display; no window
+options are changed. Disable overlapping VimTeX/legacy syntax conceal rules.
 
 MAPPINGS                                                *tex-tools-mappings*
 

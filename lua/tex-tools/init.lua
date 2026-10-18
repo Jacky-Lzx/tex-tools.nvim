@@ -36,6 +36,9 @@ local function attach(bufnr)
     desc = 'tex-tools: SmartEnter',
   })
   local options = require('tex-tools.config').options
+  if options.conceal or package.loaded['tex-tools.conceal'] then
+    require('tex-tools.conceal').attach(bufnr, options.conceal)
+  end
   if options.mappings and options.smart_enter then
     vim.api.nvim_buf_call(bufnr, function()
       if vim.fn.maparg('<CR>', 'i') == '' then
