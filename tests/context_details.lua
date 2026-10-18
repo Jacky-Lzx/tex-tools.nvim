@@ -304,6 +304,35 @@ return function(h)
     eq(true, superscript)
   end)
 
+  test('context snapshots share ancestor checks and follow configuration changes', function()
+    buffer('\\begin{custom}\nx_i\n\\end{custom}')
+    tex.setup({ math_environments = { 'custom' } })
+    local context = require('tex-tools.context')
+    local original, calls = context.is_math_environment, 0
+    context.is_math_environment = function(...)
+      calls = calls + 1
+      return original(...)
+    end
+    local ok, err = pcall(function()
+      local opts = { pos = { 1, 2 } }
+      eq(true, tex.in_math(opts))
+      local first = calls
+      assert(first > 0)
+      eq(false, tex.in_comment(opts))
+      eq(true, tex.in_math(opts))
+      eq(first, calls)
+      tex.setup()
+      eq(false, tex.in_math(opts))
+      assert(calls > first)
+      tex.setup({ math_environments = { 'custom*' } })
+      eq(true, tex.in_math(opts))
+      eq({ pos = { 1, 2 } }, opts)
+    end)
+    context.is_math_environment = original
+    tex.setup()
+    assert(ok, err)
+  end)
+
   test('table snapshots follow cursor movement, edits, and buffer switches', function()
     local first = buffer('\\begin{tabular}{cc}\na & b \\\\[2pt]\nc & d \\\\\n\\end{tabular}')
     local environment = require('tex-tools.environment')

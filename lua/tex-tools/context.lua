@@ -23,63 +23,14 @@ function M.is_math_environment(node, bufnr)
   return false
 end
 
----@param opts? {bufnr?: integer, pos?: integer[]}
----@return boolean, string?
-function M.in_comment(opts)
-  local node, err = ts.node(opts)
-  local found = false
-  while node do
-    local kind = node:type()
-    -- The grammar uses a "comment" child to hold verbatim content.
-    if literal[kind] then
-      return false
-    end
-    found = found or comments[kind] == true
-    node = node:parent()
-  end
-  return found, err
-end
+-- Cache plain results for one position, never TSNodes. Every call still asks
+-- Tree-sitter for a current node, so parser failures and reparses stay visible.
+local cached
 
-local function math_context(node, bufnr)
-  local result
-  while node do
-    local kind = node:type()
-    if comments[kind] or literal[kind] then
-      return false
-    end
-    if result == nil then
-      if kind == 'text_mode' then
-        result = false
-      elseif math_nodes[kind] then
-        result = true
-      elseif M.is_math_environment(node, bufnr) then
-        result = true
-      end
-    end
-    node = node:parent()
-  end
-  return result == true
-end
-
----@param opts? {bufnr?: integer, pos?: integer[]}
----@return boolean, string?
-function M.in_math(opts)
-  local node, err = ts.node(opts)
-  return math_context(node, opts and opts.bufnr), err
-end
-
--- Shared by read-only context queries. Keep the caller's options untouched.
-function M.query(opts)
+local function inspect(opts)
   local node, err = ts.node(opts)
   if not node then
     return nil, err
-  end
-  local ancestor = node
-  while ancestor do
-    if comments[ancestor:type()] or literal[ancestor:type()] then
-      return nil
-    end
-    ancestor = ancestor:parent()
   end
   local bufnr = ts.buffer(opts and opts.bufnr)
   local pos = opts and opts.pos
@@ -88,7 +39,70 @@ function M.query(opts)
     pos = { cursor[1] - 1, cursor[2] }
   end
   local line = vim.api.nvim_buf_get_lines(bufnr, pos[1], pos[1] + 1, false)[1]
-  return { node = node, bufnr = bufnr, pos = { pos[1], math.min(pos[2], #line) } }
+  pos = { pos[1], math.min(pos[2], #line) }
+  local tick, id = vim.api.nvim_buf_get_changedtick(bufnr), node:id()
+  local config = require('tex-tools.config').options
+  if
+    not cached
+    or cached.bufnr ~= bufnr
+    or cached.tick ~= tick
+    or cached.id ~= id
+    or cached.row ~= pos[1]
+    or cached.col ~= pos[2]
+    or cached.config ~= config
+  then
+    local ancestor, math, comment, literal_content, blocked = node, nil, false, false, false
+    while ancestor do
+      local kind = ancestor:type()
+      comment = comment or comments[kind] == true
+      literal_content = literal_content or literal[kind] == true
+      blocked = blocked or comments[kind] == true or literal[kind] == true
+      if math == nil then
+        if kind == 'text_mode' then
+          math = false
+        elseif math_nodes[kind] or M.is_math_environment(ancestor, bufnr) then
+          math = true
+        end
+      end
+      ancestor = ancestor:parent()
+    end
+    cached = {
+      bufnr = bufnr,
+      tick = tick,
+      id = id,
+      row = pos[1],
+      col = pos[2],
+      config = config,
+      math = math == true and not blocked,
+      comment = comment and not literal_content,
+      blocked = blocked,
+      results = {},
+    }
+  end
+  return { node = node, bufnr = bufnr, pos = pos, snapshot = cached }
+end
+
+---@param opts? {bufnr?: integer, pos?: integer[]}
+---@return boolean, string?
+function M.in_comment(opts)
+  local query, err = inspect(opts)
+  return query and query.snapshot.comment or false, err
+end
+
+---@param opts? {bufnr?: integer, pos?: integer[]}
+---@return boolean, string?
+function M.in_math(opts)
+  local query, err = inspect(opts)
+  return query and query.snapshot.math or false, err
+end
+
+-- Shared by read-only context queries. Keep the caller's options untouched.
+function M.query(opts)
+  local query, err = inspect(opts)
+  if not query or query.snapshot.blocked then
+    return nil, err
+  end
+  return query
 end
 
 local function payload(node, pos)
@@ -108,12 +122,8 @@ local function payload(node, pos)
   return ts.contains(ts.range(node), unpack(pos))
 end
 
-local function math_payload(kind, opts)
-  local query, err = M.query(opts)
-  if not query then
-    return false, err
-  end
-  if not math_context(query.node, query.bufnr) then
+local function math_payload(kind, query)
+  if not query.snapshot.math then
     return false
   end
   local node = query.node
@@ -145,20 +155,32 @@ local function math_payload(kind, opts)
   return false
 end
 
+local function role(kind, opts)
+  local query, err = M.query(opts)
+  if not query then
+    return false, err
+  end
+  local results = query.snapshot.results
+  if results[kind] == nil then
+    results[kind] = math_payload(kind, query)
+  end
+  return results[kind]
+end
+
 function M.in_subscript(opts)
-  return math_payload('subscript', opts)
+  return role('subscript', opts)
 end
 
 function M.in_superscript(opts)
-  return math_payload('superscript', opts)
+  return role('superscript', opts)
 end
 
 function M.in_numerator(opts)
-  return math_payload('numerator', opts)
+  return role('numerator', opts)
 end
 
 function M.in_denominator(opts)
-  return math_payload('denominator', opts)
+  return role('denominator', opts)
 end
 
 function M.in_table_cell(opts)
