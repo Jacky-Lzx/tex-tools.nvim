@@ -64,25 +64,61 @@ local function structure_marker(node, kind)
   end
 end
 
-local function collect(node, targets, kind, root)
+local function before(ar, ac, br, bc)
+  return ar < br or (ar == br and ac < bc)
+end
+
+-- Visit in motion order. Binary-search the first relevant child so a nearby
+-- target does not require walking distant siblings or their bodies.
+local function search(node, kind, root, direction, row, col, accept)
   if blocked(node) or (kind == 'item' and node ~= root and ts.environment(node)) then
-    return
+    return false
   end
-  local section = kind == 'section'
-  local pos
-  if (section and sections[node:type()]) or (kind == 'item' and node:type() == 'enum_item') then
-    pos = marker(node, section)
-  elseif kind == 'environment' or kind == 'math' then
-    pos = structure_marker(node, kind)
+  local sr, sc, er, ec = node:range()
+  if (direction == 1 and not before(row, col, er, ec)) or (direction == -1 and not before(sr, sc, row, col)) then
+    return false
   end
-  if pos then
-    targets[#targets + 1] = pos
+  local function visit_marker()
+    local section = kind == 'section'
+    local pos
+    if (section and sections[node:type()]) or (kind == 'item' and node:type() == 'enum_item') then
+      pos = marker(node, section)
+    elseif kind == 'environment' or kind == 'math' then
+      pos = structure_marker(node, kind)
+    end
+    if
+      pos
+      and ((direction == 1 and before(row, col, unpack(pos))) or (direction == -1 and before(pos[1], pos[2], row, col)))
+    then
+      return accept(pos)
+    end
+    return false
   end
-  for child in node:iter_children() do
-    if child:named() then
-      collect(child, targets, kind, root)
+  if direction == 1 and visit_marker() then
+    return true
+  end
+  local size = node:named_child_count()
+  local low, high = 0, size
+  while low < high do
+    local mid = math.floor((low + high) / 2)
+    local cr, cc, lr, lc = node:named_child(mid):range()
+    local skip = direction == 1 and not before(row, col, lr, lc) or direction == -1 and before(cr, cc, row, col)
+    if skip then
+      low = mid + 1
+    else
+      high = mid
     end
   end
+  local first, last = low, size - 1
+  if direction == -1 then
+    first, last = low - 1, 0
+  end
+  for index = first, last, direction do
+    if search(node:named_child(index), kind, root, direction, row, col, accept) then
+      return true
+    end
+  end
+  return direction == -1 and visit_marker() or false
 end
 
 local function scope(kind)
@@ -131,27 +167,14 @@ local function jump(kind, direction, count)
   if not root then
     return false, err
   end
-  local targets = {}
-  collect(root, targets, kind, root)
   local cursor = vim.api.nvim_win_get_cursor(0)
   local row, col = cursor[1] - 1, cursor[2]
-  local first, last = 1, #targets
-  if direction == -1 then
-    first, last = last, first
-  end
   local target
-  for index = first, last, direction do
-    local pos = targets[index]
-    local before = pos[1] < row or (pos[1] == row and pos[2] < col)
-    local after = pos[1] > row or (pos[1] == row and pos[2] > col)
-    if (direction == 1 and after) or (direction == -1 and before) then
-      target = pos
-      count = count - 1
-      if count == 0 then
-        break
-      end
-    end
-  end
+  search(root, kind, root, direction, row, col, function(pos)
+    target = pos
+    count = count - 1
+    return count == 0
+  end)
   if not target then
     return false, 'No ' .. (direction == 1 and 'next' or 'previous') .. ' ' .. kind
   end

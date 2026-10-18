@@ -262,4 +262,30 @@ return function(h)
     keys(',lm')
     cursor('\\begin{quote}')
   end)
+  test('environment navigation stops before inspecting distant targets', function()
+    local lines = { 'intro' }
+    for i = 1, 200 do
+      lines[#lines + 1] = '\\begin{quote}body ' .. i .. '\\end{quote}'
+    end
+    lines[#lines + 1] = 'outro'
+    buffer(table.concat(lines, '\n'))
+    local environment = require('tex-tools.environment')
+    local original, calls = environment.from_node, 0
+    environment.from_node = function(...)
+      calls = calls + 1
+      return original(...)
+    end
+    local ok, err = pcall(function()
+      eq(true, tex.jump_environment_start(1))
+      eq({ 2, 0 }, vim.api.nvim_win_get_cursor(0))
+      eq(1, calls)
+      at('outro')
+      calls = 0
+      eq(true, tex.jump_environment_start(-1))
+      eq({ 201, 0 }, vim.api.nvim_win_get_cursor(0))
+      eq(1, calls)
+    end)
+    environment.from_node = original
+    assert(ok, err)
+  end)
 end
