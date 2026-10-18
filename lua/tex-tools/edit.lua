@@ -4,6 +4,10 @@ function M.environment_name(name)
   return type(name) == 'string' and name:match('^[%a@][%w@*_-]*$') ~= nil
 end
 
+function M.command_name(name)
+  return type(name) == 'string' and name:match('^[A-Za-z@]+%*?$') ~= nil
+end
+
 ---Apply byte-based, end-exclusive replacements in one undo operation.
 function M.apply(bufnr, changes)
   if not vim.api.nvim_buf_is_loaded(bufnr) then
@@ -24,11 +28,10 @@ function M.apply(bufnr, changes)
   return true
 end
 
----Resolve an environment name without allowing delayed prompts to use stale ranges.
-function M.with_environment_name(bufnr, name, default, callback)
+local function with_name(bufnr, name, default, kind, validate, message, callback)
   local function apply(value)
-    if not M.environment_name(value) then
-      return false, 'Use a literal environment name, e.g. equation*'
+    if not validate(value) then
+      return false, message
     end
     return callback(value)
   end
@@ -36,12 +39,16 @@ function M.with_environment_name(bufnr, name, default, callback)
     return apply(name)
   end
   local tick = vim.api.nvim_buf_get_changedtick(bufnr)
-  vim.ui.input({ prompt = 'Environment: ', default = default }, function(value)
+  vim.ui.input({ prompt = kind .. ': ', default = default }, function(value)
     if not value or value == '' then
       return
     end
     if not vim.api.nvim_buf_is_loaded(bufnr) or vim.api.nvim_buf_get_changedtick(bufnr) ~= tick then
-      vim.notify('Buffer changed; run the environment operation again', vim.log.levels.WARN, { title = 'tex-tools' })
+      vim.notify(
+        'Buffer changed; run the ' .. kind:lower() .. ' operation again',
+        vim.log.levels.WARN,
+        { title = 'tex-tools' }
+      )
       return
     end
     local ok, err = apply(value)
@@ -50,6 +57,31 @@ function M.with_environment_name(bufnr, name, default, callback)
     end
   end)
   return true
+end
+
+---Resolve names without allowing delayed prompts to use stale ranges.
+function M.with_environment_name(bufnr, name, default, callback)
+  return with_name(
+    bufnr,
+    name,
+    default,
+    'Environment',
+    M.environment_name,
+    'Use a literal environment name, e.g. equation*',
+    callback
+  )
+end
+
+function M.with_command_name(bufnr, name, default, callback)
+  return with_name(
+    bufnr,
+    name,
+    default,
+    'Command',
+    M.command_name,
+    'Use a command name without a backslash: ASCII letters or @, with an optional trailing *',
+    callback
+  )
 end
 
 return M

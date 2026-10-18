@@ -19,6 +19,12 @@ local function group_ranges(node)
   return { node = node, outer = ts.range(node), inner = { sr, sc, er, ec } }
 end
 
+function M.group_node(node)
+  if group(node) then
+    return group_ranges(node)
+  end
+end
+
 function M.argument(opts)
   local node, err = ts.editable_node(opts)
   while node do
@@ -30,6 +36,42 @@ function M.argument(opts)
   return nil, err or 'No surrounding LaTeX argument'
 end
 
+---Inspect a command header without including section/item body children.
+function M.command_node(node, bufnr)
+  local command = ts.field(node, 'command')
+  local kind = node:type()
+  if not command or group(node) or kind == 'begin' or kind == 'end' or ts.text(command, bufnr):sub(1, 1) ~= '\\' then
+    return nil
+  end
+  local sr, sc, nr, nc = command:range()
+  local er, ec = nr, nc
+  local invalid = command:missing()
+  local arguments, other_fields = {}, false
+  for child, field in node:iter_children() do
+    if field and group(child) then
+      local cr, cc, lr, lc = child:range()
+      if cr > sr or (cr == sr and cc > sc) then
+        if lr > er or (lr == er and lc > ec) then
+          er, ec = lr, lc
+        end
+        local argument = group_ranges(child)
+        invalid = invalid or argument == nil
+        arguments[#arguments + 1] = { node = child, outer = ts.range(child), inner = argument and argument.inner }
+      end
+    elseif field and field ~= 'command' then
+      other_fields = true
+    end
+  end
+  return {
+    node = node,
+    outer = { sr, sc, er, ec },
+    inner = { sr, sc + 1, nr, nc },
+    arguments = arguments,
+    other_fields = other_fields,
+  },
+    invalid and 'Command arguments are incomplete' or nil
+end
+
 function M.command(opts)
   local node, err = ts.editable_node(opts)
   local pos = opts and opts.pos
@@ -38,38 +80,12 @@ function M.command(opts)
     pos = { cursor[1] - 1, cursor[2] }
   end
   while node do
-    local command = ts.field(node, 'command')
-    local kind = node:type()
-    if
-      command
-      and not group(node)
-      and kind ~= 'begin'
-      and kind ~= 'end'
-      and ts.text(command, opts and opts.bufnr):sub(1, 1) == '\\'
-    then
-      local sr, sc, er, ec = command:range()
-      local invalid = command:missing()
-      -- Section/item nodes also contain their body. Only field-owned groups
-      -- belong to the command call; never include the section's body children.
-      for child, field in node:iter_children() do
-        if field and group(child) then
-          local cr, cc, lr, lc = child:range()
-          if cr > sr or (cr == sr and cc > sc) then
-            if lr > er or (lr == er and lc > ec) then
-              er, ec = lr, lc
-            end
-            invalid = invalid or group_ranges(child) == nil
-          end
-        end
+    local object, message = M.command_node(node, opts and opts.bufnr)
+    if object and ts.contains(object.outer, pos[1], pos[2]) then
+      if message then
+        return nil, message
       end
-      local outer = { sr, sc, er, ec }
-      if ts.contains(outer, pos[1], pos[2]) then
-        if invalid then
-          return nil, 'Command arguments are incomplete'
-        end
-        local _, _, nr, nc = command:range()
-        return { node = node, outer = outer, inner = { sr, sc + 1, nr, nc } }
-      end
+      return object
     end
     node = node:parent()
   end

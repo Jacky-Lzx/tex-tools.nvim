@@ -43,6 +43,24 @@ local function attach(bufnr)
     end)
   end
   local commands = {
+    TexToolsRenameCommand = {
+      function(args)
+        action('command', 'rename', args.args ~= '' and args.args or nil)
+      end,
+      { nargs = '?', desc = 'Rename the surrounding LaTeX command' },
+    },
+    TexToolsUnwrapCommand = {
+      function()
+        action('command', 'unwrap')
+      end,
+      { desc = 'Remove a single-argument LaTeX command, keeping its contents' },
+    },
+    TexToolsSurroundCommand = {
+      function(args)
+        action('command', 'surround', args.args ~= '' and args.args or nil, { line1 = args.line1, line2 = args.line2 })
+      end,
+      { nargs = '?', range = true, desc = 'Surround lines with a LaTeX command' },
+    },
     TexToolsRenameEnvironment = {
       function(args)
         action('environment', 'rename', args.args ~= '' and args.args or nil)
@@ -117,6 +135,38 @@ local function attach(bufnr)
     vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
   end
   local maps = {
+    {
+      'n',
+      'csc',
+      'RenameCommand',
+      function()
+        action('command', 'rename')
+      end,
+    },
+    {
+      'n',
+      'dsc',
+      'UnwrapCommand',
+      function()
+        action('command', 'unwrap')
+      end,
+    },
+    {
+      'n',
+      '<localleader>lc',
+      'SurroundCommand',
+      function()
+        action('command', 'surround')
+      end,
+    },
+    {
+      'x',
+      '<localleader>lc',
+      'SurroundCommand',
+      function()
+        action('command', 'surround_visual')
+      end,
+    },
     {
       { 'n', 'i' },
       '<localleader>li',
@@ -294,6 +344,18 @@ function M.in_comment(opts)
 end
 function M.environment(opts)
   return require('tex-tools.environment').current(opts)
+end
+function M.rename_command(name)
+  return require('tex-tools.command').rename(name)
+end
+function M.unwrap_command()
+  return require('tex-tools.command').unwrap()
+end
+function M.surround_command(name, opts)
+  return require('tex-tools.command').surround(name, opts)
+end
+function M.surround_command_visual(name)
+  return require('tex-tools.command').surround_visual(name)
 end
 function M.rename_environment(name)
   return require('tex-tools.environment').rename(name)

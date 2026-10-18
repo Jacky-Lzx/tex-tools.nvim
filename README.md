@@ -28,6 +28,7 @@ has incomplete markers, or has mismatched begin/end names.
 - Command (`ac` / `ic`), argument (`aa` / `ia`), and formula (`a$` / `i$`) text objects.
 - Surround the current line or selected lines with an environment, and unwrap an existing environment while keeping its body.
 - Switch `$...$` ↔ `\(...\)` and `$$...$$` ↔ `\[...\]` without changing math mode or formula content.
+- Rename commands, unwrap a single braced argument, and surround text with a command.
 
 Command, argument, and formula objects follow the parser's structure and skip
 comments and literal content. Command objects include only arguments owned by
@@ -119,6 +120,39 @@ available target without wrapping. If there is no target, the cursor and
 jump history are preserved. All navigation works without texlab and in
 unmodifiable buffers.
 
+## Command editing
+
+- `csc` / `:TexToolsRenameCommand [name]`: rename the innermost command, keeping all arguments, options, whitespace, and comments. For example, `\textbf{body}` becomes `\emph{body}`.
+- `dsc` / `:TexToolsUnwrapCommand`: remove a command with exactly one braced argument, keeping its contents. For example, `\textbf{body}` becomes `body`.
+- `<localleader>lc` in Visual mode: wrap the selected text with `\name{...}`. In Normal mode or with `:[range]TexToolsSurroundCommand [name]`, wrap the current line or Ex line range.
+
+Omit a name to open an input prompt. Enter ASCII letters or `@`, optionally
+followed by one `*`, without the leading backslash. A new name supplies its
+own star: renaming `section*` to `chapter` removes the star. Control-symbol
+commands such as `\%` are excluded. These are local edits to an invocation;
+macro signatures, definitions, and uses elsewhere in the project are not
+renamed or inferred.
+
+Unwrap refuses optional or multiple arguments, non-group parameters, and
+comments between the command and its argument. Comments inside the retained
+body are preserved. Rename and unwrap refuse changes that would merge a bare
+control word with adjacent letters. As with command text objects, a heading's
+body is excluded from its invocation.
+
+Visual surrounds support characterwise and linewise selections, forward and
+backward, both `selection` settings, UTF-8, combining marks, and multiple
+lines. The selected text is preserved without reindentation. Blockwise and
+partial-character/virtual-space selections are refused. Surrounds require
+nonempty text and reject selections crossing command, argument, formula, or
+environment boundaries; complete structures or text within one body are
+accepted. Any intersecting comments or literal content are refused.
+
+All command edits require the real parser and a modifiable buffer. Commands
+inside comments/literal content and incomplete invocations are refused.
+Each operation can be undone with one `u`. Buffer edits while a name prompt
+is open cancel the pending operation. Existing mappings are preserved;
+`mappings = false` retains commands, Lua APIs, and `<Plug>` mappings.
+
 ## Installation
 
 Requires **Neovim ≥ 0.11** and an installed **`latex` Tree-sitter parser**.
@@ -156,6 +190,9 @@ mappings are skipped when a global or buffer-local mapping already exists.
 Set `mappings = false` to disable the defaults.
 
 - `cse` → `:TexToolsRenameEnvironment [name]`; prompts when the name is omitted.
+- `csc` → `:TexToolsRenameCommand [name]`; renames the innermost command.
+- `dsc` → `:TexToolsUnwrapCommand`; keeps the contents of one braced argument.
+- `<localleader>lc` (Normal / Visual) → `:TexToolsSurroundCommand [name]`; wraps a line or exact Visual selection, prompting for the name.
 - `tss` → `:TexToolsToggleEnvironmentStar`, e.g. `equation` ↔ `equation*`.
 - `<localleader>lm` → `:TexToolsJumpEnvironment`; jumps from the body or begin marker to end, and from end back to begin.
 - `<localleader>ll` → `:TexToolsBuild`; saves the current file, then requests a texlab build.
@@ -184,7 +221,7 @@ the operator.
 Star toggling changes the name only; the document class and packages determine
 whether the resulting environment exists.
 
-Surrounding operates on whole lines, including when a characterwise or blockwise
+Environment surrounding operates on whole lines, including when a characterwise or blockwise
 Visual selection is used. Markers use the first selected line's indentation;
 the body is preserved without reindentation. For example, `:2,5TexToolsSurroundEnvironment quote`
 wraps lines 2 through 5. Unwrapping removes standalone marker lines entirely,
@@ -204,6 +241,7 @@ vim.keymap.set("n", "<leader>te", "<Plug>(TexToolsRenameEnvironment)")
 vim.keymap.set({ "x", "o" }, "aE", "<Plug>(TexToolsAroundEnvironment)")
 vim.keymap.set({ "n", "i" }, "<C-j>", "<Plug>(TexToolsInsertItem)")
 vim.keymap.set("n", "]s", "<Plug>(TexToolsNextSection)")
+vim.keymap.set("x", "<leader>tc", "<Plug>(TexToolsSurroundCommand)")
 ```
 
 See [doc/tex-tools.txt](doc/tex-tools.txt) for all `<Plug>` names and API details.
@@ -252,6 +290,11 @@ local tex = require("tex-tools")
 tex.in_math()                  -- boolean, optional error message
 tex.in_comment()               -- boolean, optional error message
 tex.environment()              -- environment table or nil, optional error message
+tex.rename_command("emph")
+tex.unwrap_command()
+tex.surround_command("textbf") -- current line
+tex.surround_command("emph", { range = { 0, 7, 0, 11 } }) -- zero-based bytes, end-exclusive
+tex.surround_command_visual("emph") -- active characterwise/linewise Visual selection
 tex.rename_environment("align*")
 tex.toggle_environment_star()
 tex.jump_environment()
@@ -305,6 +348,16 @@ integer. They return `true` on movement or `false, error` without moving.
 They do not notify or require `setup()`; commands and mappings display errors.
 Custom Normal-mode Lua mappings can pass `vim.v.count1` to retain count support.
 
+`rename_command(name)` and `surround_command(name, opts)` prompt when `name`
+is omitted. `surround_command()` accepts either a byte `range` or one-based
+inclusive `line1`/`line2`, defaulting to the current line. It copies the range
+before opening a prompt. `surround_command_visual(name)` reads the active
+Visual selection and leaves Visual mode before prompting or editing.
+Together with `unwrap_command()`, these APIs return `true` or `false, error`
+without notifying; `true` for a prompt means it has opened. They work without
+`setup()` and edit the original buffer even if a different buffer is current
+when the prompt finishes, provided the original buffer is unchanged.
+
 Example LuaSnip condition:
 
 ```lua
@@ -321,9 +374,9 @@ expanded.
 ## Roadmap
 
 1. **Implemented: Foundation** — Context queries, environment detection, renaming, jumps, text objects, texlab requests, and health checks.
-2. **Implemented: Editing** — Command, argument, and formula text objects; adding and removing surrounding environments; math delimiter switching.
+2. **Implemented: Editing** — Command, argument, and formula text objects; command renaming and surrounds; adding and removing surrounding environments; math delimiter switching.
 3. **In progress: Input** — Explicit `\item` insertion and optional context-aware Enter are implemented. Further input helpers should compose with existing snippet and pairs plugins.
-4. **In progress: Navigation** — Section and same-level list-item jumps are implemented. A table of contents using texlab document symbols is planned.
+4. **Implemented: Navigation** — Section and same-level list-item jumps with counts, jump history, and fold opening.
 
 Each phase is tested against the real parser. Parsing, LSP communication,
 compiler processes, and log diagnostics remain the responsibility of
@@ -349,7 +402,8 @@ math delimiter round trips, undo, UTF-8 text objects, actual operator mappings,
 stale asynchronous prompts, nested list insertion, Normal/Insert-mode typing,
 description labels, indentation, smart Enter splits/fallbacks, rapid repeated
 Enter input, section and list-item navigation, counted mappings, jump history,
-fold opening, and texlab request parameter encoding. texlab tests
+fold opening, command renaming/unwrapping, exact Visual command surrounds,
+syntax-boundary guards, and texlab request parameter encoding. texlab tests
 use a client double and do not start a LaTeX compiler or PDF viewer. Verify
 actual builds and PDF navigation with your configured local toolchain.
 
