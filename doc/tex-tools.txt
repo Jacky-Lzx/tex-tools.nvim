@@ -1,9 +1,29 @@
 *tex-tools.txt*  LaTeX editing with Tree-sitter and texlab
 
-SETUP                                                   *tex-tools-setup*
+Structural edits, text objects, navigation, tables and optional conceal.
+Requires Neovim 0.11+ and the `latex` Tree-sitter parser. Follow links with
+CTRL-]; return with CTRL-T.
 
-Requires Neovim 0.11+ and the latex Tree-sitter parser, installed separately
-(e.g. :TSInstall latex). Add the plugin to 'runtimepath', then: >lua
+  |tex-tools-setup|              Configuration and defaults
+  |tex-tools-mappings|           Keys and custom mappings
+  |tex-tools-commands|           Editing commands
+  |tex-tools-textobjects|        Text objects and counts
+  |tex-tools-navigation|         Motions and jump history
+  |tex-tools-tables|             Tables and matrices
+  |tex-tools-section-levels|     Promote/demote headings
+  |tex-tools-outline|            File and project outline
+  |tex-tools-build|              Build, logs and cleanup
+  |tex-tools-compiler-profiles|  Switch compilers
+  |tex-tools-viewer|             PDF viewing and inverse search
+  |tex-tools-conceal|            Render LaTeX symbols
+  |tex-tools-api|                Lua API and snippet queries
+  |tex-tools-health|             Troubleshooting and development
+
+==============================================================================
+SETUP                                                        *tex-tools-setup*
+
+Install the parser separately (e.g. `:TSInstall latex`), then call: >lua
+
     require('tex-tools').setup({
       mappings = true,
       overwrite_mappings = false,
@@ -12,703 +32,539 @@ Requires Neovim 0.11+ and the latex Tree-sitter parser, installed separately
       math_environments = {},
     })
 <
-Commands/mappings attach to tex/plaintex buffers. Set g:maplocalleader before
-loading. Existing mappings are preserved; mappings=false keeps commands and
-<Plug> mappings. smart_enter enables list-aware Insert-mode <CR> when default
-mappings are enabled. math_environments adds names, including starred forms.
-Configure texlab, the compiler, and PDF viewer through your usual LSP setup.
+Commands and buffer-local mappings attach to `tex/plaintex` buffers. Set
+`vim.g.maplocalleader` before loading. Configure texlab and its toolchain in
+your LSP setup; editing needs only the parser.
 
-CONCEAL                                                 *tex-tools-conceal*
+Options and defaults ~
+  `mappings`            `true`; false keeps commands and <Plug> mappings
+  `overwrite_mappings`  `false`; preserve existing global/local keys
+  `smart_enter`         `false`; list-aware Insert <CR>, requires mappings
+  `conceal`             `false`; true or a table, see |tex-tools-conceal|
+  `math_environments`   `{}`; extra math environment names, including stars
+  `build.output_lines`  `2000`; positive live-output line limit
+  `build.main_file`     `false`; main path relative to the LSP root
+  `build.profiles`      `{}`; see |tex-tools-compiler-profiles|
+  `viewer`              see |tex-tools-viewer|
 
-Conceal is provided by Neovim, not texlab. Opt in with: >lua
-    require('tex-tools').setup({ conceal = true })
-    vim.opt.conceallevel = 2
-    vim.opt.concealcursor = 'nc' -- Optional: conceal on the Normal cursor line.
-<
-All categories below default to true when conceal is enabled. A table enables
-the feature with per-category overrides, e.g. conceal={cites=false, styles=false}.
-conceal=false (default) or conceal={enabled=false} disables the renderer.
+`overwrite_mappings=true` replaces conflicting default keys, including <CR>.
+Disabling it or default mappings restores replaced local mappings and reveals
+current global keys. Keys changed/deleted after attachment are preserved.
 
-    accents          Single-letter accents: \'{e} -> é, \"o -> ö, \c c -> ç.
-                     Only precomposed Unicode equivalents of ASCII letters.
-    ligatures        Text ligatures (\ae{}, \OE{}, \ss{}, ...), dashes, quotes.
-    cites            Parser-recognized citations: hide command/notes, preserve
-                     keys in [] (or () for citep/parencite/autocite).
-    fancy            \dots, \ldots, \textellipsis, \colon, \slash, \_, \item.
-    spacing          Hide \, \; \: \! \quad \qquad and related spacing macros;
-                     hide hspace/vspace/phantom arguments. ~ becomes a space.
-    math_bounds      Hide matched $, $$, \(\), \[\] formula markers.
-    math_delimiters  Hide left/right/middle and big/Big/bigg/Bigg sizing;
-                     display directional bracket macros as Unicode.
-    styles           Hide wrappers of common text/math formatting commands
-                     (textbf, emph, textit, mathrm, mathbf, text, ...), keeping
-                     their body and existing colors. Does not emulate fonts.
-    math_symbols     Whitelisted Greek letters, operators, relations, sets,
-                     arrows and large operators: \alpha -> α, \times -> ×.
+==============================================================================
+MAPPINGS                                                  *tex-tools-mappings*
 
-Fractions, scripts and section headings retain source text.
-Custom macro expansion is not inferred. Unknown/unsupported constructs remain
-visible. Text accents/ligatures are disabled in math except within \text{...}.
-Comments, literal/code environments, inline verbatim, definitions, paths, labels,
-and citation-key spelling are protected. Citation notes are hidden by cites.
+Normal mode; every `l...` key below has the <LocalLeader> prefix. The action
+column is the suffix in `<Plug>(TexTools{Action})`.
 
-Math symbols are math-only; text mode suppresses them, while nested formulas
-inside text start a new math context. Scripts, limits and arguments remain
-source. Set conceal.math_symbols=false to disable built-in/custom symbols.
-conceal.symbols maps bare command names (ASCII letters/@, no backslash) to one
-printable Unicode character, or false to disable an entry. Example: >lua
-    require('tex-tools').setup({
-      conceal = { symbols = { alpha = 'Α', beta = false, RR = 'ℝ' } },
-    })
-<
-Custom mappings replace the command itself without expanding its arguments.
-The built-in whitelist is lua/tex-tools/conceal_symbols.lua.
+  Key             Action ~
+  `lcr` / `lcd`   RenameCommand / UnwrapCommand
+  `lcs`           SurroundCommand (also Visual)
+  `ler` / `let`   RenameEnvironment / ToggleEnvironmentStar
+  `les` / `led`   SurroundEnvironment (also Visual) / UnwrapEnvironment
+  `lm`            JumpEnvironment
+  `lf`            ToggleMathDelimiters
+  `ldc` / `ldd`   ChangeMathDelimiters / UnwrapMathDelimiters
+  `ldt` / `ldm`   ToggleMathDelimiterSize / JumpMathDelimiter
+  `li` / `lt`     InsertItem / Outline
+  `ll` / `lv`     Build / ForwardSearch
+  `lk` / `lK`     CancelBuild / CancelAllBuilds
+  `lg`            BuildStatus
+  `lo` / `lq`     BuildOutput / Log
+  `le`            Errors
+  `lc` / `lC`     Clean / CleanFull
+  `]]` / `[[`    NextSection / PreviousSection
+  `]i` / `[i`    NextItem / PreviousItem
+  `]e` / `[e`    NextEnvironment / PreviousEnvironment
+  `]m` / `[m`    NextMath / PreviousMath
+  `]t` / `[t`    NextCell / PreviousCell
 
-The module loads only when enabled. Decorations are ephemeral and cached per
-window for visible source lines; buffer text, syntax and highlight queries are
-untouched. Scrolling reuses decorations in overlapping source lines.
-conceal.max_line_length defaults to 10000 bytes; longer lines stay visible to
-bound redraw work. Use 0 to disable this limit, or a nonnegative integer byte
-limit. Expensive parses yield; source stays visible until ready. Missing
-parsers fall back to source. A Tree-sitter highlighter is not started.
-Native 'conceallevel' and 'concealcursor' control display; no window
-options are changed. Disable overlapping VimTeX/legacy syntax conceal rules.
+Insert `]]` uses `<Plug>(TexToolsCloseDelimiter)`; optional <CR> uses
+`<Plug>(TexToolsSmartEnter)`. Other commands have no default key.
+Text-object <Plug> names use `Around`/`Inside` + `Environment`, `Command`,
+`Argument`, `Math`, `MathDelimiter`, `Item`, `Section` or `Cell`.
+>lua
 
-MAPPINGS                                                *tex-tools-mappings*
-
-Existing mappings are preserved by default. To replace conflicting global or
-buffer-local mappings with the plugin's default keys: >lua
-    require('tex-tools').setup({ overwrite_mappings = true })
-<
-overwrite_mappings defaults to false and must be a boolean. It applies to all
-default mapping modes, including Insert-mode <CR> when smart_enter=true.
-mappings=false still disables default keys; commands and <Plug> mappings remain.
-Replacements are buffer-local to tex/plaintex buffers. Repeating setup() with
-overwrite_mappings=false or mappings=false restores replaced local mappings,
-including Lua callbacks and options, and reveals current global mappings.
-Cleanup preserves keys changed or deleted after attachment. Later mappings from
-other plugins can still replace the plugin's keys.
-
-Normal mode (each <Plug> name corresponds to a command below):
-    <LocalLeader>lcr    <Plug>(TexToolsRenameCommand)
-    <LocalLeader>lcd    <Plug>(TexToolsUnwrapCommand)
-    <LocalLeader>lcs    <Plug>(TexToolsSurroundCommand)
-    <LocalLeader>ler    <Plug>(TexToolsRenameEnvironment)
-    <LocalLeader>let    <Plug>(TexToolsToggleEnvironmentStar)
-    <LocalLeader>les    <Plug>(TexToolsSurroundEnvironment)
-    <LocalLeader>led    <Plug>(TexToolsUnwrapEnvironment)
-    <LocalLeader>lm     <Plug>(TexToolsJumpEnvironment)
-    <LocalLeader>lf     <Plug>(TexToolsToggleMathDelimiters)
-    <LocalLeader>ldc    <Plug>(TexToolsChangeMathDelimiters)
-    <LocalLeader>ldd    <Plug>(TexToolsUnwrapMathDelimiters)
-    <LocalLeader>ldt    <Plug>(TexToolsToggleMathDelimiterSize)
-    <LocalLeader>ldm    <Plug>(TexToolsJumpMathDelimiter)
-    <LocalLeader>li     <Plug>(TexToolsInsertItem)
-    <LocalLeader>ll     <Plug>(TexToolsBuild)
-    <LocalLeader>lv     <Plug>(TexToolsForwardSearch)
-    <LocalLeader>lk     <Plug>(TexToolsCancelBuild)
-    <LocalLeader>lK     <Plug>(TexToolsCancelAllBuilds)
-    <LocalLeader>lg     <Plug>(TexToolsBuildStatus)
-    <LocalLeader>lo     <Plug>(TexToolsBuildOutput)
-    <LocalLeader>lq     <Plug>(TexToolsLog)
-    <LocalLeader>le     <Plug>(TexToolsErrors)
-    <LocalLeader>lc     <Plug>(TexToolsClean)
-    <LocalLeader>lC     <Plug>(TexToolsCleanFull)
-    ]]                  <Plug>(TexToolsNextSection)
-    [[                  <Plug>(TexToolsPreviousSection)
-    ]i                  <Plug>(TexToolsNextItem)
-    [i                  <Plug>(TexToolsPreviousItem)
-    ]e                  <Plug>(TexToolsNextEnvironment)
-    [e                  <Plug>(TexToolsPreviousEnvironment)
-    ]m                  <Plug>(TexToolsNextMath)
-    [m                  <Plug>(TexToolsPreviousMath)
-
-Insert mode provides ]] for closing markers; optional <CR> uses
-<Plug>(TexToolsSmartEnter). There is no default Insert-mode list-item shortcut;
-<Plug>(TexToolsInsertItem) remains available for custom mappings. Visual lcs/les
-mappings use the same <LocalLeader> prefix: command surrounds preserve the exact
-selection; environment surrounds operate on whole selected lines.
-
-Visual/operator-pending mappings:
-    ae                  <Plug>(TexToolsAroundEnvironment)
-    ie                  <Plug>(TexToolsInsideEnvironment)
-    ac                  <Plug>(TexToolsAroundCommand)
-    ic                  <Plug>(TexToolsInsideCommand)
-    aa                  <Plug>(TexToolsAroundArgument)
-    ia                  <Plug>(TexToolsInsideArgument)
-    a$                  <Plug>(TexToolsAroundMath)
-    i$                  <Plug>(TexToolsInsideMath)
-    ad                  <Plug>(TexToolsAroundMathDelimiter)
-    id                  <Plug>(TexToolsInsideMathDelimiter)
-    ai                  <Plug>(TexToolsAroundItem)
-    ii                  <Plug>(TexToolsInsideItem)
-
-To customize, use the individual <Plug> name: >lua
-    vim.keymap.set('n', '<LocalLeader>lr', '<Plug>(TexToolsRenameEnvironment)')
+    vim.keymap.set('n', '<LocalLeader>lr',
+      '<Plug>(TexToolsRenameEnvironment)')
     vim.keymap.set({ 'x', 'o' }, 'aE', '<Plug>(TexToolsAroundEnvironment)')
 <
-COMMANDS                                                *tex-tools-commands*
+==============================================================================
+EDITING COMMANDS                                          *tex-tools-commands*
+                                                     *tex-tools-extra-editing*
 
-Omitted names/shapes open a prompt. Cancelled prompts do nothing; editing
-the target buffer while a prompt is open invalidates the pending operation.
+Omitted names/shapes prompt. Cancelling or editing the target buffer while a
+prompt is open cancels the operation. Names omit the backslash.
 
-:TexToolsRenameCommand [name]                        *:TexToolsRenameCommand*
-    Rename the innermost command, preserving arguments/options.
-:TexToolsUnwrapCommand                               *:TexToolsUnwrapCommand*
-    Remove a command with exactly one braced argument, preserving its body.
+:TexToolsRenameCommand [name]                         *:TexToolsRenameCommand*
+    Rename one invocation, preserving arguments/options.
+:TexToolsUnwrapCommand                                *:TexToolsUnwrapCommand*
+    Remove a command with exactly one braced argument and no options.
 :[range]TexToolsSurroundCommand [name]              *:TexToolsSurroundCommand*
-    Wrap the current line or line range in \name{...}.
+    Wrap lines in \name{...}; Visual mode wraps the exact selection.
+:TexToolsToggleCommandStar                        *:TexToolsToggleCommandStar*
+    Toggle the command's trailing star.
 
 :TexToolsRenameEnvironment [name]                 *:TexToolsRenameEnvironment*
     Rename both markers of the innermost environment.
 :TexToolsToggleEnvironmentStar                *:TexToolsToggleEnvironmentStar*
-    Add/remove a trailing * on both markers.
+    Toggle a trailing star on both markers.
 :[range]TexToolsSurroundEnvironment [name]      *:TexToolsSurroundEnvironment*
-    Wrap the current line or line range; preserve body indentation.
-:TexToolsUnwrapEnvironment                       *:TexToolsUnwrapEnvironment*
-    Remove both markers and begin options, preserving the body.
-:TexToolsJumpEnvironment                           *:TexToolsJumpEnvironment*
-    Jump from begin/body to end, or from end to begin.
+    Wrap whole lines, preserving body indentation.
+:TexToolsUnwrapEnvironment                        *:TexToolsUnwrapEnvironment*
+    Remove markers and begin options; keep the body.
+:TexToolsJumpEnvironment                            *:TexToolsJumpEnvironment*
+    Jump from begin/body to end, or end to begin.
 
-:TexToolsToggleMathDelimiters                   *:TexToolsToggleMathDelimiters*
-    Switch $...$ <-> \(...\) or $$...$$ <-> \[...\], preserving math mode.
-:TexToolsChangeMathDelimiters [shape]           *:TexToolsChangeMathDelimiters*
-    Replace both math brackets, preserving size commands and body text.
-:TexToolsUnwrapMathDelimiters                   *:TexToolsUnwrapMathDelimiters*
-    Remove math bracket markers, preserving their contents.
-:TexToolsToggleMathDelimiterSize             *:TexToolsToggleMathDelimiterSize*
-    Add/remove \left and \right. See |tex-tools-math-brackets|.
-:[count]TexToolsJumpMathDelimiter               *:TexToolsJumpMathDelimiter*
-    Jump between matching bracket markers; count selects enclosing depth.
+:TexToolsToggleMathDelimiters                  *:TexToolsToggleMathDelimiters*
+    Switch `$...$` / `\(...\)` or `$$...$$` / `\[...\]`.
+:TexToolsChangeMathDelimiters [shape]          *:TexToolsChangeMathDelimiters*
+    Change both brackets; keep sizing and body. See |tex-tools-math-brackets|.
+:TexToolsUnwrapMathDelimiters                  *:TexToolsUnwrapMathDelimiters*
+    Remove brackets, preserving contents.
+:TexToolsToggleMathDelimiterSize            *:TexToolsToggleMathDelimiterSize*
+    Add/remove `\left` and `\right`.
+:[count]TexToolsJumpMathDelimiter                 *:TexToolsJumpMathDelimiter*
+    Jump to the matching bracket; count selects enclosing depth.
+:TexToolsToggleFraction                              *:TexToolsToggleFraction*
+    Convert `a/b` to/from `\frac{a}{b}`; brace compound operands.
+:TexToolsConvertMath {target}                           *:TexToolsConvertMath*
+    Convert a formula: `inline`, `display`, `equation[*]`, `align[*]`,
+    `gather[*]`, `multline[*]`, `math`, `displaymath` or a custom math name.
+:TexToolsToggleMathMode                              *:TexToolsToggleMathMode*
+    Switch inline/display. Inline needs one line without comments/labels/tags;
+    columns and row breaks require `align[*]`.
+:TexToolsCloseDelimiter                              *:TexToolsCloseDelimiter*
+    Insert the nearest missing closing marker. Insert `]]` falls back to
+    literal text when unsafe or already closed.
+:TexToolsInsertItem                                      *:TexToolsInsertItem*
+    Insert a sibling after the whole item and enter Insert mode; create the
+    first item in an empty list. Supports itemize/enumerate/description.
 
-:TexToolsInsertItem                                     *:TexToolsInsertItem*
-    Insert a sibling \item after the entire current item and enter Insert
-    mode. Support itemize/enumerate/description; description opens the label.
-    Create the first item in an empty list. Preserve existing body text.
+                                                   *tex-tools-command-editing*
+Editing rules ~
+Command names: ASCII letters/@, optional trailing star. Environment names may
+also contain digits, underscores and hyphens. Blockwise/partial-structure
+surrounds and edits that merge control words are refused. Ambiguous fractions,
+comments, literal content and definitions are protected.
 
-:[count]TexToolsNextSection                           *:TexToolsNextSection*
-:[count]TexToolsPreviousSection                   *:TexToolsPreviousSection*
-    Jump to a section marker at any level.
-:[count]TexToolsNextItem                                 *:TexToolsNextItem*
-:[count]TexToolsPreviousItem                         *:TexToolsPreviousItem*
-    Jump to an item marker at the current list level.
-:[count]TexToolsNextEnvironment                   *:TexToolsNextEnvironment*
-:[count]TexToolsPreviousEnvironment           *:TexToolsPreviousEnvironment*
-    Jump to an environment opening, including nested environments/document.
-:[count]TexToolsNextMath                                 *:TexToolsNextMath*
-:[count]TexToolsPreviousMath                         *:TexToolsPreviousMath*
-    Jump to a formula opening or math environment. See |tex-tools-navigation|.
+                                                     *tex-tools-math-brackets*
+Math brackets ~
+  Shape       Alias       Pair ~
+  `paren`     `(`         `( )`
+  `bracket`   `[`         `[ ]`
+  `brace`     `{`         `\{ \}`
+  `angle`     `<`         `\langle \rangle`
+  `vert`      `|`         `\lvert \rvert`
+  `Vert`      `\|`        `\lVert \rVert`
 
-:TexToolsBuild                                             *:TexToolsBuild*
-    Save the current file and any modified main buffer with :update, then
-    request a texlab build of the resolved main document.
-:TexToolsMain [path|select|reset]                           *:TexToolsMain*
-    Show, select or reset the main document for this texlab client/session.
-    Paths are relative to the LSP root. select prompts for a file. reset
-    restores build.main_file or source/root-directive discovery. Changes are
-    refused while compiling or cleaning; source files are never rewritten.
-:TexToolsInfo                                              *:TexToolsInfo*
-    Show the main document, compiler, working directory and artifact paths.
-    Lua main_file([path]) returns true, path or false, error; false resets
-    the override (the resulting path may be nil if discovery is ambiguous).
-    project_info() returns a snapshot or nil, error. Settings in it are copies.
-    Manual builds target the selected main. Texlab's automatic builds retain
-    its dependency-graph root selection. Save a modified child first or turn
-    off build.onSave before manually building another main from that child.
-:TexToolsForwardSearch                             *:TexToolsForwardSearch*
-    Request texlab PDF forward search at the cursor without saving.
-    Both commands require an attached texlab client and configured toolchain.
+Plain directional and `\left`/`\right` pairs work in math. Sized pairs may use
+mixed/invisible markers; toggling size needs matching visible markers. Plain
+symmetric bars, fixed sizes and custom macros are excluded. Sizing cannot
+cross alignment cells/rows; unwrap rejects orphaned `\middle` and marker
+comments. Jumps land on sizing commands where present.
 
-:TexToolsCancelBuild                               *:TexToolsCancelBuild*
-    Cancel active builds in this buffer's texlab server instance.
-:TexToolsCancelAllBuilds                            *:TexToolsCancelAllBuilds*
-    Send cancellation to every running texlab server instance.
-:TexToolsBuildStatus                               *:TexToolsBuildStatus*
-    Show compilation state, elapsed time, build-on-save and the current
-    compiler executable/profile. Compilation state describes the last build;
-    compiler/profile describe the current configuration for subsequent builds.
-:TexToolsBuildOnSave [on|off|toggle]                 *:TexToolsBuildOnSave*
-    Change build.onSave for the attached client's current session. No argument
-    toggles the setting. Other compiler settings remain intact.
+                                                       *tex-tools-smart-enter*
+List Enter ~
+`smart_enter=true` splits a nonempty item at the cursor, keeping its suffix
+and nested content. Empty/unsupported contexts use native Enter. One undo
+removes the insertion and immediately typed text. For completion integration,
+call |tex-tools.smart_enter()| in its fallback branch.
 
-Build management subscribes to native LspProgress after texlab attaches. Manual
-builds report the response status; automatic builds report finished when their
-progress ends, without inferring success from the end notification. Other LSP
-progress handlers are preserved. A second manual build is rejected while one is
-active in that client. A save that triggers build.onSave does not also send an
-explicit build request. Cancellation is scoped to a server instance, not a file.
+                                                            *tex-tools-repeat*
+Repeat ~
+Cursor-based rename, unwrap, star toggles, math edits and conversions support
+|.|, reusing prompt answers. `[count].` stops at an invalid target and shares
+one undo. Surrounds/list input do not register structural repeats. Failed
+edits preserve the previous repeat; API edits register it only in the current
+buffer in Normal mode. Text-object operators keep native repeats.
 
-Lua: cancel_build(), cancel_all_builds(), build_on_save([boolean]) return
-boolean[, result_or_error]. build_status() returns a copy with phase, uri,
-on_save, result (when known), elapsed seconds, and error (when available), or
-nil, error if no texlab client is attached. These functions need no setup().
-build_status() also includes compiler (current executable) and profile (name
-when current settings match a configured profile).
+==============================================================================
+TEXT OBJECTS                                           *tex-tools-textobjects*
 
-COMPILER PROFILES                                       *tex-tools-compiler-profiles*
+Visual/operator-pending mode; e.g. `dai`, `cii`, `y2ia`.
 
-:TexToolsCompiler [name|toggle]                     *:TexToolsCompiler*
-    Without arguments show the current compiler and matched profile. With a
-    name, switch the attached texlab client's configuration. toggle cycles
-    profile names alphabetically; unmatched settings start at the first name.
-    Names and toggle support command completion. No default mapping is added.
+  Around / inside   Target / inner selection ~
+  `ae` / `ie`       Environment / body without options or marker lines
+  `ac` / `ic`       Command call / name without backslash, including star
+  `aa` / `ia`       Curly or bracket group / contents
+  `a$` / `i$`       Formula or math environment / body
+  `ad` / `id`       Math brackets with sizing / contents
+  `ai` / `ii`       List item with marker/label / trimmed body
+  `aP` / `iP`       Section and descendants / without heading
+  `at` / `it`       Table cell / without edge whitespace
 
-Define build.profiles in setup() (default {}): >lua
-    require('tex-tools').setup({
-      build = {
-        profiles = {
-          latexmk = {
-            executable = 'latexmk',
-            args = { '-pdf', '-synctex=1', '-interaction=nonstopmode',
-                     '%f' },
-          },
-          tectonic = {
-            executable = 'tectonic',
-            args = { '-X', 'compile', '%f', '--synctex',
-                     '--keep-logs', '--keep-intermediates' },
-          },
-        },
-      },
-    })
-<
-Profile names contain ASCII letters, digits, underscores, dots and hyphens;
-the first character must be a letter, digit or underscore. toggle is reserved.
-Each profile requires executable (a nonempty program name/path) and args (a
-string list, replaced whole). Optional fields: auxDirectory, logDirectory,
-pdfDirectory and filename (a nonempty basename). Other profile keys are errors.
-Use latexmk's -xelatex instead of -pdf in a profile for XeLaTeX compilation.
+Counts climb enclosing objects of the same kind; `2d2ac` selects depth four.
+Sections climb heading levels; cells accept only count 1. Empty inner objects
+or missing depths cancel without changing text, registers or the prior repeat.
+Item objects stay at the nearest list level (`2ai` selects its parent); blank
+gaps use the preceding item. Whole-line `ai` is linewise, including its final
+newline/trailing comment, but excluding following blank/comment lines.
 
-Switching replaces all six profile fields. Omitted directory/filename overrides
-are cleared to prevent a previous profile's paths from leaking into the next.
-Repeat shared overrides in each profile that needs them. These settings locate
-artifacts for texlab, log viewing and cleanup; also pass the compiler's output
-arguments when needed. Deprecated texlab.auxDirectory is preserved alongside
-other settings; prefer per-profile build directory overrides when switching.
-onSave, forwardSearchAfter, forwardSearch and unrelated LSP settings are kept.
-
-Switching checks local executable availability and refuses active builds or
-cleaning. It sends workspace/didChangeConfiguration, without restarting texlab
-or compiling. Local settings roll back if sending fails. The notification has
-no server acknowledgement: success means sent; texlab applies asynchronously.
-All buffers sharing the client see the change;
-other clients keep their settings. No configuration files are written.
-setup() does not select a profile, probe executables or start an LSP client.
-Your LSP configuration determines the initial compiler, including after a
-restart. Repeated setup() replaces the profiles without switching the compiler.
-
-compiler([name])                                       *tex-tools.compiler()*
-    Query when name is omitted; otherwise switch to name or 'toggle'. Return
-    true, snapshot or false, error. snapshot contains profile (when matched),
-    executable, args (when explicitly configured), and sorted profiles names.
-    Returned tables are copies. Matching compares all six profile fields,
-    independently of automatic compilation/PDF search settings. When identical
-    profiles have multiple names, the selected name is retained while it still
-    matches; otherwise the first matching name is used.
-
-:TexToolsBuildOutput                               *:TexToolsBuildOutput*
-    Open a read-only live compiler output split. q closes it; F toggles following
-    new lines. Output resets each build and keeps at most build.output_lines
-    lines (default 2000, positive integer). Existing LSP log handlers still run.
-:TexToolsLog [path]                                *:TexToolsLog*
-    Open a full .log read-only. An explicit path needs no LSP client. Otherwise
-    resolve the main file through % !TeX root directives, build.main_file, or
-    a standalone document's \documentclass. Ambiguous roots return an error.
-    build.main_file defaults to false; a path is relative to the LSP root.
-    Common output/jobname arguments and texlab logDirectory are respected.
-    Latexmk directories/jobname are queried using -dir-report-only, including
-    computed .latexmkrc values and -r files. Explicit texlab directory overrides
-    take precedence. Discovery is cached until source/configuration files change;
-    cleanup, preview and compilation options are excluded from the probe.
-    Backends without a usable report need explicit directories or a log path.
-    Discovered latexmk log directories are synchronized to texlab on attachment,
-    TeX buffer changes and rc saves; explicit logDirectory overrides are kept.
-    Omit -file-line-error so texlab can parse standard !-prefixed TeX errors.
-    Recompile existing logs after removing that flag. Managed directory values
-    are refreshed on rc/profile changes without changing compiler identity.
-    A failed compiler can still produce PDF; its result remains a failure and
-    the notification explains that the existing PDF may be incomplete.
-:TexToolsErrors[!]                                 *:TexToolsErrors*
-    Fill quickfix with errors and warnings from this texlab client only.
-    With ! include errors only. Open the list only when nonempty. These output,
-    log and diagnostic windows never open automatically after compilation.
-
-Lua: build_output(), build_log([path]), build_errors([opts]) return
-boolean[, result_or_error]. Results are an output buffer, log path, or diagnostic
-count respectively. build_errors opts: errors_only (default false), open
-(default true). Set open=false to fill quickfix without opening it.
-
-:TexToolsClean                                     *:TexToolsClean*
-    Remove auxiliary build artifacts for the resolved main file.
-:TexToolsCleanFull                                 *:TexToolsCleanFull*
-    Also remove the PDF. Refuse cleaning during compilation or another cleanup.
-    latexmk delegates to texlab.cleanAuxiliary / texlab.cleanArtifacts, attaching
-    the main document if necessary; completion/errors notify asynchronously.
-    Tectonic compile cleanup removes exact files only: .aux, .out, .toc, .lof,
-    .lot, .fls, .nav, .snm, .vrb, .synctex.gz, .log; full adds .pdf. Source,
-    bibliography, .bbl and unrelated files are retained. Default output is the
-    input directory; --outdir/-o and texlab auxiliary/log/PDF directories apply.
-    No directory recursion occurs; leaf symlinks themselves are unlinked.
-    Unsupported compilers, Tectonic project build/watch and ambiguous mains
-    return errors. Directory paths in .latexmkrc are handled by texlab/latexmk.
-
-Lua: clean([full]) returns true, request_id (latexmk), true, removed_count
-(Tectonic), or false, error. full defaults to false. Compilation uses texlab's
-process lifecycle; independent latexmk -pvc and region compilation are absent.
-
-COMMAND EDITING                                         *tex-tools-command-editing*
-
-Names omit the backslash: ASCII letters or @, optionally followed by *.
-Environment names may also contain digits, underscores and hyphens.
-Rename edits one invocation. Unwrap requires one braced argument without
-options or non-group parameters. Visual command surrounds support character-
-and linewise selections; blockwise selections and partial structures fail.
-Edits reject invalid targets or text changes that would merge control words.
-
-MATH BRACKETS                                           *tex-tools-math-brackets*
-
-    Shape       Alias       Pair ~
-    paren       (           ( )
-    bracket     [           [ ]
-    brace       {           \{ \}
-    angle       <           \langle \rangle
-    vert        |           \lvert \rvert
-    Vert        \|          \lVert \rVert
-
-Plain pairs and \left/\right pairs are supported in math context. Explicit
-sized pairs may use mixed, invisible or symmetric markers; size toggling
-requires matching visible directional markers. Plain symmetric bars, fixed sizes
-(e.g. \bigl/\bigr), custom macros and ambiguous optional brackets are excluded.
-Unwrap refuses orphaned \middle or discarded marker comments. Automatic
-sizing cannot cross alignment cells/rows.
-
-Bracket jumps go from body/opening to closing, or closing back to opening;
-sized pairs land on \left/\right. Counts select enclosing depth at the
-current cursor, as with ad/id. Unavailable depth cancels the jump.
-
+==============================================================================
 NAVIGATION                                              *tex-tools-navigation*
 
-Section/environment/formula motions traverse the buffer in source order;
-item motions stay in the nearest itemize/enumerate/description environment.
-Nested list environments are skipped. Counts select successive targets;
-oversized counts stop at the furthest available target without wrapping.
-Successful jumps record the previous context and open destination folds.
-No target leaves cursor/jump history unchanged. Navigation is Normal-mode
-only and works in unmodifiable buffers. Comments, literal content, and
-parser-recognized definition bodies are skipped as navigation targets.
+:[count]TexToolsNextSection                             *:TexToolsNextSection*
+:[count]TexToolsPreviousSection                     *:TexToolsPreviousSection*
+:[count]TexToolsNextItem                                   *:TexToolsNextItem*
+:[count]TexToolsPreviousItem                           *:TexToolsPreviousItem*
+:[count]TexToolsNextEnvironment                     *:TexToolsNextEnvironment*
+:[count]TexToolsPreviousEnvironment             *:TexToolsPreviousEnvironment*
+:[count]TexToolsNextMath                                   *:TexToolsNextMath*
+:[count]TexToolsPreviousMath                           *:TexToolsPreviousMath*
 
-TEXT OBJECTS                                            *tex-tools-textobjects*
+Motions visit opening markers in source order; items stay at the current list
+level, skipping nested lists. Counts stop at the furthest target without
+wrapping. Successful jumps record history and open folds; no target leaves the
+cursor unchanged. Normal mode only; unmodifiable buffers work. Comments,
+literal content and parser-recognized definitions are skipped.
 
-    Around  Inside  Target / inner selection ~
-    ae      ie      Environment / body without begin options or marker lines
-    ac      ic      Command call / name without backslash, including star
-    aa      ia      Curly or bracket group / contents
-    a$      i$      Formula or math environment / body
-    ad      id      Math brackets including sizing / contents
-    ai      ii      List item including marker and label / trimmed body
+==============================================================================
+TABLES AND MATRICES                                         *tex-tools-tables*
 
-Use Visual or operator-pending mode (e.g. dai, cii, y2ia). Counts select
-enclosing depth of the same kind, never siblings; operator counts multiply
-(2d2ac selects depth four). Empty inner objects and unavailable depths cancel
-the operator, preserving text/registers and the preceding repeat.
+:[count]TexToolsNextCell                                   *:TexToolsNextCell*
+:[count]TexToolsPreviousCell                           *:TexToolsPreviousCell*
+    Visit cells in row-major order. See |tex-tools.in_table_cell()|.
+:TexToolsInsertRow / :TexToolsDeleteRow                   *:TexToolsInsertRow*
+                                                          *:TexToolsDeleteRow*
+    Insert an empty row after the current row, or delete the current row.
+:TexToolsInsertColumn / :TexToolsDeleteColumn          *:TexToolsInsertColumn*
+                                                       *:TexToolsDeleteColumn*
+    Insert after the current column (copy alignment), or delete that column.
+    Update plain `l/c/r/X` preambles; matrices need none. Alignment/cases
+    column edits and complex preambles are unsupported.
 
-Item objects support itemize/enumerate/description, continuation paragraphs,
-and nested lists. Default depth stays at the nearest list level; 2ai selects
-the parent item. Blank gaps use the preceding item. Whole-line ai is linewise
-and includes indentation, the final newline and its trailing comment; following
-blank lines/standalone comments remain. Other selections are characterwise.
-ii excludes marker/label/separating whitespace, keeping escaped trailing spaces.
-Finish description labels if the parser treats \item[] as incomplete syntax.
+Edits need equal-width rows on separate source lines; comments, rules, spans
+and nested environments are refused. The last row/column cannot be deleted.
+Row-break options stay. Dot repeat and one-step undo work. Navigation/text
+objects accept complex content in the nearest supported environment.
 
-LIST ENTER                                              *tex-tools-smart-enter*
+==============================================================================
+SECTION LEVELS                                      *tex-tools-section-levels*
 
-Enable smart_enter to split nonempty list items at the cursor, preserving
-the suffix and continuation paragraphs/nested lists. Use native Enter for
-empty items, comments, unsupported contexts, or missing syntax. Explicit
-|:TexToolsInsertItem| inserts after the whole item and can create the first.
-One undo removes the insertion/split and immediately typed text.
-For an existing completion mapping, call smart_enter() in its fallback branch;
-see |tex-tools.smart_enter()| for the expression mapping options.
-
-REPEATING EDITS                                         *tex-tools-repeat*
-
-Cursor-based command/environment rename and unwrap, environment star toggling,
-math bracket edits, and formula delimiter switching support native |.|.
-Reuse the resolved name/shape without prompting. [count]. repeats at the same
-cursor, stopping on an invalid target; successful iterations share one undo.
-Surrounds and list input do not register structural repeats. Text-object
-operators keep native repeats. Failed/cancelled edits preserve the preceding
-repeat. API edits register repeats only in Normal mode in the current buffer.
-
-LUA API                                                 *tex-tools-api*
-
-All functions are available from require('tex-tools'), without setup().
-Queries/jumps never notify; editing functions return true or false, error.
-With an omitted name, true means the asynchronous prompt opened.
-Ranges are {start_row, start_byte, end_row, end_byte}, zero-based/end-exclusive.
-Query opts: {bufnr, pos={row, byte_column}}, defaulting to the current cursor.
-A different buffer requires pos. Missing parser/invalid positions return
-false/nil, error. TeX macros and custom command signatures are not expanded.
-
-in_math([opts])                                          *tex-tools.in_math()*
-    Boolean: math mode, including configured math_environments. \text{...}
-    suppresses outer math; a nested formula enables math again.
-in_comment([opts])                                    *tex-tools.in_comment()*
-    Boolean: LaTeX comment; literal/code content is not a comment.
-in_subscript([opts])                                *tex-tools.in_subscript()*
-in_superscript([opts])                            *tex-tools.in_superscript()*
-    Boolean: mathematical _/^ payload. Exclude the operator/opening brace;
-    include the insertion position before a closing brace, even in empty
-    groups. Unbraced payloads are end-exclusive. Nested scripts can match both.
-in_numerator([opts])                                *tex-tools.in_numerator()*
-in_denominator([opts])                            *tex-tools.in_denominator()*
-    Boolean: nearest \frac/\dfrac/\tfrac part with two complete braced
-    arguments. Use the same insertion boundaries as scripts. Inner fractions
-    have their own role; unbraced fractions and custom aliases do not match.
-in_table_cell([opts])                              *tex-tools.in_table_cell()*
-    Boolean: body cell in tabular/tabular*/tabularx, array, matrix/pmatrix/
-    bmatrix/Bmatrix/vmatrix/Vmatrix/smallmatrix, cases, aligned/alignedat,
-    align/alignat/flalign/split, including stars. Exclude headers, column specs,
-    structural & and row breaks (including spacing), and common table rules.
-    Nested groups/commands/formulas remain in their cell. The nearest
-    environment must be supported and complete; visual columns/spans are
-    not inferred.
-
-Detailed math queries stop at the nearest formula/math environment. Comments
-and literal content suppress these predicates (except in_comment). Ordinary
-nonmatching contexts return false without an error. For LuaSnip, use a wrapper
-so its arguments are not interpreted as opts: >lua
-    local in_power = function() return require('tex-tools').in_superscript() end
-<
-environment([opts])                                  *tex-tools.environment()*
-    Return an environment table or nil, error. Fields: bufnr, name, node,
-    begin_node, end_node, begin_name, end_name. Query again after edits.
-
-rename_command([name])                            *tex-tools.rename_command()*
-unwrap_command()                                  *tex-tools.unwrap_command()*
-rename_environment([name])                    *tex-tools.rename_environment()*
-toggle_environment_star()                  *tex-tools.toggle_environment_star()*
-unwrap_environment()                           *tex-tools.unwrap_environment()*
-toggle_math_delimiters()                     *tex-tools.toggle_math_delimiters()*
-change_math_delimiters([shape])              *tex-tools.change_math_delimiters()*
-unwrap_math_delimiters()                     *tex-tools.unwrap_math_delimiters()*
-toggle_math_delimiter_size()               *tex-tools.toggle_math_delimiter_size()*
-    Cursor-based counterparts of the commands. See |tex-tools-commands|.
-
-surround_command([name [, opts]])                 *tex-tools.surround_command()*
-    Wrap lines using one-based inclusive opts.line1/line2 (current line by
-    default), or pass opts.range for an exact byte range. Do not combine them.
-surround_command_visual([name])             *tex-tools.surround_command_visual()*
-    Wrap the exact active characterwise/linewise selection.
-surround_environment([name [, opts]])         *tex-tools.surround_environment()*
-    Wrap whole lines using opts.line1/line2 (current line by default).
-
-jump_environment()                               *tex-tools.jump_environment()*
-    Jump between the current environment's begin/end markers.
-jump_math_delimiter([count])                   *tex-tools.jump_math_delimiter()*
-    Jump between math brackets; count selects enclosing depth.
-jump_section(direction [, count])                 *tex-tools.jump_section()*
-jump_item(direction [, count])                       *tex-tools.jump_item()*
-jump_environment_start(direction [, count])
-                                        *tex-tools.jump_environment_start()*
-jump_math(direction [, count])                       *tex-tools.jump_math()*
-    Jump to a marker in source order. direction: 1 (next) or -1 (previous).
-    All jumps return true or false, error; count is a positive integer,
-    default 1. Custom mappings can pass vim.v.count1.
-
-textobject_range(kind, inner [, opts])            *tex-tools.textobject_range()*
-    Return a byte range or nil, error. kind: 'environment', 'command',
-    'argument', 'math', 'delimiter', 'section', or 'item'; inner: boolean. opts accepts
-    bufnr, pos, and a positive count (enclosing depth, default 1).
-select_textobject(kind, inner [, count])         *tex-tools.select_textobject()*
-    Enter Visual mode in the current buffer; return true or false, error.
-    Use <Plug> mappings for operators to preserve undo/repeat state on failure.
-insert_item()                                         *tex-tools.insert_item()*
-    Insert a sibling item and enter Insert mode; return true or false, error.
-smart_enter()                                         *tex-tools.smart_enter()*
-    Return encoded keys for an Insert-mode expression mapping: >lua
-        vim.keymap.set('i', '<CR>', function()
-          return require('tex-tools').smart_enter()
-        end, { buffer = true, expr = true, replace_keycodes = false })
-<
-build()                                                    *tex-tools.build()*
-forward_search()                                  *tex-tools.forward_search()*
-    Request the attached texlab client. Return true, request_id or false,
-    error; asynchronous results notify. No new LSP client is created.
-
-HEALTH                                                  *tex-tools-health*
-
-:checkhealth tex-tools checks Neovim, the latex parser, and texlab.
-It also reports the current compiler, main file, PDF/SyncTeX artifacts, viewer
-executable and RPC address. It does not start a server, compiler or viewer.
-
-DEVELOPMENT                                             *tex-tools-development*
-
-    stylua --check lua tests
-    nvim --clean --headless -l tests/run.lua
-
-Set TEX_TOOLS_TEST_PARSER=/path/to/latex.so if necessary. Tests use the real
-parser, texlab client doubles and a stdio LSP fixture; compiler/PDF integration
-uses your local toolchain.
-
-ADDITIONAL EDITING                               *tex-tools-extra-editing*
-
-:TexToolsToggleCommandStar toggles the current command's trailing star.
-:TexToolsToggleFraction converts a/b to/from \frac{a}{b} in math mode.
-Brace compound operands; ambiguous slash chains and comments are refused.
-:TexToolsConvertMath {target} converts a complete formula or math environment.
-Targets: inline, display, equation[*], align[*], gather[*], multline[*], math,
-displaymath, and names in math_environments. Inline conversion requires one
-line without comments, labels or tags. Columns/row breaks require align[*].
-:TexToolsToggleMathMode switches inline/display mode.
-
-aP / iP select sections with/without their heading. A count climbs enclosing
-section levels. Insert-mode ]] inserts the nearest missing LaTeX closing
-marker, or literal ]] when unsafe/already closed. :TexToolsCloseDelimiter
-uses the current byte position. Comments, literals and definitions are ignored.
-
-Normal-mode Plug mappings (no default key):
-<Plug>(TexToolsToggleCommandStar), <Plug>(TexToolsToggleFraction),
-<Plug>(TexToolsToggleMathMode).
-<Plug>(TexToolsAroundSection), <Plug>(TexToolsInsideSection), and insert-mode
-<Plug>(TexToolsCloseDelimiter) follow mappings=false like other defaults.
-
-Lua: toggle_command_star(), toggle_fraction(), convert_math(target),
-toggle_math_mode(), close_delimiter(), close_delimiter_keys().
-Conversions support dot repeat and one-step undo.
-
-PDF VIEWING AND INVERSE SEARCH                     *tex-tools-viewer*
-
-:TexToolsView opens the resolved PDF without a source-line jump. An attached
-texlab client is required for project resolution. No forward request is sent.
-viewer.method: auto (default), zathura, skim, generic.
-viewer.executable: false (default) or an executable override.
-viewer.args: extra arguments before the PDF path (default {}).
-Auto detects Skim from texlab displayline, Zathura from texlab/PATH, then the
-system opener. Skim uses open -a Skim (executable overrides open); Zathura uses
-zathura; generic uses open, explorer.exe or xdg-open. Generic openers do not
-configure synchronization. Viewing does not require an existing SyncTeX file.
-
-:TexToolsInverseSearch [skim|zathura] displays a stable native callback.
-Skim: copy Command and Arguments into Settings > Sync > Custom once.
-Zathura started through :TexToolsView receives its callback automatically.
-The same command works after restarting Neovim; open a local TeX file with
-this plugin enabled to register the new session. PDF windows can stay open.
-Replace the older session-specific callback once when upgrading. Regenerate
-only if the executable, plugin path or cache location/NVIM_APPNAME changes.
-No nvim-texlabconfig, service, or extra plugin is needed. A clean headless
-Neovim discovers the owning instance and passes filenames as RPC arguments.
-
-Routing prefers an already-loaded source, then the most specific matching
-texlab workspace, then the instance most recently active in a TeX buffer.
-Unrelated instances are not used. Unopened children need a matching workspace.
-Private per-process records live in stdpath('cache')/tex-tools/inverse-search.
-Writes are atomic; normal exit removes the record. Lookup prunes dead or
-unreachable sessions; unresponsive sessions time out. Callback generation
-supports POSIX systems (macOS/Linux). The viewer and editor must share access
-to the registry and socket. Viewer preferences are never modified automatically.
-
-Forward search normally uses texlab. An explicit main (TexToolsMain or
-build.main_file), or effective latexmk artifact discovery, instead expands
-texlab.forwardSearch executable/args directly:
-%p selected PDF, %f current source, %l current line. Configure these texlab
-settings first. Arguments are argv entries, not shell commands. Synchronization
-requires SyncTeX support in the compiler and viewer (Tectonic: --synctex).
-
-view() returns true, job_id or false, error.
-inverse_search(file, line [, column]) returns true or false, error. Positions
-are one-based; column counts bytes. A modified buffer is preserved.
-inverse_search_command(kind) returns {command, arguments, argv, shell_command,
-registry, server} or nil, error. server is informational and not in the command.
-RPC starts on demand when registering a named local TeX buffer or generating
-a callback. Registration is scheduled after buffer setup, once per process.
-Subsequent buffer/focus events update activity in memory. Setup with no named
-local TeX buffer and health checks do not start a server.
-The User TexToolsInverseSearch event supplies file/line/column data. External
-terminal activation can be configured on that event; it is not automatic.
-
-vim:tw=78:ts=4:ft=help:norl:
-
-TABLES AND MATRICES                                     *tex-tools-tables*
-
-:[count]TexToolsNextCell                            *:TexToolsNextCell*
-:[count]TexToolsPreviousCell                        *:TexToolsPreviousCell*
-    ]t / [t traverse cells across rows. Counts, jump history and fold opening
-    are supported. Nested groups/commands/formulas/environments are atomic.
-    No wrapping occurs; unavailable counts leave the cursor unchanged.
-    at / it select a cell with/without whitespace, excluding separators.
-    Empty inner cells and counts other than 1 cancel the operator.
-:TexToolsInsertRow                                 *:TexToolsInsertRow*
-:TexToolsDeleteRow                                 *:TexToolsDeleteRow*
-    Insert an empty row after the cursor's row, or delete that row.
-:TexToolsInsertColumn                              *:TexToolsInsertColumn*
-:TexToolsDeleteColumn                              *:TexToolsDeleteColumn*
-    Insert after the current column (copying its alignment), or remove the
-    column from every row. Update plain l/c/r/X table/array preambles.
-    Matrix environments need no preamble. Alignment/cases column edits fail.
-
-Row/column edits require equal-width rows, each on a dedicated source line.
-Comments, rule commands, spans and nested environments are refused. The only
-row/column cannot be deleted. Complex preambles refuse column edits. Row-break
-options are preserved. Edits support dot repeat and one-step undo.
-Navigation/objects use the environments listed at in_table_cell(), with the
-nearest supported environment taking precedence; they accept complex content.
-
-Lua: jump_cell(direction [, count]), table_edit(operation), and
-textobject_range('cell', inner [, opts]). operation is insert_row, delete_row,
-insert_column, or delete_column. Return conventions match other editing APIs.
-Plug names: TexToolsNextCell, TexToolsPreviousCell, TexToolsInsertRow,
-TexToolsDeleteRow, TexToolsInsertColumn, TexToolsDeleteColumn,
-TexToolsAroundCell, TexToolsInsideCell. No default row/column edit keys.
-
-SECTION LEVELS                                          *tex-tools-section-levels*
-
-:[count]TexToolsPromoteSection                      *:TexToolsPromoteSection*
-:[count]TexToolsDemoteSection                       *:TexToolsDemoteSection*
-    Shift the current section and every descendant heading by count levels
-    (default 1). Promote moves toward part; demote toward subparagraph.
+:[count]TexToolsPromoteSection                       *:TexToolsPromoteSection*
+:[count]TexToolsDemoteSection                         *:TexToolsDemoteSection*
+    Shift the current section and descendants by count levels (default 1).
     Order: part, chapter, section, subsection, subsubsection, paragraph,
     subparagraph. The document class must support the resulting commands.
-    Stars, short titles, labels and body text are preserved. Comments,
-    definitions and literal environments are skipped. Any boundary overflow
-    or incomplete heading rejects the whole edit. Only this buffer is edited.
-    Dot repeat and single-step undo are supported; no default keys.
 
-Lua: shift_section(direction [, count]) returns true or false, error.
-direction: -1 promotes, 1 demotes. Plug mappings: TexToolsPromoteSection,
-TexToolsDemoteSection. A count shifts levels, rather than selecting ancestors.
+Stars, short titles, labels and body stay. Overflow/incomplete headings cancel
+the whole edit. Only this buffer changes; dot repeat and single-step undo
+work.
 
-OUTLINE                                                 *tex-tools-outline*
+==============================================================================
+OUTLINE                                                    *tex-tools-outline*
 
-Heading/include snapshots are cached as plain data for up to 128 sources and
-8 MiB of source size. Edits, undo, buffer load/unload and disk-file metadata
-changes invalidate the relevant snapshot. Unchanged ordinary buffers reuse
-their current LaTeX tree; inline verbatim is masked in a separate parse.
+:TexToolsOutline[!] [query]                                 *:TexToolsOutline*
+    Open a searchable section split; `!` expands the main file's literal
+    input/include files in source order. Texlab is optional. Main selection
+    follows |:TexToolsMain|, `build.main_file` and root directives.
 
-:TexToolsOutline[!] [query]                           *:TexToolsOutline*
-    Show a searchable outline in a native split. Without ! use this buffer;
-    with ! resolve the main document and expand literal input/include files
-    in source order. Main selection follows TexToolsMain/build.main_file/root
-    directives; texlab is optional. Unnamed buffers support current-file mode.
-    Default mapping: <LocalLeader>lt. Plug mappings: TexToolsOutline and
-    TexToolsProjectOutline (no default project key).
+  `<CR>` jump   `/` search   `f` filter title/path   `r` refresh   `q` close
 
-The panel shows title (short title preferred), hierarchy, stars and file:line.
-> marks the current section. / searches; f prompts for a case-insensitive title
-or path substring (empty clears); <CR> jumps; r refreshes; q closes. query sets
-the initial filter. Modified buffers are read without saving. A cross-file jump
-preserves an unsaved origin even when 'hidden' is off.
+The panel shows hierarchy, stars and file:line; short titles are preferred.
+`>` marks the current section. Empty filters clear; query sets the initial
+filter. Modified buffers are read without saving and preserved on jumps.
+Includes resolve from the compilation directory, then the including file.
+Cycles/missing/nonliteral includes warn. Macros, conditionals, includeonly and
+TEXINPUTS are not evaluated. Per refresh: 256 file visits, 32 nested includes,
+2 MiB per disk file, 8 MiB total; exceeding a limit returns an error.
 
-Includes resolve against the compilation working directory, then the including
-file's directory. Cycles, missing files and nonliteral includes produce warnings;
-repeated noncyclic includes are shown. Definitions/comments/literal content and
-inline verbatim are skipped. No macro, conditional, includeonly or TEXINPUTS
-evaluation occurs. Limits per refresh: 256 file visits, 32 nested includes,
-2 MiB per disk file, 8 MiB total source. Exceeding a limit returns an error.
+==============================================================================
+BUILD, LOGS AND CLEANUP                                      *tex-tools-build*
 
-outline([opts])                                      *tex-tools.outline()*
-    Return true, panel_buffer or false, error. opts: project=false, query=''.
-outline_entries([opts])                      *tex-tools.outline_entries()*
-    Return {entries, warnings, root, project} or nil, error. opts also accepts
-    bufnr and zero-based pos. Entries have path, optional bufnr, zero-based
-    row/col, level (part=1 through subparagraph=7), kind, title, starred and
-    optional current. Returned data contains no Tree-sitter nodes.
+Requires an attached, separately configured texlab client.
+
+:TexToolsBuild                                                *:TexToolsBuild*
+    Save current/main buffers with `:update`, then build the resolved main.
+:TexToolsMain [path/select/reset]                              *:TexToolsMain*
+    Show/select/reset the main for this client/session; paths use the LSP
+    root. Reset restores `build.main_file` or source/root-directive discovery.
+:TexToolsInfo                                                  *:TexToolsInfo*
+    Show main, compiler, working directory and artifact paths.
+:TexToolsCancelBuild                                    *:TexToolsCancelBuild*
+    Cancel builds in the current buffer's texlab server instance.
+:TexToolsCancelAllBuilds                            *:TexToolsCancelAllBuilds*
+    Cancel builds in every running texlab instance.
+:TexToolsBuildStatus                                    *:TexToolsBuildStatus*
+    Show build state, elapsed time, on-save setting and current compiler.
+:TexToolsBuildOnSave [on/off/toggle]                    *:TexToolsBuildOnSave*
+    Change this client's session setting; no argument toggles.
+:TexToolsBuildOutput                                    *:TexToolsBuildOutput*
+    Open read-only live output. `q` closes; `F` toggles following. Resets each
+    build; capped by `build.output_lines`.
+:TexToolsLog [path]                                             *:TexToolsLog*
+    Open a full read-only log. An explicit path needs no LSP client.
+:TexToolsErrors[!]                                           *:TexToolsErrors*
+    Fill/open quickfix with this client's diagnostics; `!` shows errors only.
+    Output/log/diagnostic windows do not open automatically after compilation.
+:TexToolsClean                                                *:TexToolsClean*
+    Remove auxiliary artifacts for the resolved main.
+:TexToolsCleanFull                                        *:TexToolsCleanFull*
+    Also remove the PDF. Refuse cleanup during compilation/another cleanup.
+
+Build behavior ~
+Manual builds use the selected main; automatic builds keep texlab's dependency
+root. Save a modified child first or disable `build.onSave` before building
+another main. A save-triggered build does not also send a manual request. One
+manual build per client; native |LspProgress| handlers are preserved.
+Automatic progress completion does not imply success. A failed compiler may
+leave an incomplete PDF. Status refers to the last build; compiler/profile
+refer to current settings. Main/compiler changes are refused during builds or
+cleanup. No independent `latexmk -pvc` or region compilation is provided.
+
+Artifact discovery ~
+Resolve main via root directives, `build.main_file` or `\documentclass`;
+ambiguous roots fail. Output/jobname arguments and explicit texlab directories
+are respected. Latexmk's `-dir-report-only` discovers `.latexmkrc`/`-r` paths;
+other backends may need explicit directories. Discovered log directories sync
+to texlab on attachment, TeX buffer changes and rc saves; explicit overrides
+stay. Omit `-file-line-error` for texlab diagnostics, then rebuild old logs.
+
+Cleanup ~
+Latexmk uses texlab clean requests. Tectonic compile removes exact auxiliary
+files, retaining source, bibliography, `.bbl` and unrelated files; full adds
+the PDF. No directory recursion; leaf symlinks are unlinked. Tectonic project
+build/watch and unsupported compilers return errors.
+
+==============================================================================
+COMPILER PROFILES                                *tex-tools-compiler-profiles*
+
+:TexToolsCompiler [name/toggle]                            *:TexToolsCompiler*
+    Show compiler/profile, switch to name, or cycle alphabetically.
+    Completion is available; unmatched settings start at the first name.
+>lua
+
+    require('tex-tools').setup({ build = { profiles = {
+      latexmk = {
+        executable = 'latexmk',
+        args = { '-pdf', '-synctex=1', '-interaction=nonstopmode', '%f' },
+      },
+      tectonic = {
+        executable = 'tectonic',
+        args = { '-X', 'compile', '%f', '--synctex', '--keep-logs',
+                 '--keep-intermediates' },
+      },
+    } } })
+<
+Names use ASCII letters/digits/underscore/dot/hyphen, starting with a letter,
+digit or underscore; `toggle` is reserved. Required: `executable`, `args`.
+Optional: `auxDirectory`, `logDirectory`, `pdfDirectory`, `filename`
+(basename). Switching replaces all six fields, clearing omitted overrides;
+repeat shared paths in each profile and pass the compiler's output arguments
+too. Use `-xelatex` instead of `-pdf` for XeLaTeX.
+
+Switching checks the executable and sends `workspace/didChangeConfiguration`;
+it neither restarts texlab nor builds. Sending failure rolls back local state;
+success means sent, with asynchronous server application. Other LSP settings
+stay. All buffers sharing the client see changes; files are never rewritten.
+`setup()` only defines profiles; your LSP setup chooses the initial compiler.
+
+==============================================================================
+PDF VIEWING AND INVERSE SEARCH                              *tex-tools-viewer*
+
+:TexToolsView                                                  *:TexToolsView*
+    Open the resolved PDF without a source jump; requires texlab for paths.
+:TexToolsForwardSearch                                *:TexToolsForwardSearch*
+    Jump the PDF to the cursor without saving; requires configured SyncTeX.
+:TexToolsInverseSearch [skim|zathura]                 *:TexToolsInverseSearch*
+    Show a stable callback. For Skim, copy Command/Arguments into Settings >
+    Sync > Custom once. Zathura launched via View receives it automatically.
+
+Viewer defaults ~
+  `viewer.method`      `'auto'`; also `skim`, `zathura`, `generic`
+  `viewer.executable`  `false`; executable override (Skim overrides `open`)
+  `viewer.args`        `{}`; extra argv entries before the PDF path
+
+Auto detects Skim via texlab displayline, then Zathura via texlab/PATH, then
+the system opener. Generic openers do not configure synchronization. Viewing
+needs no SyncTeX file; synchronized search requires compiler/viewer support
+(Tectonic: `--synctex`). Forward search uses texlab settings; explicit mains
+or discovered latexmk paths expand `%p` (PDF), `%f` (source), `%l` (line)
+directly as argv entries.
+
+Callbacks survive Neovim restarts; open a local TeX file to register a
+session. Regenerate after executable/plugin/cache path or NVIM_APPNAME
+changes. Native macOS/Linux routing prefers a loaded source, then matching
+workspace, then recent activity. Records live under
+`stdpath('cache')/tex-tools/inverse-search`; viewer/editor must share
+registry/socket access. No extra plugin is needed. The `User
+TexToolsInverseSearch` event carries file/line/column; terminal activation can
+be configured there. Viewer preferences are not auto-modified.
+
+==============================================================================
+CONCEAL                                                    *tex-tools-conceal*
+
+Opt in; native 'conceallevel' / 'concealcursor' control display: >lua
+
+    require('tex-tools').setup({
+      conceal = { symbols = { alpha = 'Α', beta = false, RR = 'ℝ' } },
+    })
+    vim.opt.conceallevel = 2
+    vim.opt.concealcursor = 'nc' -- Optional: conceal on the cursor line.
+<
+Categories (all true when enabled) ~
+  `accents`          Single-letter accents: `\'{e}` -> é, `\"o` -> ö
+  `ligatures`        `\ae{}`, `\OE{}`, `\ss{}`, dashes and quotes
+  `cites`            Hide command/notes; keep keys in [] or ()
+  `fancy`            Dots, `\colon`, `\slash`, `\_`, `\item`
+  `spacing`          Hide spacing/phantom macros; `~` becomes a space
+  `math_bounds`      Hide matched formula markers
+  `math_delimiters`  Hide sizing commands; render bracket macros
+  `styles`           Hide text/math style wrappers, retaining body/colors
+  `math_symbols`     Greek letters, operators, relations, sets and arrows
+
+Set a category false to disable it; `conceal=false` or `{enabled=false}`
+disables rendering. `symbols` maps bare ASCII-letter/@ command names to one
+printable Unicode character, or false; disabling `math_symbols` disables both
+built-in/custom symbols. See `lua/tex-tools/conceal_symbols.lua` for defaults.
+
+Fractions, scripts, headings and unknown constructs stay source. Math symbols
+are math-only; text accents/ligatures apply in math only inside `\text{...}`.
+Comments, literals, definitions, paths, labels and citation-key spelling are
+protected. No macro expansion or font emulation. Buffer text and window
+options stay unchanged; disable overlapping legacy/VimTeX conceal rules.
+Visible-line rendering is cached; pending/missing parses retain source.
+`conceal.max_line_length=10000` caps bytes per line; 0 removes the limit.
+
+==============================================================================
+LUA API                                                        *tex-tools-api*
+
+Functions in `require('tex-tools')` are available without `setup()`.
+Edits/jumps return `true` or `false, error`; omitted names may open async
+prompts. Queries do not notify. Ranges are zero-based, byte-based,
+end-exclusive:
+`{start_row, start_byte, end_row, end_byte}`.
+Query opts: `{bufnr, pos={row,col}}`;
+default current cursor, explicit pos required for another buffer. Missing
+parser/invalid positions return `false/nil, error`.
+
+Context queries ~
+`in_math([opts])`                                        *tex-tools.in_math()*
+    Math, including custom environments; `\text{...}` suppresses outer math.
+`in_comment([opts])`                                  *tex-tools.in_comment()*
+    LaTeX comments, excluding literal/code content.
+`in_subscript([opts])`                              *tex-tools.in_subscript()*
+`in_superscript([opts])`                          *tex-tools.in_superscript()*
+    Script payload, excluding operator/opening brace; include the insertion
+    position before a closing brace, even in empty groups.
+`in_numerator([opts])`                              *tex-tools.in_numerator()*
+`in_denominator([opts])`                          *tex-tools.in_denominator()*
+    Nearest `\frac` / `\dfrac` / `\tfrac` part with two complete braced arguments.
+`in_table_cell([opts])`                            *tex-tools.in_table_cell()*
+    Body cells in tabular[*]/tabularx, array, matrix (plain/p/b/B/v/V/small),
+    cases,
+    aligned/alignedat/align/alignat/flalign/split (including stars). Excludes
+    headers, separators, row breaks and rules; nearest environment must be
+    supported and complete. Spans/visual columns are not inferred.
+`environment([opts])`                                *tex-tools.environment()*
+    Table or `nil, error`: bufnr, name, node, begin_node, end_node,
+    begin_name, end_name. Query again after edits.
+
+Detailed math queries stop at the nearest formula; comments/literals suppress
+them. Ordinary nonmatches return false. Macros are not expanded. Wrap queries
+for LuaSnip so its arguments are not interpreted as opts: >lua
+
+    local in_power = function()
+      return require('tex-tools').in_superscript()
+    end
+<
+Editing and navigation ~
+`rename_command([name])`                          *tex-tools.rename_command()*
+`unwrap_command()`                                *tex-tools.unwrap_command()*
+`toggle_command_star()`                      *tex-tools.toggle_command_star()*
+`rename_environment([name])`                  *tex-tools.rename_environment()*
+`toggle_environment_star()`              *tex-tools.toggle_environment_star()*
+`unwrap_environment()`                        *tex-tools.unwrap_environment()*
+`toggle_math_delimiters()`                *tex-tools.toggle_math_delimiters()*
+`change_math_delimiters([shape])`         *tex-tools.change_math_delimiters()*
+`unwrap_math_delimiters()`                *tex-tools.unwrap_math_delimiters()*
+`toggle_math_delimiter_size()`        *tex-tools.toggle_math_delimiter_size()*
+`toggle_fraction()` / `convert_math(target)` / `toggle_math_mode()`
+    Cursor-based counterparts of |tex-tools-commands|.
+`surround_command([name [, opts]])`             *tex-tools.surround_command()*
+`surround_environment([name [, opts]])`     *tex-tools.surround_environment()*
+    One-based inclusive `opts.line1/line2` (default current line). Commands
+    also accept an exact `opts.range`; do not combine range and line options.
+`surround_command_visual([name])`        *tex-tools.surround_command_visual()*
+    Wrap the active characterwise/linewise selection.
+`jump_environment()`                            *tex-tools.jump_environment()*
+`jump_math_delimiter([count])`               *tex-tools.jump_math_delimiter()*
+`jump_section(direction [, count])`                 *tex-tools.jump_section()*
+`jump_item(direction [, count])`                       *tex-tools.jump_item()*
+                                          *tex-tools.jump_environment_start()*
+`jump_environment_start(direction [, count])`
+`jump_math(direction [, count])`                       *tex-tools.jump_math()*
+`jump_cell(direction [, count])` / `shift_section(direction [, count])`
+    Direction: 1 next/demote, -1 previous/promote; count positive, default 1.
+`textobject_range(kind, inner [, opts])`        *tex-tools.textobject_range()*
+    Range or `nil, error`; kind: environment/command/argument/math/delimiter/
+    section/item/cell; inner: boolean. opts also accepts positive `count`.
+`select_textobject(kind, inner [, count])`     *tex-tools.select_textobject()*
+    Enter Visual mode. Use <Plug> mappings for operators to preserve repeat.
+`insert_item()`                                      *tex-tools.insert_item()*
+`close_delimiter()` / `close_delimiter_keys()`
+    Insert an item/closing marker; `_keys()` returns encoded Insert keys.
+`table_edit(operation)`
+    `insert_row`, `delete_row`, `insert_column` or `delete_column`.
+`smart_enter()`                                      *tex-tools.smart_enter()*
+    Return encoded keys for an Insert expression mapping: >lua
+
+    vim.keymap.set('i', '<CR>', function()
+      return require('tex-tools').smart_enter()
+    end, { buffer = true, expr = true, replace_keycodes = false })
+<
+Build and project ~
+`build()`                                                  *tex-tools.build()*
+`forward_search()`                                *tex-tools.forward_search()*
+    `true, request_id` or `false, error`; asynchronous results notify.
+`cancel_build()` / `cancel_all_builds()` / `build_on_save([boolean])`
+    `boolean[, result_or_error]`; omitted on-save value toggles.
+`build_status()`
+    Snapshot or `nil, error`: phase, uri, on_save, elapsed, result/error when
+    known, and current compiler/profile. Returned tables are copies.
+`compiler([name])`                                      *tex-tools.compiler()*
+    Query/switch (`'toggle'` cycles). `true, snapshot` or `false, error`;
+    snapshot: profile, executable, args, sorted profiles. Matching compares
+    all six fields; identical matches retain the selected name if possible.
+`main_file([path])` / `project_info()`
+    Main: `true, path` or `false, error`; false resets (path may be nil).
+    Info: snapshot or `nil, error`.
+`build_output()` / `build_log([path])` / `build_errors([opts])`
+    `true, buffer/path/count` or `false, error`.
+    Errors opts: errors_only=false, open=true; open=false only fills quickfix.
+`clean([full])`
+    `true, request_id` (latexmk), `true, removed_count` (Tectonic), or
+    `false, error`; full defaults false.
+
+Viewer and outline ~
+`view()` / `inverse_search(file, line [, column])`
+    View: `true, job_id` or `false, error`. Inverse: boolean/error; one-based
+    line/byte column, preserving modified buffers.
+`inverse_search_command(kind)`
+    Table or `nil, error`: command, arguments, argv, shell_command, registry,
+    server (informational). RPC starts on demand for local TeX sessions.
+`outline([opts])`                                        *tex-tools.outline()*
+    `true, panel_buffer` or `false, error`; opts: project=false, query=''.
+`outline_entries([opts])`                        *tex-tools.outline_entries()*
+    `{entries, warnings, root, project}` or `nil, error`; opts also accepts
+    bufnr/pos. Entries: path, optional bufnr, zero-based row/col, level (1-7),
+    kind, title, starred, optional current. No Tree-sitter nodes.
+
+==============================================================================
+HEALTH AND DEVELOPMENT                                      *tex-tools-health*
+
+Run `:checkhealth tex-tools` for Neovim/parser/texlab, main/compiler, artifact
+paths, viewer and RPC checks. It does not start a server, compiler or viewer.
+
+                                                       *tex-tools-development*
+Development ~
+>sh
+    stylua --check lua tests
+    nvim --clean --headless -l tests/run.lua
+<
+Set `TEX_TOOLS_TEST_PARSER=/path/to/latex.so` if needed. Tests use a real
+parser, texlab doubles and a stdio LSP fixture; PDF/compiler integration needs
+your local toolchain. Installation and overview: `README.md`.
+
+ vim:tw=78:ts=4:ft=help:norl:
