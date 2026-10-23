@@ -2,6 +2,7 @@ local M = {}
 
 local defaults = {
   mappings = true,
+  overwrite_mappings = false,
   smart_enter = false,
   conceal = false,
   viewer = { method = 'auto', executable = false, args = {} },
@@ -64,6 +65,7 @@ function M.setup(opts)
   vim.validate('opts', opts, 'table')
   local options = vim.tbl_deep_extend('force', vim.deepcopy(defaults), opts)
   vim.validate('mappings', options.mappings, 'boolean')
+  vim.validate('overwrite_mappings', options.overwrite_mappings, 'boolean')
   vim.validate('smart_enter', options.smart_enter, 'boolean')
   vim.validate('build', options.build, 'table')
   vim.validate('build.output_lines', options.build.output_lines, 'number')

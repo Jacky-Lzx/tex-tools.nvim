@@ -463,6 +463,7 @@ test('texlab errors, empty responses and rejected requests are handled', functio
   eq(false, rejected_ok)
 end)
 
+dofile('tests/mappings.lua')({ test = test, eq = eq, buffer = buffer, keys = keys })
 dofile('tests/editing.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
 dofile('tests/list.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })
 dofile('tests/enter.lua')({ test = test, eq = eq, buffer = buffer, at = at, content = content, keys = keys })

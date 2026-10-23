@@ -1,18 +1,6 @@
 local M = {}
 local generation = 0
 
-local function clear_default_mappings(bufnr)
-  vim.api.nvim_buf_call(bufnr, function()
-    for _, map in ipairs(vim.b[bufnr].tex_tools_default_mappings or {}) do
-      local current = vim.fn.maparg(map.lhs, map.mode, false, true)
-      if current.buffer == 1 and current.rhs == map.rhs then
-        vim.keymap.del(map.mode, map.lhs, { buffer = bufnr })
-      end
-    end
-  end)
-  vim.b[bufnr].tex_tools_default_mappings = {}
-end
-
 local function action(module, method, ...)
   local ok, err = require('tex-tools.' .. module)[method](...)
   if not ok and err then
@@ -27,8 +15,8 @@ local function attach(bufnr)
     return
   end
   require('tex-tools.inverse').track(bufnr)
-  clear_default_mappings(bufnr)
-  local installed = {}
+  local mappings = require('tex-tools.mappings')
+  mappings.clear(bufnr)
   local enter_plug = '<Plug>(TexToolsSmartEnter)'
   vim.keymap.set('i', enter_plug, M.smart_enter, {
     buffer = bufnr,
@@ -41,16 +29,14 @@ local function attach(bufnr)
     require('tex-tools.conceal').attach(bufnr, options.conceal)
   end
   if options.mappings and options.smart_enter then
-    vim.api.nvim_buf_call(bufnr, function()
-      if vim.fn.maparg('<CR>', 'i') == '' then
-        vim.keymap.set('i', '<CR>', enter_plug, { buffer = bufnr, remap = true, desc = 'tex-tools: SmartEnter' })
-        installed[#installed + 1] = {
-          mode = 'i',
-          lhs = vim.fn.maparg('<CR>', 'i', false, true).lhs,
-          rhs = enter_plug,
-        }
-      end
-    end)
+    mappings.set(
+      bufnr,
+      'i',
+      '<CR>',
+      enter_plug,
+      { remap = true, desc = 'tex-tools: SmartEnter' },
+      options.overwrite_mappings
+    )
   end
   local commands = {
     TexToolsOutline = {
@@ -703,27 +689,16 @@ local function attach(bufnr)
     end
     vim.keymap.set(map[1], plug, map[4], plug_options)
     if options.mappings and map[2] then
-      -- Do not replace an existing global or buffer-local user mapping.
-      vim.api.nvim_buf_call(bufnr, function()
-        for _, mode in ipairs(type(map[1]) == 'table' and map[1] or { map[1] }) do
-          if vim.fn.maparg(map[2], mode) == '' then
-            vim.keymap.set(
-              mode,
-              map[2],
-              plug,
-              { buffer = bufnr, remap = true, silent = true, desc = 'tex-tools: ' .. map[3] }
-            )
-            installed[#installed + 1] = {
-              mode = mode,
-              lhs = vim.fn.maparg(map[2], mode, false, true).lhs,
-              rhs = plug,
-            }
-          end
-        end
-      end)
+      mappings.set(
+        bufnr,
+        map[1],
+        map[2],
+        plug,
+        { remap = true, silent = true, desc = 'tex-tools: ' .. map[3] },
+        options.overwrite_mappings
+      )
     end
   end
-  vim.b[bufnr].tex_tools_default_mappings = installed
   vim.b[bufnr].tex_tools_generation = generation
 end
 

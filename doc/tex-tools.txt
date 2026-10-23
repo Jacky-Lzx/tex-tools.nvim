@@ -6,6 +6,7 @@ Requires Neovim 0.11+ and the latex Tree-sitter parser, installed separately
 (e.g. :TSInstall latex). Add the plugin to 'runtimepath', then: >lua
     require('tex-tools').setup({
       mappings = true,
+      overwrite_mappings = false,
       smart_enter = false,
       conceal = false,
       math_environments = {},
@@ -74,6 +75,19 @@ Native 'conceallevel' and 'concealcursor' control display; no window
 options are changed. Disable overlapping VimTeX/legacy syntax conceal rules.
 
 MAPPINGS                                                *tex-tools-mappings*
+
+Existing mappings are preserved by default. To replace conflicting global or
+buffer-local mappings with the plugin's default keys: >lua
+    require('tex-tools').setup({ overwrite_mappings = true })
+<
+overwrite_mappings defaults to false and must be a boolean. It applies to all
+default mapping modes, including Insert-mode <CR> when smart_enter=true.
+mappings=false still disables default keys; commands and <Plug> mappings remain.
+Replacements are buffer-local to tex/plaintex buffers. Repeating setup() with
+overwrite_mappings=false or mappings=false restores replaced local mappings,
+including Lua callbacks and options, and reveals current global mappings.
+Cleanup preserves keys changed or deleted after attachment. Later mappings from
+other plugins can still replace the plugin's keys.
 
 Normal mode (each <Plug> name corresponds to a command below):
     <LocalLeader>lcr    <Plug>(TexToolsRenameCommand)
