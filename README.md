@@ -46,43 +46,43 @@ also applies to Insert-mode `<CR>`.
 Normal mode unless stated otherwise. In abbreviated entries, `<localleader>`
 applies to every key.
 
-| Key | Action |
-| --- | --- |
-| `<localleader>lcr` / `lcd` | Rename / unwrap a command |
-| `<localleader>lcs` | Surround a line or Visual selection with a command |
-| `<localleader>ler` / `let` | Rename an environment / toggle its star |
-| `<localleader>les` / `led` | Surround lines with / unwrap an environment |
-| `<localleader>lm` | Jump between environment begin/end markers |
-| `<localleader>lf` | Switch dollar/backslash math delimiters |
-| `<localleader>ldc` / `ldd` | Change / remove math brackets |
-| `<localleader>ldt` / `ldm` | Toggle bracket sizing / jump to matching bracket |
-| `<localleader>li` | Insert a sibling `\item` |
-| `<localleader>lt` | Open the section outline |
-| `<localleader>ll` / `lv` | Build / PDF forward search |
-| `<localleader>lk` / `lK` / `lg` | Cancel current/all clients' builds / show status |
-| `<localleader>lo` / `lq` / `le` | Live compiler output / full log / diagnostics |
-| `<localleader>lc` / `lC` | Clean auxiliary files / all artifacts including PDF |
-| `]]` / `[[` | Next / previous section |
-| `]i` / `[i` | Next / previous list item |
-| `]e` / `[e` | Next / previous environment |
-| `]m` / `[m` | Next / previous formula |
-| `]t` / `[t` | Next / previous table cell |
-| `]]` (Insert) | Insert the nearest missing closing marker |
+| Key                             | Action                                              |
+| ------------------------------- | --------------------------------------------------- |
+| `<localleader>lcr` / `lcd`      | Rename / unwrap a command                           |
+| `<localleader>lcs`              | Surround a line or Visual selection with a command  |
+| `<localleader>ler` / `let`      | Rename an environment / toggle its star             |
+| `<localleader>les` / `led`      | Surround lines with / unwrap an environment         |
+| `<localleader>lm`               | Jump between environment begin/end markers          |
+| `<localleader>lf`               | Switch dollar/backslash math delimiters             |
+| `<localleader>ldc` / `ldd`      | Change / remove math brackets                       |
+| `<localleader>ldt` / `ldm`      | Toggle bracket sizing / jump to matching bracket    |
+| `<localleader>li`               | Insert a sibling `\item`                            |
+| `<localleader>lt`               | Open the section outline                            |
+| `<localleader>ll` / `lv`        | Build / PDF forward search                          |
+| `<localleader>lk` / `lK` / `lg` | Cancel current/all clients' builds / show status    |
+| `<localleader>lo` / `lq` / `le` | Live compiler output / full log / diagnostics       |
+| `<localleader>lc` / `lC`        | Clean auxiliary files / all artifacts including PDF |
+| `]]` / `[[`                     | Next / previous section                             |
+| `]i` / `[i`                     | Next / previous list item                           |
+| `]e` / `[e`                     | Next / previous environment                         |
+| `]m` / `[m`                     | Next / previous formula                             |
+| `]t` / `[t`                     | Next / previous table cell                          |
+| `]]` (Insert)                   | Insert the nearest missing closing marker           |
 
 Text objects work in Visual and operator-pending modes. Counts select enclosing
 depth where supported; navigation supports counts and jump history.
 Cursor-based rename, unwrap, and toggle edits support `.` and single-step undo.
 
-| Around / inside | Target |
-| --- | --- |
-| `ae` / `ie` | Environment |
-| `ac` / `ic` | Command call / command name |
-| `aa` / `ia` | Curly or bracket group |
-| `a$` / `i$` | Formula |
-| `ad` / `id` | Math brackets |
-| `ai` / `ii` | List item |
-| `aP` / `iP` | Section and subsections |
-| `at` / `it` | Table cell |
+| Around / inside | Target                      |
+| --------------- | --------------------------- |
+| `ae` / `ie`     | Environment                 |
+| `ac` / `ic`     | Command call / command name |
+| `aa` / `ia`     | Curly or bracket group      |
+| `a$` / `i$`     | Formula                     |
+| `ad` / `id`     | Math brackets               |
+| `ai` / `ii`     | List item                   |
+| `aP` / `iP`     | Section and subsections     |
+| `at` / `it`     | Table cell                  |
 
 Custom mappings can use individual `<Plug>` names:
 
@@ -94,19 +94,19 @@ vim.keymap.set("n", "<localleader>lr", "<Plug>(TexToolsRenameEnvironment)")
 
 All command names begin with `TexTools` (for example, `:TexToolsMain`).
 
-| Command | Purpose |
-| --- | --- |
-| `Main [path\|select\|reset]` / `Info` | Select the main file / inspect project paths |
-| `Build` / `BuildOnSave [on\|off\|toggle]` | Compile / control automatic builds |
-| `Compiler [name\|toggle]` | Query or switch configured `build.profiles` |
-| `View` / `ForwardSearch` | Open the PDF / jump to the source position in it |
-| `InverseSearch [skim\|zathura]` | Show the native inverse-search callback |
-| `Outline[!] [query]` | Search sections in the current file or project (`!`) |
-| `ToggleCommandStar` / `ToggleFraction` | Toggle command stars / fraction notation |
-| `ConvertMath {target}` / `ToggleMathMode` | Convert math environments / inline-display mode |
-| `InsertRow` / `DeleteRow` | Edit table rows |
-| `InsertColumn` / `DeleteColumn` | Edit table columns |
-| `PromoteSection` / `DemoteSection` | Shift section levels and descendant headings |
+| Command                                   | Purpose                                              |
+| ----------------------------------------- | ---------------------------------------------------- |
+| `Main [path\|select\|reset]` / `Info`     | Select the main file / inspect project paths         |
+| `Build` / `BuildOnSave [on\|off\|toggle]` | Compile / control automatic builds                   |
+| `Compiler [name\|toggle]`                 | Query or switch configured `build.profiles`          |
+| `View` / `ForwardSearch`                  | Open the PDF / jump to the source position in it     |
+| `InverseSearch [skim\|zathura]`           | Show the native inverse-search callback              |
+| `Outline[!] [query]`                      | Search sections in the current file or project (`!`) |
+| `ToggleCommandStar` / `ToggleFraction`    | Toggle command stars / fraction notation             |
+| `ConvertMath {target}` / `ToggleMathMode` | Convert math environments / inline-display mode      |
+| `InsertRow` / `DeleteRow`                 | Edit table rows                                      |
+| `InsertColumn` / `DeleteColumn`           | Edit table columns                                   |
+| `PromoteSection` / `DemoteSection`        | Shift section levels and descendant headings         |
 
 Main-file discovery supports `% !TeX root`, `build.main_file`, and explicit
 `:TexToolsMain` selection. Compiler profiles and output-directory configuration
