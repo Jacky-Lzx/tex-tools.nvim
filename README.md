@@ -148,6 +148,22 @@ stylua --check lua tests
 nvim --clean --headless -l tests/run.lua
 ```
 
-Set `TEX_TOOLS_TEST_PARSER=/path/to/latex.so` if the parser is outside the runtime
-path. Optional integration check: `nvim --clean --headless -l tests/live_latexmk.lua`
+The tests require the `latex` Tree-sitter parser. `--clean` excludes user
+directories from the runtime path, so set `TEX_TOOLS_TEST_PARSER=/path/to/latex.so`
+when using a parser installed in your user data directory.
+
+On macOS, with the parser installed in Neovim's default user site directory:
+
+```sh
+TMPDIR=/private/tmp \
+TEX_TOOLS_TEST_PARSER="$HOME/.local/share/nvim/site/parser/latex.so" \
+nvim --clean --headless -l tests/run.lua
+```
+
+Adjust the parser path to match your installation. `TMPDIR=/private/tmp` avoids
+failures caused by the macOS `/var` to `/private/var` symlink: temporary fixture
+paths and Neovim buffer names can otherwise differ even when they refer to the
+same file. These environment variables apply only to this command.
+
+Optional integration check: `nvim --clean --headless -l tests/live_latexmk.lua`
 (requires texlab and latexmk).
