@@ -50,7 +50,7 @@ and `d` (math brackets). Normal mode unless stated otherwise.
 | `<localleader>lf` | Switch `$…$` ↔ `\(…\)` or `$$…$$` ↔ `\[…\]` |
 | `<localleader>ldc` / `ldd` | Change / remove math brackets |
 | `<localleader>ldt` / `ldm` | Toggle `\left`/`\right` sizing / jump to the matching bracket |
-| `<localleader>li` | Insert a sibling `\item` (Normal / Insert) |
+| `<localleader>li` | Insert a sibling `\item` (Normal) |
 | `<localleader>ll` / `lv` | Build / PDF forward search through texlab |
 | `<localleader>lk` / `lK` | Cancel builds in the current / all texlab clients |
 | `<localleader>lg` | Show build status |

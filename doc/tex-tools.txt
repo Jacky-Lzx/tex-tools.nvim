@@ -109,10 +109,11 @@ Normal mode (each <Plug> name corresponds to a command below):
     ]m                  <Plug>(TexToolsNextMath)
     [m                  <Plug>(TexToolsPreviousMath)
 
-Insert mode also provides <LocalLeader>li; optional
-<CR> uses <Plug>(TexToolsSmartEnter). Visual lcs/les mappings use the same
-<LocalLeader> prefix: command surrounds preserve the exact selection;
-environment surrounds operate on whole selected lines.
+Insert mode provides ]] for closing markers; optional <CR> uses
+<Plug>(TexToolsSmartEnter). There is no default Insert-mode list-item shortcut;
+<Plug>(TexToolsInsertItem) remains available for custom mappings. Visual lcs/les
+mappings use the same <LocalLeader> prefix: command surrounds preserve the exact
+selection; environment surrounds operate on whole selected lines.
 
 Visual/operator-pending mappings:
     ae                  <Plug>(TexToolsAroundEnvironment)

@@ -532,8 +532,16 @@ local function attach(bufnr)
       end,
     },
     {
-      { 'n', 'i' },
+      'n',
       '<localleader>li',
+      'InsertItem',
+      function()
+        action('list', 'insert')
+      end,
+    },
+    {
+      'i',
+      false,
       'InsertItem',
       function()
         action('list', 'insert')
