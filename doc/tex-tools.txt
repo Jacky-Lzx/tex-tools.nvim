@@ -440,6 +440,7 @@ default current cursor, explicit pos required for another buffer. Missing
 parser/invalid positions return `false/nil, error`.
 
 Context queries ~
+
 `in_math([opts])`                                        *tex-tools.in_math()*
     Math, including custom environments; `\text{...}` suppresses outer math.
 `in_comment([opts])`                                  *tex-tools.in_comment()*
@@ -470,6 +471,7 @@ for LuaSnip so its arguments are not interpreted as opts: >lua
     end
 <
 Editing and navigation ~
+
 `rename_command([name])`                          *tex-tools.rename_command()*
 `unwrap_command()`                                *tex-tools.unwrap_command()*
 `toggle_command_star()`                      *tex-tools.toggle_command_star()*
@@ -514,7 +516,9 @@ Editing and navigation ~
       return require('tex-tools').smart_enter()
     end, { buffer = true, expr = true, replace_keycodes = false })
 <
+
 Build and project ~
+
 `build()`                                                  *tex-tools.build()*
 `forward_search()`                                *tex-tools.forward_search()*
     `true, request_id` or `false, error`; asynchronous results notify.
@@ -538,6 +542,7 @@ Build and project ~
     `false, error`; full defaults false.
 
 Viewer and outline ~
+
 `view()` / `inverse_search(file, line [, column])`
     View: `true, job_id` or `false, error`. Inverse: boolean/error; one-based
     line/byte column, preserving modified buffers.
