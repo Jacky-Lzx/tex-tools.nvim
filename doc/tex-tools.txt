@@ -96,48 +96,48 @@ EDITING COMMANDS                                          *tex-tools-commands*
 Omitted names/shapes prompt. Cancelling or editing the target buffer while a
 prompt is open cancels the operation. Names omit the backslash.
 
-:TexToolsRenameCommand [name]                         *:TexToolsRenameCommand*
+`:TexToolsRenameCommand` [name]                       *:TexToolsRenameCommand*
     Rename one invocation, preserving arguments/options.
-:TexToolsUnwrapCommand                                *:TexToolsUnwrapCommand*
+`:TexToolsUnwrapCommand`                              *:TexToolsUnwrapCommand*
     Remove a command with exactly one braced argument and no options.
-:[range]TexToolsSurroundCommand [name]              *:TexToolsSurroundCommand*
+`:[range]TexToolsSurroundCommand` [name]            *:TexToolsSurroundCommand*
     Wrap lines in \name{...}; Visual mode wraps the exact selection.
-:TexToolsToggleCommandStar                        *:TexToolsToggleCommandStar*
+`:TexToolsToggleCommandStar`                      *:TexToolsToggleCommandStar*
     Toggle the command's trailing star.
 
-:TexToolsRenameEnvironment [name]                 *:TexToolsRenameEnvironment*
+`:TexToolsRenameEnvironment` [name]               *:TexToolsRenameEnvironment*
     Rename both markers of the innermost environment.
-:TexToolsToggleEnvironmentStar                *:TexToolsToggleEnvironmentStar*
+`:TexToolsToggleEnvironmentStar`              *:TexToolsToggleEnvironmentStar*
     Toggle a trailing star on both markers.
-:[range]TexToolsSurroundEnvironment [name]      *:TexToolsSurroundEnvironment*
+`:[range]TexToolsSurroundEnvironment` [name]    *:TexToolsSurroundEnvironment*
     Wrap whole lines, preserving body indentation.
-:TexToolsUnwrapEnvironment                        *:TexToolsUnwrapEnvironment*
+`:TexToolsUnwrapEnvironment`                      *:TexToolsUnwrapEnvironment*
     Remove markers and begin options; keep the body.
-:TexToolsJumpEnvironment                            *:TexToolsJumpEnvironment*
+`:TexToolsJumpEnvironment`                          *:TexToolsJumpEnvironment*
     Jump from begin/body to end, or end to begin.
 
-:TexToolsToggleMathDelimiters                  *:TexToolsToggleMathDelimiters*
+`:TexToolsToggleMathDelimiters`                *:TexToolsToggleMathDelimiters*
     Switch `$...$` / `\(...\)` or `$$...$$` / `\[...\]`.
-:TexToolsChangeMathDelimiters [shape]          *:TexToolsChangeMathDelimiters*
+`:TexToolsChangeMathDelimiters` [shape]        *:TexToolsChangeMathDelimiters*
     Change both brackets; keep sizing and body. See |tex-tools-math-brackets|.
-:TexToolsUnwrapMathDelimiters                  *:TexToolsUnwrapMathDelimiters*
+`:TexToolsUnwrapMathDelimiters`                *:TexToolsUnwrapMathDelimiters*
     Remove brackets, preserving contents.
-:TexToolsToggleMathDelimiterSize            *:TexToolsToggleMathDelimiterSize*
+`:TexToolsToggleMathDelimiterSize`          *:TexToolsToggleMathDelimiterSize*
     Add/remove `\left` and `\right`.
-:[count]TexToolsJumpMathDelimiter                 *:TexToolsJumpMathDelimiter*
+`:[count]TexToolsJumpMathDelimiter`               *:TexToolsJumpMathDelimiter*
     Jump to the matching bracket; count selects enclosing depth.
-:TexToolsToggleFraction                              *:TexToolsToggleFraction*
+`:TexToolsToggleFraction`                            *:TexToolsToggleFraction*
     Convert `a/b` to/from `\frac{a}{b}`; brace compound operands.
-:TexToolsConvertMath {target}                           *:TexToolsConvertMath*
+`:TexToolsConvertMath` {target}                         *:TexToolsConvertMath*
     Convert a formula: `inline`, `display`, `equation[*]`, `align[*]`,
     `gather[*]`, `multline[*]`, `math`, `displaymath` or a custom math name.
-:TexToolsToggleMathMode                              *:TexToolsToggleMathMode*
+`:TexToolsToggleMathMode`                            *:TexToolsToggleMathMode*
     Switch inline/display. Inline needs one line without comments/labels/tags;
     columns and row breaks require `align[*]`.
-:TexToolsCloseDelimiter                              *:TexToolsCloseDelimiter*
+`:TexToolsCloseDelimiter`                            *:TexToolsCloseDelimiter*
     Insert the nearest missing closing marker. Insert `]]` falls back to
     literal text when unsafe or already closed.
-:TexToolsInsertItem                                      *:TexToolsInsertItem*
+`:TexToolsInsertItem`                                    *:TexToolsInsertItem*
     Insert a sibling after the whole item and enter Insert mode; create the
     first item in an empty list. Supports itemize/enumerate/description.
 
@@ -158,7 +158,7 @@ Math brackets ~
   `vert`      `|`         `\lvert \rvert`
   `Vert`      `\|`        `\lVert \rVert`
 
-Plain directional and `\left`/`\right` pairs work in math. Sized pairs may use
+Plain directional and `\left` / `\right` pairs work in math. Sized pairs may use
 mixed/invisible markers; toggling size needs matching visible markers. Plain
 symmetric bars, fixed sizes and custom macros are excluded. Sizing cannot
 cross alignment cells/rows; unwrap rejects orphaned `\middle` and marker
@@ -204,14 +204,14 @@ newline/trailing comment, but excluding following blank/comment lines.
 ==============================================================================
 NAVIGATION                                              *tex-tools-navigation*
 
-:[count]TexToolsNextSection                             *:TexToolsNextSection*
-:[count]TexToolsPreviousSection                     *:TexToolsPreviousSection*
-:[count]TexToolsNextItem                                   *:TexToolsNextItem*
-:[count]TexToolsPreviousItem                           *:TexToolsPreviousItem*
-:[count]TexToolsNextEnvironment                     *:TexToolsNextEnvironment*
-:[count]TexToolsPreviousEnvironment             *:TexToolsPreviousEnvironment*
-:[count]TexToolsNextMath                                   *:TexToolsNextMath*
-:[count]TexToolsPreviousMath                           *:TexToolsPreviousMath*
+`:[count]TexToolsNextSection`                           *:TexToolsNextSection*
+`:[count]TexToolsPreviousSection`                   *:TexToolsPreviousSection*
+`:[count]TexToolsNextItem`                                 *:TexToolsNextItem*
+`:[count]TexToolsPreviousItem`                         *:TexToolsPreviousItem*
+`:[count]TexToolsNextEnvironment`                   *:TexToolsNextEnvironment*
+`:[count]TexToolsPreviousEnvironment`           *:TexToolsPreviousEnvironment*
+`:[count]TexToolsNextMath`                                 *:TexToolsNextMath*
+`:[count]TexToolsPreviousMath`                         *:TexToolsPreviousMath*
 
 Motions visit opening markers in source order; items stay at the current list
 level, skipping nested lists. Counts stop at the furthest target without
@@ -222,13 +222,13 @@ literal content and parser-recognized definitions are skipped.
 ==============================================================================
 TABLES AND MATRICES                                         *tex-tools-tables*
 
-:[count]TexToolsNextCell                                   *:TexToolsNextCell*
-:[count]TexToolsPreviousCell                           *:TexToolsPreviousCell*
+`:[count]TexToolsNextCell`                                 *:TexToolsNextCell*
+`:[count]TexToolsPreviousCell`                         *:TexToolsPreviousCell*
     Visit cells in row-major order. See |tex-tools.in_table_cell()|.
-:TexToolsInsertRow / :TexToolsDeleteRow                   *:TexToolsInsertRow*
+`:TexToolsInsertRow` / `:TexToolsDeleteRow`               *:TexToolsInsertRow*
                                                           *:TexToolsDeleteRow*
     Insert an empty row after the current row, or delete the current row.
-:TexToolsInsertColumn / :TexToolsDeleteColumn          *:TexToolsInsertColumn*
+`:TexToolsInsertColumn` / `:TexToolsDeleteColumn`      *:TexToolsInsertColumn*
                                                        *:TexToolsDeleteColumn*
     Insert after the current column (copy alignment), or delete that column.
     Update plain `l/c/r/X` preambles; matrices need none. Alignment/cases
@@ -242,8 +242,8 @@ objects accept complex content in the nearest supported environment.
 ==============================================================================
 SECTION LEVELS                                      *tex-tools-section-levels*
 
-:[count]TexToolsPromoteSection                       *:TexToolsPromoteSection*
-:[count]TexToolsDemoteSection                         *:TexToolsDemoteSection*
+`:[count]TexToolsPromoteSection`                     *:TexToolsPromoteSection*
+`:[count]TexToolsDemoteSection`                       *:TexToolsDemoteSection*
     Shift the current section and descendants by count levels (default 1).
     Order: part, chapter, section, subsection, subsubsection, paragraph,
     subparagraph. The document class must support the resulting commands.
@@ -255,7 +255,7 @@ work.
 ==============================================================================
 OUTLINE                                                    *tex-tools-outline*
 
-:TexToolsOutline[!] [query]                                 *:TexToolsOutline*
+`:TexToolsOutline[!]` [query]                               *:TexToolsOutline*
     Open a searchable section split; `!` expands the main file's literal
     input/include files in source order. Texlab is optional. Main selection
     follows |:TexToolsMain|, `build.main_file` and root directives.
@@ -275,32 +275,32 @@ BUILD, LOGS AND CLEANUP                                      *tex-tools-build*
 
 Requires an attached, separately configured texlab client.
 
-:TexToolsBuild                                                *:TexToolsBuild*
+`:TexToolsBuild`                                              *:TexToolsBuild*
     Save current/main buffers with `:update`, then build the resolved main.
-:TexToolsMain [path/select/reset]                              *:TexToolsMain*
+`:TexToolsMain` [path/select/reset]                            *:TexToolsMain*
     Show/select/reset the main for this client/session; paths use the LSP
     root. Reset restores `build.main_file` or source/root-directive discovery.
-:TexToolsInfo                                                  *:TexToolsInfo*
+`:TexToolsInfo`                                                *:TexToolsInfo*
     Show main, compiler, working directory and artifact paths.
-:TexToolsCancelBuild                                    *:TexToolsCancelBuild*
+`:TexToolsCancelBuild`                                  *:TexToolsCancelBuild*
     Cancel builds in the current buffer's texlab server instance.
-:TexToolsCancelAllBuilds                            *:TexToolsCancelAllBuilds*
+`:TexToolsCancelAllBuilds`                          *:TexToolsCancelAllBuilds*
     Cancel builds in every running texlab instance.
-:TexToolsBuildStatus                                    *:TexToolsBuildStatus*
+`:TexToolsBuildStatus`                                  *:TexToolsBuildStatus*
     Show build state, elapsed time, on-save setting and current compiler.
-:TexToolsBuildOnSave [on/off/toggle]                    *:TexToolsBuildOnSave*
+`:TexToolsBuildOnSave` [on/off/toggle]                  *:TexToolsBuildOnSave*
     Change this client's session setting; no argument toggles.
-:TexToolsBuildOutput                                    *:TexToolsBuildOutput*
+`:TexToolsBuildOutput`                                  *:TexToolsBuildOutput*
     Open read-only live output. `q` closes; `F` toggles following. Resets each
     build; capped by `build.output_lines`.
-:TexToolsLog [path]                                             *:TexToolsLog*
+`:TexToolsLog` [path]                                           *:TexToolsLog*
     Open a full read-only log. An explicit path needs no LSP client.
-:TexToolsErrors[!]                                           *:TexToolsErrors*
+`:TexToolsErrors[!]`                                         *:TexToolsErrors*
     Fill/open quickfix with this client's diagnostics; `!` shows errors only.
     Output/log/diagnostic windows do not open automatically after compilation.
-:TexToolsClean                                                *:TexToolsClean*
+`:TexToolsClean`                                              *:TexToolsClean*
     Remove auxiliary artifacts for the resolved main.
-:TexToolsCleanFull                                        *:TexToolsCleanFull*
+`:TexToolsCleanFull`                                      *:TexToolsCleanFull*
     Also remove the PDF. Refuse cleanup during compilation/another cleanup.
 
 Build behavior ~
@@ -330,7 +330,7 @@ build/watch and unsupported compilers return errors.
 ==============================================================================
 COMPILER PROFILES                                *tex-tools-compiler-profiles*
 
-:TexToolsCompiler [name/toggle]                            *:TexToolsCompiler*
+`:TexToolsCompiler` [name/toggle]                          *:TexToolsCompiler*
     Show compiler/profile, switch to name, or cycle alphabetically.
     Completion is available; unmatched settings start at the first name.
 >lua
@@ -363,11 +363,11 @@ stay. All buffers sharing the client see changes; files are never rewritten.
 ==============================================================================
 PDF VIEWING AND INVERSE SEARCH                              *tex-tools-viewer*
 
-:TexToolsView                                                  *:TexToolsView*
+`:TexToolsView`                                                *:TexToolsView*
     Open the resolved PDF without a source jump; requires texlab for paths.
-:TexToolsForwardSearch                                *:TexToolsForwardSearch*
+`:TexToolsForwardSearch`                              *:TexToolsForwardSearch*
     Jump the PDF to the cursor without saving; requires configured SyncTeX.
-:TexToolsInverseSearch [skim|zathura]                 *:TexToolsInverseSearch*
+`:TexToolsInverseSearch` [skim|zathura]               *:TexToolsInverseSearch*
     Show a stable callback. For Skim, copy Command/Arguments into Settings >
     Sync > Custom once. Zathura launched via View receives it automatically.
 
