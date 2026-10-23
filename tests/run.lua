@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(vim.fn.getcwd())
 vim.opt.swapfile = false
 vim.opt.shadafile = 'NONE'
 vim.opt.hidden = true
+vim.opt.showmode = false
 vim.g.maplocalleader = ','
 
 local parser_path = vim.env.TEX_TOOLS_TEST_PARSER
@@ -519,7 +520,29 @@ dofile('tests/latexmk.lua')({ test = test, eq = eq, buffer = buffer })
 
 dofile('tests/diagnostics.lua')({ test = test, eq = eq, buffer = buffer })
 
+local function color(text, code)
+  if vim.env.NO_COLOR and vim.env.NO_COLOR ~= '' then
+    return text
+  end
+  return ('\27[%dm%s\27[0m'):format(code, text)
+end
+
+-- Handle editor messages separately from result lines, retaining them on failure.
+local messages = {}
+local message_namespace = vim.api.nvim_create_namespace('TexToolsTests')
+vim.ui_attach(message_namespace, { ext_messages = true }, function(event, _, content)
+  if event == 'msg_show' then
+    local chunks = {}
+    for _, chunk in ipairs(content) do
+      chunks[#chunks + 1] = chunk[2]
+    end
+    messages[#messages + 1] = table.concat(chunks)
+  end
+  return true
+end)
+
 for _, entry in ipairs(tests) do
+  messages = {}
   local input, notify, get_clients, get_parser =
     vim.ui.input, vim.notify, vim.lsp.get_clients, vim.treesitter.get_parser
   local ok, err = xpcall(entry[2], debug.traceback)
@@ -530,12 +553,19 @@ for _, entry in ipairs(tests) do
   vim.wait(1, function()
     return false
   end, 1)
+  local name = entry[1]:gsub('\r', '\\r'):gsub('\n', '\\n')
   if ok then
     passed = passed + 1
-    print('PASS ' .. entry[1])
+    io.stdout:write(color('PASS', 32) .. ' ' .. name .. '\n')
+    io.stdout:flush()
   else
-    io.stderr:write('FAIL ' .. entry[1] .. '\n' .. err .. '\n')
+    io.stderr:write(color('FAIL', 31) .. ' ' .. name .. '\n' .. err .. '\n')
+    if #messages > 0 then
+      io.stderr:write(table.concat(messages, '\n') .. '\n')
+    end
   end
 end
-print(('%d/%d tests passed'):format(passed, #tests))
+vim.ui_detach(message_namespace)
+io.stdout:write(color(('%d/%d tests passed'):format(passed, #tests), passed == #tests and 32 or 31) .. '\n')
+io.stdout:flush()
 vim.cmd(passed == #tests and 'qa!' or 'cquit 1')
