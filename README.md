@@ -50,6 +50,9 @@ vim.lsp.enable("latex_lsp")
 require("tex-tools").setup({ lsp = "latex-lsp" })
 ```
 
+Set `viewer = { focus = false }` to keep focus in Neovim when opening Skim
+or performing forward search with latex-lsp. The default is `true`.
+
 The latex-lsp backend delegates builds, cancellation, status, root selection,
 artifact cleanup and SyncTeX queries to `latex.*` server commands. The outline
 uses LSP symbols and document links. PDF/log paths come from server build

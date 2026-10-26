@@ -35,7 +35,7 @@ function M.client(bufnr)
   return client
 end
 
-function M.execute(client, command, arguments, callback)
+function M.execute(client, command, arguments, callback, bufnr)
   local provider = (client.server_capabilities or {}).executeCommandProvider
   if
     (M.backend() == 'latex-lsp' and not provider)
@@ -50,7 +50,7 @@ function M.execute(client, command, arguments, callback)
     if err then
       vim.notify(err.message or tostring(err), vim.log.levels.ERROR, { title = 'tex-tools' })
     end
-  end, vim.api.nvim_get_current_buf())
+  end, bufnr or vim.api.nvim_get_current_buf())
   if not accepted then
     return false, M.backend() .. ' rejected the request'
   end

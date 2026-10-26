@@ -420,6 +420,7 @@ Viewer defaults ~
   `viewer.method`      `'auto'`; also `skim`, `zathura`, `generic`
   `viewer.executable`  `false`; executable override (Skim overrides `open`)
   `viewer.args`        `{}`; extra argv entries before the PDF path
+  `viewer.focus`      `true`; let Skim take focus on View/latex-lsp search
 
 Auto detects Skim via texlab displayline, then Zathura via texlab/PATH, then
 the system opener. Generic openers do not configure synchronization. Viewing
@@ -429,9 +430,14 @@ or discovered latexmk paths expand `%p` (PDF), `%f` (source), `%l` (line)
 directly as argv entries.
 
 With latex-lsp, `latex.forwardSearch` returns page/coordinates. Skim receives
-them through AppleScript; Zathura opens the returned page. Auto detects Skim
-in /Applications, then Zathura. Configure Skim/Zathura for forward search;
-generic viewers support View only. The plugin does not run SyncTeX again.
+them through AppleScript, waits for startup, and shows its native source-line
+indicator. Set `viewer.focus = false` to keep focus in Neovim. This option
+controls Skim View and latex-lsp forward search; texlab forward search uses
+its own executable/args. Early latex-lsp searches wait up to 10 seconds for
+LspAttach, retaining the source position. Zathura opens the returned page.
+Auto detects Skim in /Applications, then Zathura. Configure Skim/Zathura for
+forward search; generic viewers support View only. The plugin does not run
+SyncTeX again.
 The Lua `inverse_search_position(page, x, y)` API calls `latex.inverseSearch`
 and jumps to the first returned source location. PDF pages are one-based;
 coordinates are points measured from the top left. Existing source-file

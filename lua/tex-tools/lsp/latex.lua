@@ -222,28 +222,79 @@ function M.clean(full)
   end)
 end
 
+local pending_forward = {}
+
 function M.forward_search()
-  local client, err = require('tex-tools.lsp').client()
-  if not client then
-    return false, err
-  end
-  local uri
-  uri, err = document()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local uri, err = document(bufnr)
   if not uri then
     return false, err
   end
-  -- latex-lsp specifies UTF-16 even when the editor uses byte columns.
+  -- Capture the source position now, even if LspAttach has not happened yet.
   local params = vim.lsp.util.make_position_params(0, 'utf-16')
-  return execute('latex.forwardSearch', { uri = uri, position = params.position }, function(error, result)
-    if error then
-      notify(error.message or tostring(error), vim.log.levels.ERROR)
-      return
+  local position = { uri = uri, position = params.position }
+  local lsp = require('tex-tools.lsp')
+  local function ready_client()
+    for _, client in ipairs(lsp.clients(bufnr)) do
+      if client.initialized then
+        return client
+      end
     end
-    local ok, message = require('tex-tools.viewer').show_location(client, result)
-    if not ok then
-      notify(message, vim.log.levels.WARN)
+  end
+  local function send(client, target)
+    M.attach(client)
+    return lsp.execute(client, 'latex.forwardSearch', { target }, function(error, result)
+      if error then
+        notify(error.message or tostring(error), vim.log.levels.ERROR)
+        return
+      end
+      local ok, message = require('tex-tools.viewer').show_location(client, result, target)
+      if not ok then
+        notify(message, vim.log.levels.WARN)
+      end
+    end, bufnr)
+  end
+  local client = ready_client()
+  if client then
+    if pending_forward[bufnr] then
+      pending_forward[bufnr].cancel()
     end
-  end)
+    return send(client, position)
+  end
+  if pending_forward[bufnr] then
+    pending_forward[bufnr].position = position
+    return true
+  end
+  local request = { position = position }
+  pending_forward[bufnr] = request
+  request.cancel = function()
+    pending_forward[bufnr] = nil
+    vim.api.nvim_del_autocmd(request.autocmd)
+  end
+  request.autocmd = vim.api.nvim_create_autocmd({ 'LspAttach', 'BufWipeout' }, {
+    buffer = bufnr,
+    callback = function(event)
+      if event.event == 'BufWipeout' or lsp.backend() ~= 'latex-lsp' then
+        request.cancel()
+        return
+      end
+      local attached_client = ready_client()
+      if attached_client then
+        request.cancel()
+        local ok, message = send(attached_client, request.position)
+        if not ok then
+          notify(message, vim.log.levels.ERROR)
+        end
+      end
+    end,
+  })
+  vim.defer_fn(function()
+    if pending_forward[bufnr] == request then
+      request.cancel()
+      notify('latex-lsp did not attach; forward search was cancelled', vim.log.levels.WARN)
+    end
+  end, 10000)
+  return true
 end
 
 function M.inverse_search(page, x, y)

@@ -6,7 +6,7 @@ local defaults = {
   overwrite_mappings = false,
   smart_enter = false,
   conceal = false,
-  viewer = { method = 'auto', executable = false, args = {} },
+  viewer = { method = 'auto', executable = false, args = {}, focus = true },
   build = { output_lines = 2000, main_file = false, profiles = {} },
   -- Additional math environments defined by your document class or packages.
   math_environments = {},
@@ -94,6 +94,7 @@ function M.setup(opts)
   )
   validate_profiles(options.build.profiles, fields)
   vim.validate('viewer', options.viewer, 'table')
+  vim.validate('viewer.focus', options.viewer.focus, 'boolean')
   assert(vim.tbl_contains({ 'auto', 'skim', 'zathura', 'generic' }, options.viewer.method), 'Unknown viewer.method')
   assert(
     options.viewer.executable == false

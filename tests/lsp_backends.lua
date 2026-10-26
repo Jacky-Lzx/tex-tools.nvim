@@ -26,6 +26,7 @@ return function(h)
     local client = {
       id = next_id,
       name = 'latex_lsp',
+      initialized = true,
       offset_encoding = 'utf-16',
       handlers = {},
       config = { root_dir = '/private/tmp', init_options = options or {} },
@@ -250,8 +251,9 @@ return function(h)
     vim.api.nvim_win_set_cursor(0, { 2, #'\\begin{document}中文 ' })
     local show = require('tex-tools.viewer').show_location
     local received
-    require('tex-tools.viewer').show_location = function(source, result)
+    require('tex-tools.viewer').show_location = function(source, result, position)
       eq(client, source)
+      eq(calls[1].params.arguments[1], position)
       received = result
       return true
     end
@@ -275,17 +277,18 @@ return function(h)
     end
   end)
 
-  check('Skim uses the returned PDF coordinates as argv without another SyncTeX query', function()
+  check('Skim opens before positioning the returned PDF coordinates', function()
     local client = fixture()
     config.setup({ lsp = 'latex-lsp', viewer = { method = 'skim' } })
-    local jobstart, executable = vim.fn.jobstart, vim.fn.executable
-    local argv
+    local system, executable = vim.system, vim.fn.executable
+    local calls = {}
     vim.fn.executable = function()
       return 1
     end
-    vim.fn.jobstart = function(command)
-      argv = command
-      return 1
+    vim.system = function(command, _, callback)
+      calls[#calls + 1] = command
+      callback({ code = 0 })
+      return {}
     end
     local ok, err = xpcall(function()
       eq(
@@ -295,12 +298,16 @@ return function(h)
           locations = { { page = 7, x = 12.5, y = 81.25 } },
         })
       )
+      assert(vim.wait(1000, function()
+        return #calls == 2
+      end))
+      eq({ 'open', '-a', 'Skim', '/private/tmp/quoted "$(.pdf' }, calls[1])
+      local argv = calls[2]
       eq('osascript', argv[1])
       eq('/private/tmp/quoted "$(.pdf', argv[4])
-      eq({ '7', '12.5', '81.25' }, vim.list_slice(argv, 5))
-      eq(nil, argv[3]:find('synctex', 1, true))
+      eq({ '7', '12.5', '81.25', '', '1', 'true' }, vim.list_slice(argv, 5))
     end, debug.traceback)
-    vim.fn.jobstart, vim.fn.executable = jobstart, executable
+    vim.system, vim.fn.executable = system, executable
     if not ok then
       error(err)
     end

@@ -71,6 +71,13 @@ return function(h)
     eq(true, tex.view())
     eq({ vim.v.progpath, '-a', 'Skim', directory .. '/main.pdf' }, calls[1].argv)
   end)
+  check('Skim background viewing is opt-in', function()
+    local _, calls = fixture()
+    tex.setup({ viewer = { method = 'skim', executable = vim.v.progpath, focus = false } })
+    vim.fn.writefile({ 'pdf' }, directory .. '/main.pdf')
+    eq(true, tex.view())
+    eq({ vim.v.progpath, '-g', '-a', 'Skim', directory .. '/main.pdf' }, calls[1].argv)
+  end)
   check('auto detection reuses texlab viewer knowledge', function()
     local client = fixture()
     client.settings.texlab.forwardSearch = { executable = '/Applications/Skim.app/Contents/SharedSupport/displayline' }
@@ -123,7 +130,13 @@ return function(h)
   end)
   check('invalid viewer configuration and callbacks are rejected', function()
     fixture()
-    for _, opts in ipairs({ { method = 'unknown' }, { args = 'bad' }, { args = { false } }, { executable = '' } }) do
+    for _, opts in ipairs({
+      { method = 'unknown' },
+      { args = 'bad' },
+      { args = { false } },
+      { executable = '' },
+      { focus = 'false' },
+    }) do
       eq(false, pcall(tex.setup, { viewer = opts }))
     end
     eq(nil, tex.inverse_search_command('unknown'))

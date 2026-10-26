@@ -137,7 +137,7 @@ function M.detect(client)
       executable = forward.executable
     end
   end
-  return { method = method, executable = executable, args = vim.deepcopy(options.args) }
+  return { method = method, executable = executable, args = vim.deepcopy(options.args), focus = options.focus }
 end
 
 local function start(argv, cwd)
@@ -185,6 +185,9 @@ function M.view()
     end
     vim.list_extend(argv, { '--synctex-editor-command', callback.shell_command })
   elseif viewer.method == 'skim' then
+    if not viewer.focus then
+      argv[#argv + 1] = '-g'
+    end
     vim.list_extend(argv, { '-a', 'Skim' })
   end
   argv[#argv + 1] = info.pdf_file
@@ -192,7 +195,7 @@ function M.view()
 end
 
 -- latex-lsp has already run SyncTeX. Consume its page/coordinates directly.
-function M.show_location(client, result)
+function M.show_location(client, result, position)
   local location = type(result) == 'table' and result.locations and result.locations[1]
   if not location or type(result.pdfUri) ~= 'string' then
     return false, 'No PDF location returned by latex-lsp'
@@ -200,18 +203,7 @@ function M.show_location(client, result)
   local pdf = vim.uri_to_fname(result.pdfUri)
   local viewer = M.detect(client)
   if viewer.method == 'skim' then
-    local script = [[on run argv
-tell application "Skim"
-  set doc to open POSIX file (item 1 of argv)
-  set targetPage to page (item 2 of argv as integer) of doc
-  set pageBounds to bounds of targetPage
-  set px to (item 3 of argv as real) + (item 1 of pageBounds)
-  set py to (item 4 of pageBounds) - (item 4 of argv as real)
-  go doc to targetPage at {px, py}
-  activate
-end tell
-end run]]
-    return start({ 'osascript', '-e', script, pdf, tostring(location.page), tostring(location.x), tostring(location.y) })
+    return require('tex-tools.viewer.skim').show(viewer, pdf, location, position)
   end
   local argv = { viewer.executable }
   vim.list_extend(argv, viewer.args)
