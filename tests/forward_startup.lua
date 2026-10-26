@@ -21,7 +21,7 @@ return function(h)
       return true
     end
     local client = {
-      name = 'latex_lsp',
+      name = 'texquill',
       initialized = true,
       server_capabilities = { executeCommandProvider = { commands = { 'latex.forwardSearch' } } },
       request = function(_, method, params, callback, bufnr)
@@ -44,7 +44,7 @@ return function(h)
       vim.api.nvim_exec_autocmds('LspAttach', { buffer = bufnr or 0, data = { client_id = 1 } })
     end
     local ok, err = xpcall(function()
-      config.setup({ lsp = 'latex-lsp' })
+      config.setup({ lsp = 'texquill' })
       local bufnr = buffer()
       h.eq(true, forward())
       h.eq(1, #timers)

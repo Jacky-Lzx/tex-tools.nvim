@@ -9,7 +9,7 @@ function M.matches(client)
   if M.backend() == 'texlab' then
     return client.name == 'texlab'
   end
-  return client.name == 'latex_lsp' or client.name == 'latex-lsp'
+  return client.name == 'texquill'
 end
 
 function M.clients(bufnr)
@@ -23,7 +23,7 @@ function M.attach(client, bufnr)
   if M.backend() == 'texlab' then
     return require('tex-tools.build').attach(client, bufnr)
   end
-  return require('tex-tools.lsp.latex').attach(client)
+  return require('tex-tools.lsp.texquill').attach(client)
 end
 
 function M.client(bufnr)
@@ -38,7 +38,7 @@ end
 function M.execute(client, command, arguments, callback, bufnr)
   local provider = (client.server_capabilities or {}).executeCommandProvider
   if
-    (M.backend() == 'latex-lsp' and not provider)
+    (M.backend() == 'texquill' and not provider)
     or (provider and provider.commands and not vim.tbl_contains(provider.commands, command))
   then
     return false, 'The attached ' .. M.backend() .. ' server does not support ' .. command
@@ -67,7 +67,7 @@ for _, method in ipairs({
   'build_on_save',
 }) do
   M[method] = function(...)
-    local module = M.backend() == 'texlab' and 'texlab' or 'latex'
+    local module = M.backend() == 'texlab' and 'texlab' or 'texquill'
     return require('tex-tools.lsp.' .. module)[method](...)
   end
 end

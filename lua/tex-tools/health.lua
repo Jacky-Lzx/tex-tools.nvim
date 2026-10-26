@@ -28,7 +28,7 @@ function M.check()
   end
   local attached = lsp.clients(vim.api.nvim_get_current_buf())[1]
   if attached then
-    local settings = backend == 'latex-lsp' and require('tex-tools.lsp.latex').settings(attached)
+    local settings = backend == 'texquill' and require('tex-tools.lsp.texquill').settings(attached)
       or ((attached.settings or {}).texlab or {})
     local build = settings.build or {}
     local executable = build.executable or 'latexmk'

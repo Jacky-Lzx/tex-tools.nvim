@@ -154,7 +154,7 @@ end
 
 function M.entries(opts)
   opts = opts or {}
-  if require('tex-tools.lsp').backend() == 'latex-lsp' then
+  if require('tex-tools.lsp').backend() == 'texquill' then
     return require('tex-tools.lsp.outline').entries(opts)
   end
   local bufnr = ts.buffer(opts.bufnr)

@@ -1,9 +1,9 @@
--- Optional real latex-lsp/latexmk/SyncTeX regression; only temporary files change.
--- TEX_TOOLS_LATEX_LSP=/path/to/latex-lsp nvim --clean --headless -i NONE -l tests/live_latex_lsp.lua
+-- Optional real texquill/latexmk/SyncTeX regression; only temporary files change.
+-- TEX_TOOLS_TEXQUILL=/path/to/texquill nvim --clean --headless -i NONE -l tests/live_texquill.lua
 local root = vim.fs.dirname(vim.fs.dirname(vim.fs.abspath(debug.getinfo(1, 'S').source:sub(2))))
 vim.opt.rtp:prepend(root)
 vim.o.swapfile, vim.o.shadafile, vim.o.hidden = false, 'NONE', true
-local directory = vim.fn.tempname() .. ' latex-lsp integration'
+local directory = vim.fn.tempname() .. ' texquill integration'
 vim.fn.mkdir(directory .. '/chapters', 'p')
 local client
 local function check()
@@ -22,11 +22,11 @@ local function check()
   vim.cmd.edit(vim.fn.fnameescape(child))
   vim.bo.filetype = 'tex'
   local tex = require('tex-tools')
-  tex.setup({ lsp = 'latex-lsp', mappings = false })
+  tex.setup({ lsp = 'texquill', mappings = false })
   local events = {}
   local id = assert(vim.lsp.start({
-    name = 'latex_lsp',
-    cmd = { vim.env.TEX_TOOLS_LATEX_LSP or 'latex-lsp', '--stdio' },
+    name = 'texquill',
+    cmd = { vim.env.TEX_TOOLS_TEXQUILL or 'texquill', '--stdio' },
     root_dir = directory,
     capabilities = { workspace = { didChangeWatchedFiles = { dynamicRegistration = false } } },
     init_options = { build = { onSave = false, jobName = 'custom job' } },
@@ -44,10 +44,10 @@ local function check()
     'Server did not initialize'
   )
   require('tex-tools.lsp').attach(client)
-  -- Fail immediately if the latex-lsp path falls back to local latexmk probing.
+  -- Fail immediately if the texquill path falls back to local latexmk probing.
   local latexmk = require('tex-tools.latexmk')
   latexmk.resolve = function()
-    error('latex-lsp must own artifact discovery')
+    error('texquill must own artifact discovery')
   end
   local info = assert(tex.project_info())
   assert(info.main_file == main, vim.inspect(info))
@@ -66,7 +66,7 @@ local function check()
   assert(info.pdf_file == directory .. '/generated/custom job.pdf', vim.inspect(info))
   assert(info.log_file == directory .. '/generated/custom job.log', vim.inspect(info))
   assert(vim.fn.filereadable(info.pdf_file) == 1)
-  assert(client.settings.texlab == nil, 'texlab settings leaked into latex-lsp')
+  assert(client.settings.texlab == nil, 'texlab settings leaked into texquill')
   local snapshot = assert(tex.outline_entries({ project = true }))
   local titles = vim.tbl_map(function(entry)
     return entry.title
@@ -156,7 +156,7 @@ local function check()
   assert(vim.fn.filereadable(pdf) == 0, 'Full cleanup left PDF')
   assert(vim.fn.filereadable(main) == 1 and vim.fn.filereadable(child) == 1)
   print(
-    'PASS real latex-lsp: roots, build/status, rc paths, outline panel/jump, SyncTeX, diagnostics, recovery, settings and cleanup'
+    'PASS real texquill: roots, build/status, rc paths, outline panel/jump, SyncTeX, diagnostics, recovery, settings and cleanup'
   )
 end
 local ok, err = xpcall(check, debug.traceback)

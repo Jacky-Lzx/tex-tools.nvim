@@ -15,7 +15,7 @@ local defaults = {
 M.options = vim.deepcopy(defaults)
 
 local texlab_fields = { 'executable', 'args', 'auxDirectory', 'logDirectory', 'pdfDirectory', 'filename' }
-local latex_fields =
+local texquill_fields =
   { 'executable', 'arguments', 'engine', 'outputDirectory', 'auxiliaryDirectory', 'finalOutputDirectory', 'jobName' }
 M.profile_fields = texlab_fields
 
@@ -36,7 +36,7 @@ local function validate_profiles(profiles, fields)
       profile.executable ~= '' and not profile.executable:find('%z'),
       key .. '.executable must be a nonempty executable path'
     )
-    local argkey = fields == latex_fields and 'arguments' or 'args'
+    local argkey = fields == texquill_fields and 'arguments' or 'args'
     local arguments = profile[argkey]
     vim.validate(key .. '.' .. argkey, arguments, 'table', argkey == 'arguments')
     assert(arguments == nil or vim.islist(arguments), key .. '.' .. argkey .. ' must be a list')
@@ -77,8 +77,8 @@ function M.setup(opts)
   opts = opts or {}
   vim.validate('opts', opts, 'table')
   local options = vim.tbl_deep_extend('force', vim.deepcopy(defaults), opts)
-  assert(vim.tbl_contains({ 'texlab', 'latex-lsp' }, options.lsp), 'lsp must be texlab or latex-lsp')
-  local fields = options.lsp == 'latex-lsp' and latex_fields or texlab_fields
+  assert(vim.tbl_contains({ 'texlab', 'texquill' }, options.lsp), 'lsp must be texlab or texquill')
+  local fields = options.lsp == 'texquill' and texquill_fields or texlab_fields
   vim.validate('mappings', options.mappings, 'boolean')
   vim.validate('overwrite_mappings', options.overwrite_mappings, 'boolean')
   vim.validate('smart_enter', options.smart_enter, 'boolean')

@@ -7,7 +7,7 @@ return function(h)
     h.test('Skim: ' .. name, function()
       local system, notify, executable = vim.system, vim.notify, vim.fn.executable
       local calls, notices, responses = {}, {}, {}
-      config.setup({ lsp = 'latex-lsp', viewer = { method = 'skim', focus = false } })
+      config.setup({ lsp = 'texquill', viewer = { method = 'skim', focus = false } })
       vim.fn.executable = function()
         return 1
       end

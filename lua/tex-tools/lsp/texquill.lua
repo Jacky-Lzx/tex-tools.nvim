@@ -1,4 +1,4 @@
--- latex-lsp owns roots, artifact discovery, build lifecycle and SyncTeX.
+-- texquill owns roots, artifact discovery, build lifecycle and SyncTeX.
 -- This adapter only translates plugin actions and presents server results.
 local M = {}
 local attached = setmetatable({}, { __mode = 'k' })
@@ -30,7 +30,7 @@ function M.configure(client, fields)
   local ok, accepted = pcall(client.notify, client, 'workspace/didChangeConfiguration', { settings = settings })
   if not ok or not accepted then
     client.settings = previous
-    return false, ok and 'latex-lsp rejected the configuration change' or tostring(accepted)
+    return false, ok and 'texquill rejected the configuration change' or tostring(accepted)
   end
   return true
 end
@@ -102,13 +102,13 @@ end
 function M.query(client, method, params, bufnr)
   local response, err = client:request_sync(method, params, 2000, bufnr or vim.api.nvim_get_current_buf())
   if not response then
-    return nil, tostring(err or 'latex-lsp request timed out')
+    return nil, tostring(err or 'texquill request timed out')
   end
   if response.err then
     return nil, response.err.message or tostring(response.err)
   end
   if response.result == nil or response.result == vim.NIL then
-    return nil, 'latex-lsp returned no result for ' .. method
+    return nil, 'texquill returned no result for ' .. method
   end
   return response.result
 end
@@ -150,7 +150,7 @@ end
 function M.cancel_all_builds()
   local clients = require('tex-tools.lsp').clients()
   if #clients == 0 then
-    return false, 'No latex-lsp clients are running'
+    return false, 'No texquill clients are running'
   end
   local failures = {}
   for _, client in ipairs(clients) do
@@ -274,7 +274,7 @@ function M.forward_search()
   request.autocmd = vim.api.nvim_create_autocmd({ 'LspAttach', 'BufWipeout' }, {
     buffer = bufnr,
     callback = function(event)
-      if event.event == 'BufWipeout' or lsp.backend() ~= 'latex-lsp' then
+      if event.event == 'BufWipeout' or lsp.backend() ~= 'texquill' then
         request.cancel()
         return
       end
@@ -291,7 +291,7 @@ function M.forward_search()
   vim.defer_fn(function()
     if pending_forward[bufnr] == request then
       request.cancel()
-      notify('latex-lsp did not attach; forward search was cancelled', vim.log.levels.WARN)
+      notify('texquill did not attach; forward search was cancelled', vim.log.levels.WARN)
     end
   end, 10000)
   return true
@@ -319,7 +319,7 @@ function M.inverse_search(page, x, y)
       elseif type(result) == 'table' and result.locations and result.locations[1] then
         vim.lsp.util.show_document(result.locations[1], 'utf-16', { focus = true })
       else
-        notify('No source location returned by latex-lsp', vim.log.levels.WARN)
+        notify('No source location returned by texquill', vim.log.levels.WARN)
       end
     end
   )
@@ -331,7 +331,7 @@ function M.project_info(client, bufnr)
     return nil, err
   end
   if type(result.rootUri) ~= 'string' then
-    return nil, 'latex-lsp returned no project root'
+    return nil, 'texquill returned no project root'
   end
   local function path(uri)
     return type(uri) == 'string' and vim.uri_to_fname(uri) or nil
@@ -341,7 +341,7 @@ function M.project_info(client, bufnr)
     client_id = client.id,
     root_dir = (client.config or {}).root_dir,
     main_file = main,
-    main_source = 'latex-lsp',
+    main_source = 'texquill',
     cwd = vim.fs.dirname(main),
     compiler = result.executable or (M.settings(client).build or {}).executable or 'latexmk',
     build = vim.deepcopy(M.settings(client).build or {}),
@@ -350,7 +350,7 @@ function M.project_info(client, bufnr)
     pdf_name = pdf and vim.fs.basename(pdf),
     log_file = log,
     log_dir = log and vim.fs.dirname(log),
-    artifact_source = 'latex-lsp',
+    artifact_source = 'texquill',
     status = result.status,
   }
 end

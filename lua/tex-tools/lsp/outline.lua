@@ -1,4 +1,4 @@
--- Render symbols and include links supplied by latex-lsp, without parsing TeX.
+-- Render symbols and include links supplied by texquill, without parsing TeX.
 local M = {}
 
 function M.entries(opts)
@@ -10,7 +10,7 @@ function M.entries(opts)
   if not client then
     return nil, err
   end
-  local adapter = require('tex-tools.lsp.latex')
+  local adapter = require('tex-tools.lsp.texquill')
   local uri = vim.uri_from_bufnr(bufnr)
   local root = uri
   if opts.project then

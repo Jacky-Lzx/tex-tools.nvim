@@ -121,7 +121,7 @@ function M.detect(client)
     local name = vim.fs.basename(forward.executable or '')
     if name == 'displayline' then
       method = 'skim'
-    elseif require('tex-tools.lsp').backend() == 'latex-lsp' and vim.fn.isdirectory('/Applications/Skim.app') == 1 then
+    elseif require('tex-tools.lsp').backend() == 'texquill' and vim.fn.isdirectory('/Applications/Skim.app') == 1 then
       method = 'skim'
     elseif name == 'zathura' or vim.fn.executable('zathura') == 1 then
       method = 'zathura'
@@ -194,11 +194,11 @@ function M.view()
   return start(argv, info.cwd)
 end
 
--- latex-lsp has already run SyncTeX. Consume its page/coordinates directly.
+-- texquill has already run SyncTeX. Consume its page/coordinates directly.
 function M.show_location(client, result, position)
   local location = type(result) == 'table' and result.locations and result.locations[1]
   if not location or type(result.pdfUri) ~= 'string' then
-    return false, 'No PDF location returned by latex-lsp'
+    return false, 'No PDF location returned by texquill'
   end
   local pdf = vim.uri_to_fname(result.pdfUri)
   local viewer = M.detect(client)
@@ -214,7 +214,7 @@ function M.show_location(client, result, position)
     end
     vim.list_extend(argv, { '--synctex-editor-command', callback.shell_command, '--page', tostring(location.page) })
   else
-    return false, 'Select viewer.method = skim or zathura for latex-lsp forward search'
+    return false, 'Select viewer.method = skim or zathura for texquill forward search'
   end
   argv[#argv + 1] = pdf
   return start(argv)

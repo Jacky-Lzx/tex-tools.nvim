@@ -20,8 +20,8 @@ local function matches(build, profile)
 end
 
 function M.snapshot(client)
-  if require('tex-tools.lsp').backend() == 'latex-lsp' then
-    return require('tex-tools.lsp.latex').compiler_snapshot(client)
+  if require('tex-tools.lsp').backend() == 'texquill' then
+    return require('tex-tools.lsp.texquill').compiler_snapshot(client)
   end
   local build = require('tex-tools.diagnostics').build_settings(client)
   local profiles = require('tex-tools.config').options.build.profiles
@@ -50,8 +50,8 @@ function M.select(name)
   if not client then
     return false, err
   end
-  if require('tex-tools.lsp').backend() == 'latex-lsp' then
-    return require('tex-tools.lsp.latex').compiler(client, name)
+  if require('tex-tools.lsp').backend() == 'texquill' then
+    return require('tex-tools.lsp.texquill').compiler(client, name)
   end
   if name == nil then
     return true, M.snapshot(client)

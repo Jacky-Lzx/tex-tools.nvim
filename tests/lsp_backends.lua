@@ -6,7 +6,7 @@ return function(h)
     test('LSP backends: ' .. name, function()
       local get_clients, notify = vim.lsp.get_clients, vim.notify
       local ok, err = xpcall(function()
-        config.setup({ lsp = 'latex-lsp' })
+        config.setup({ lsp = 'texquill' })
         fn()
       end, debug.traceback)
       vim.lsp.get_clients, vim.notify = get_clients, notify
@@ -25,7 +25,7 @@ return function(h)
     local calls = {}
     local client = {
       id = next_id,
-      name = 'latex_lsp',
+      name = 'texquill',
       initialized = true,
       offset_encoding = 'utf-16',
       handlers = {},
@@ -71,18 +71,16 @@ return function(h)
     return client, calls, bufnr, path
   end
 
-  check('selection accepts canonical and hyphenated client names without texlab fallback', function()
+  check('selection accepts the texquill client without texlab fallback', function()
     local client = fixture()
-    eq(client, lsp.client())
-    client.name = 'latex-lsp'
     eq(client, lsp.client())
     config.setup()
     eq(nil, lsp.client())
-    config.setup({ lsp = 'latex-lsp' })
+    config.setup({ lsp = 'texquill' })
     client.name = 'other'
     local selected, err = lsp.client()
     eq(nil, selected)
-    eq('No latex-lsp client attached to this buffer', err)
+    eq('No texquill client attached to this buffer', err)
     eq(false, pcall(config.setup, { lsp = 'unknown' }))
   end)
 
@@ -90,7 +88,7 @@ return function(h)
     fixture()
     local fields = config.profile_fields
     eq(false, pcall(config.setup, { lsp = 'texlab', build = { profiles = { invalid = {} } } }))
-    eq('latex-lsp', lsp.backend())
+    eq('texquill', lsp.backend())
     eq(fields, config.profile_fields)
   end)
 
@@ -156,7 +154,7 @@ return function(h)
     eq('/private/tmp/server-root.tex', info.main_file)
     eq('/private/tmp/final/custom.pdf', info.pdf_file)
     eq('/private/tmp/aux/custom.log', info.log_file)
-    eq('latex-lsp', info.artifact_source)
+    eq('texquill', info.artifact_source)
     client.sync_error = 'ambiguous root'
     local value, err = tex.build_status()
     eq(nil, value)
@@ -189,7 +187,7 @@ return function(h)
   check('native compiler profiles replace only native fields', function()
     local client = fixture({ build = { timeoutSeconds = 77, onSave = true, engine = 'xelatex' } })
     config.setup({
-      lsp = 'latex-lsp',
+      lsp = 'texquill',
       build = {
         profiles = {
           direct = { executable = 'xelatex', arguments = { '%f' }, outputDirectory = 'output' },
@@ -279,7 +277,7 @@ return function(h)
 
   check('Skim opens before positioning the returned PDF coordinates', function()
     local client = fixture()
-    config.setup({ lsp = 'latex-lsp', viewer = { method = 'skim' } })
+    config.setup({ lsp = 'texquill', viewer = { method = 'skim' } })
     local system, executable = vim.system, vim.fn.executable
     local calls = {}
     vim.fn.executable = function()

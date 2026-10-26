@@ -889,10 +889,10 @@ function M.forward_search()
 end
 
 function M.inverse_search_position(page, x, y)
-  if require('tex-tools.lsp').backend() ~= 'latex-lsp' then
-    return false, 'PDF coordinate queries require latex-lsp'
+  if require('tex-tools.lsp').backend() ~= 'texquill' then
+    return false, 'PDF coordinate queries require texquill'
   end
-  return require('tex-tools.lsp.latex').inverse_search(page, x, y)
+  return require('tex-tools.lsp.texquill').inverse_search(page, x, y)
 end
 
 function M.cancel_build()

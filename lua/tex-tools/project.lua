@@ -39,8 +39,8 @@ end
 
 function M.resolve(client, opts)
   opts = opts or {}
-  if require('tex-tools.lsp').backend() == 'latex-lsp' then
-    return require('tex-tools.lsp.latex').project_info(client, opts.bufnr)
+  if require('tex-tools.lsp').backend() == 'texquill' then
+    return require('tex-tools.lsp.texquill').project_info(client, opts.bufnr)
   end
   local file = vim.api.nvim_buf_get_name(opts.bufnr or 0)
   if file == '' or file:match('^%w+://') then
@@ -162,8 +162,8 @@ function M.attach(client, path)
 end
 
 local function change(client, path)
-  if require('tex-tools.lsp').backend() == 'latex-lsp' then
-    return require('tex-tools.lsp.latex').main_file(client, path)
+  if require('tex-tools.lsp').backend() == 'texquill' then
+    return require('tex-tools.lsp.texquill').main_file(client, path)
   end
   local manager = require('tex-tools.build')
   if manager.active(client) or manager.state(client).cleaning then
@@ -190,8 +190,8 @@ function M.main_file(path)
   if not client then
     return false, err
   end
-  if require('tex-tools.lsp').backend() == 'latex-lsp' then
-    return require('tex-tools.lsp.latex').main_file(client, path)
+  if require('tex-tools.lsp').backend() == 'texquill' then
+    return require('tex-tools.lsp.texquill').main_file(client, path)
   end
   if path ~= nil then
     return change(client, path)
@@ -242,8 +242,8 @@ function M.info()
   if not client then
     return nil, err
   end
-  if require('tex-tools.lsp').backend() == 'latex-lsp' then
-    return require('tex-tools.lsp.latex').project_info(client)
+  if require('tex-tools.lsp').backend() == 'texquill' then
+    return require('tex-tools.lsp.texquill').project_info(client)
   end
   local project
   project, err = M.resolve(client)

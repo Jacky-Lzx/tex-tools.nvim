@@ -4,7 +4,7 @@
 
 LaTeX editing for Neovim: structural edits, text objects, navigation, tables,
 outline, optional conceal, and snippet context queries using Tree-sitter.
-Compilation and PDF forward search use your selected texlab or latex-lsp client; PDF viewing
+Compilation and PDF forward search use your selected texlab or texquill client; PDF viewing
 and native inverse search are also supported.
 
 ## Installation
@@ -19,7 +19,7 @@ With lazy.nvim:
   "Jacky-Lzx/tex-tools.nvim",
   ft = { "tex", "plaintex" },
   opts = {
-    lsp = "texlab",             -- "texlab" or "latex-lsp".
+    lsp = "texlab",             -- "texlab" or "texquill".
     mappings = true,
     overwrite_mappings = false, -- Replace conflicting mappings when true.
     smart_enter = false,        -- List-aware Insert-mode Enter.
@@ -36,24 +36,24 @@ Run `:checkhealth tex-tools` to check dependencies and project settings.
 See `:help tex-tools.txt` or [the reference](doc/tex-tools.txt) for all options,
 commands, `<Plug>` mappings, and Lua APIs.
 
-To use [latex-lsp](https://github.com/Jacky-Lzx/latex-lsp), configure its Neovim client as `latex_lsp`
-(or `latex-lsp`) and select it in this plugin:
+To use [TeXquill](https://github.com/Jacky-Lzx/texquill), configure its Neovim client as `texquill`
+and select it in this plugin:
 
 ```lua
-vim.lsp.config("latex_lsp", {
-  cmd = { "latex-lsp", "--stdio" },
+vim.lsp.config("texquill", {
+  cmd = { "texquill", "--stdio" },
   filetypes = { "tex", "plaintex", "bib", "bst" },
-  root_markers = { ".latex-lsp.json", ".latexmkrc", "latexmkrc", ".git" },
+  root_markers = { ".texquill.json", ".latexmkrc", "latexmkrc", ".git" },
   init_options = { build = { onSave = false } },
 })
-vim.lsp.enable("latex_lsp")
-require("tex-tools").setup({ lsp = "latex-lsp" })
+vim.lsp.enable("texquill")
+require("tex-tools").setup({ lsp = "texquill" })
 ```
 
 Set `viewer = { focus = false }` to keep focus in Neovim when opening Skim
-or performing forward search with latex-lsp. The default is `true`.
+or performing forward search with texquill. The default is `true`.
 
-The latex-lsp backend delegates builds, cancellation, status, root selection,
+The texquill backend delegates builds, cancellation, status, root selection,
 artifact cleanup and SyncTeX queries to `latex.*` server commands. The outline
 uses LSP symbols and document links. PDF/log paths come from server build
 results, so compile before viewing them. Skim consumes returned page/coordinates;
@@ -194,9 +194,9 @@ same file. These environment variables apply only to this command.
 Optional integration check: `nvim --clean --headless -l tests/live_latexmk.lua`
 (requires texlab and latexmk).
 
-For latex-lsp (requires latexmk and SyncTeX):
+For texquill (requires latexmk and SyncTeX):
 
 ```sh
-TEX_TOOLS_LATEX_LSP=/path/to/latex-lsp \
-  nvim --clean --headless -i NONE -l tests/live_latex_lsp.lua
+TEX_TOOLS_TEXQUILL=/path/to/texquill \
+  nvim --clean --headless -i NONE -l tests/live_texquill.lua
 ```

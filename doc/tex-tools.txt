@@ -38,7 +38,7 @@ and toolchain in your LSP setup.
 Local structural editing needs only the parser.
 
 Options and defaults ~
-  `lsp`                 `'texlab'`; or `'latex-lsp'`
+  `lsp`                 `'texlab'`; or `'texquill'`
   `mappings`            `true`; false keeps commands and <Plug> mappings
   `overwrite_mappings`  `false`; preserve existing global/local keys
   `smart_enter`         `false`; list-aware Insert <CR>, requires mappings
@@ -272,19 +272,19 @@ Cycles/missing/nonliteral includes warn. Macros, conditionals, includeonly and
 TEXINPUTS are not evaluated. Per refresh: 256 file visits, 32 nested includes,
 2 MiB per disk file, 8 MiB total; exceeding a limit returns an error.
 
-With latex-lsp, headings come from `textDocument/documentSymbol`; `!` uses
+With texquill, headings come from `textDocument/documentSymbol`; `!` uses
 server root selection and follows local .tex `documentLink` targets in source
 order. No local TeX parsing or include resolution is used for this outline.
 Titles/ranges follow the server. Limits: 256 file visits, 32 nested includes;
-cyclic or failed includes warn. A selected latex-lsp client is required.
+cyclic or failed includes warn. A selected texquill client is required.
 
 ==============================================================================
 BUILD, LOGS AND CLEANUP                                      *tex-tools-build*
 
 Requires an attached, separately configured client selected by `lsp`.
-Texlab remains the default. With `lsp = 'latex-lsp'`, configure the Neovim
-client name as `latex_lsp` or `latex-lsp`; the plugin does not start servers
-or fall back to another backend. Use `cmd = { 'latex-lsp', '--stdio' }`.
+Texlab remains the default. With `lsp = 'texquill'`, configure the Neovim
+client name as `texquill`; the plugin does not start servers
+or fall back to another backend. Use `cmd = { 'texquill', '--stdio' }`.
 Server settings use `init_options` or `settings.latex` (also unwrapped).
 
 `:TexToolsBuild`                                              *:TexToolsBuild*
@@ -395,7 +395,7 @@ optional `arguments`, `engine`, `outputDirectory`, `auxiliaryDirectory`,
 Arguments accept server placeholders `%f`, `%o`, `%j`. Example:
 >lua
     require('tex-tools').setup({
-      lsp = 'latex-lsp',
+      lsp = 'texquill',
       build = { profiles = {
         latexmk = { executable = 'latexmk', engine = 'xelatex' },
         direct = { executable = 'xelatex', outputDirectory = 'build' },
@@ -420,7 +420,7 @@ Viewer defaults ~
   `viewer.method`      `'auto'`; also `skim`, `zathura`, `generic`
   `viewer.executable`  `false`; executable override (Skim overrides `open`)
   `viewer.args`        `{}`; extra argv entries before the PDF path
-  `viewer.focus`      `true`; let Skim take focus on View/latex-lsp search
+  `viewer.focus`      `true`; let Skim take focus on View/texquill search
 
 Auto detects Skim via texlab displayline, then Zathura via texlab/PATH, then
 the system opener. Generic openers do not configure synchronization. Viewing
@@ -429,11 +429,11 @@ needs no SyncTeX file; synchronized search requires compiler/viewer support
 or discovered latexmk paths expand `%p` (PDF), `%f` (source), `%l` (line)
 directly as argv entries.
 
-With latex-lsp, `latex.forwardSearch` returns page/coordinates. Skim receives
+With texquill, `latex.forwardSearch` returns page/coordinates. Skim receives
 them through AppleScript, waits for startup, and shows its native source-line
 indicator. Set `viewer.focus = false` to keep focus in Neovim. This option
-controls Skim View and latex-lsp forward search; texlab forward search uses
-its own executable/args. Early latex-lsp searches wait up to 10 seconds for
+controls Skim View and texquill forward search; texlab forward search uses
+its own executable/args. Early texquill searches wait up to 10 seconds for
 LspAttach, retaining the source position. Zathura opens the returned page.
 Auto detects Skim in /Applications, then Zathura. Configure Skim/Zathura for
 forward search; generic viewers support View only. The plugin does not run
