@@ -5,9 +5,16 @@ return function(h)
   local result = { pdfUri = vim.uri_from_fname(pdf), locations = { { page = 3, x = 48.5, y = 323.75 } } }
   local function check(name, fn)
     h.test('Skim: ' .. name, function()
-      local system, notify, executable = vim.system, vim.notify, vim.fn.executable
+      local system, notify, executable, has = vim.system, vim.notify, vim.fn.executable, vim.fn.has
       local calls, notices, responses = {}, {}, {}
       config.setup({ lsp = 'texquill', viewer = { method = 'skim', focus = false } })
+      -- Exercise explicit Skim selection on non-macOS hosts, as in Linux CI.
+      vim.fn.has = function(feature)
+        if feature == 'mac' or feature == 'win32' then
+          return 0
+        end
+        return has(feature)
+      end
       vim.fn.executable = function()
         return 1
       end
@@ -30,7 +37,7 @@ return function(h)
           return false
         end)
       end, debug.traceback)
-      vim.system, vim.notify, vim.fn.executable = system, notify, executable
+      vim.system, vim.notify, vim.fn.executable, vim.fn.has = system, notify, executable, has
       config.setup()
       assert(ok, err)
     end)

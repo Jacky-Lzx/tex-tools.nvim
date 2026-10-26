@@ -132,6 +132,7 @@ function M.detect(client)
   local executable = options.executable
   if not executable then
     executable = method == 'zathura' and 'zathura'
+      or (method == 'skim' and 'open')
       or (vim.fn.has('mac') == 1 and 'open' or (vim.fn.has('win32') == 1 and 'explorer.exe' or 'xdg-open'))
     if method == 'zathura' and vim.fs.basename(forward.executable or '') == 'zathura' then
       executable = forward.executable
