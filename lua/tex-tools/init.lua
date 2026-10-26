@@ -712,14 +712,14 @@ function M.setup(opts)
     group = lsp_group,
     callback = function(event)
       local client = vim.lsp.get_client_by_id(event.data.client_id)
-      if client and client.name == 'texlab' then
-        require('tex-tools.build').attach(client, event.buf)
+      if client and require('tex-tools.lsp').matches(client) then
+        require('tex-tools.lsp').attach(client, event.buf)
       end
     end,
   })
   if package.loaded['vim.lsp'] then
-    for _, client in ipairs(vim.lsp.get_clients({ name = 'texlab' })) do
-      require('tex-tools.build').attach(client)
+    for _, client in ipairs(require('tex-tools.lsp').clients()) do
+      require('tex-tools.lsp').attach(client)
     end
   end
   generation = generation + 1
@@ -886,6 +886,13 @@ function M.inverse_search_command(kind)
 end
 function M.forward_search()
   return require('tex-tools.lsp').forward_search()
+end
+
+function M.inverse_search_position(page, x, y)
+  if require('tex-tools.lsp').backend() ~= 'latex-lsp' then
+    return false, 'PDF coordinate queries require latex-lsp'
+  end
+  return require('tex-tools.lsp.latex').inverse_search(page, x, y)
 end
 
 function M.cancel_build()

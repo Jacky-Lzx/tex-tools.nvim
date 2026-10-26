@@ -39,6 +39,9 @@ end
 
 function M.resolve(client, opts)
   opts = opts or {}
+  if require('tex-tools.lsp').backend() == 'latex-lsp' then
+    return require('tex-tools.lsp.latex').project_info(client, opts.bufnr)
+  end
   local file = vim.api.nvim_buf_get_name(opts.bufnr or 0)
   if file == '' or file:match('^%w+://') then
     return nil, 'Open a local .tex file first'
@@ -159,6 +162,9 @@ function M.attach(client, path)
 end
 
 local function change(client, path)
+  if require('tex-tools.lsp').backend() == 'latex-lsp' then
+    return require('tex-tools.lsp.latex').main_file(client, path)
+  end
   local manager = require('tex-tools.build')
   if manager.active(client) or manager.state(client).cleaning then
     return false, 'Wait for compilation or cleaning to finish before changing the main file'
@@ -183,6 +189,9 @@ function M.main_file(path)
   local client, err = require('tex-tools.lsp').client()
   if not client then
     return false, err
+  end
+  if require('tex-tools.lsp').backend() == 'latex-lsp' then
+    return require('tex-tools.lsp.latex').main_file(client, path)
   end
   if path ~= nil then
     return change(client, path)
@@ -233,6 +242,9 @@ function M.info()
   if not client then
     return nil, err
   end
+  if require('tex-tools.lsp').backend() == 'latex-lsp' then
+    return require('tex-tools.lsp.latex').project_info(client)
+  end
   local project
   project, err = M.resolve(client)
   if not project then
@@ -254,16 +266,16 @@ function M.show_info()
     return false, err
   end
   local lines = {
-    'texlab client: ' .. info.client_id,
+    require('tex-tools.lsp').backend() .. ' client: ' .. info.client_id,
     'Main: ' .. info.main_file .. ' (' .. info.main_source .. ')',
     'LSP root: ' .. (info.root_dir or '(unset)'),
     'Working directory: ' .. info.cwd,
     'Compiler: ' .. info.compiler .. (info.profile and (' [' .. info.profile .. ']') or ''),
-    'Arguments: ' .. vim.inspect(info.build.args),
-    'Auxiliary directory: ' .. info.aux_dir,
-    'Log: ' .. info.log_file,
-    'PDF: ' .. info.pdf_file,
-    'SyncTeX: ' .. info.synctex_file,
+    'Arguments: ' .. vim.inspect(info.build.arguments or info.build.args),
+    'Auxiliary directory: ' .. (info.aux_dir or '(managed by server)'),
+    'Log: ' .. (info.log_file or '(build first)'),
+    'PDF: ' .. (info.pdf_file or '(build first)'),
+    'SyncTeX: ' .. (info.synctex_file or '(managed by server)'),
   }
   vim.notify(table.concat(lines, '\n'), vim.log.levels.INFO, { title = 'tex-tools' })
   return true

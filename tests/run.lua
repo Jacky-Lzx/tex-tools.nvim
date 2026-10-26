@@ -520,6 +520,8 @@ dofile('tests/latexmk.lua')({ test = test, eq = eq, buffer = buffer })
 
 dofile('tests/diagnostics.lua')({ test = test, eq = eq, buffer = buffer })
 
+dofile('tests/lsp_backends.lua')({ test = test, eq = eq, buffer = buffer })
+
 local function color(text, code)
   if vim.env.NO_COLOR and vim.env.NO_COLOR ~= '' then
     return text

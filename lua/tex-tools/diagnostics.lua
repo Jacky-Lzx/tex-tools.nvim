@@ -51,7 +51,7 @@ local function source_buffer(client, bufnr)
 end
 
 function M.sync(client, bufnr)
-  if client.name ~= 'texlab' or not client.initialized then
+  if require('tex-tools.lsp').backend() ~= 'texlab' or client.name ~= 'texlab' or not client.initialized then
     return true
   end
   bufnr = source_buffer(client, bufnr)

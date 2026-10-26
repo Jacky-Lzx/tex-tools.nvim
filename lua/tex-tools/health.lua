@@ -16,17 +16,21 @@ function M.check()
       { 'Install latex with your parser manager (:TSInstall latex)' }
     )
   end
-  local clients = vim.lsp.get_clients({ name = 'texlab' })
+  local lsp = require('tex-tools.lsp')
+  local backend = lsp.backend()
+  local clients = lsp.clients()
   if #clients > 0 then
-    vim.health.ok('texlab is running')
-  elseif vim.fn.executable('texlab') == 1 then
-    vim.health.warn('texlab is installed but has no running client', { 'Enable texlab in your LSP configuration' })
+    vim.health.ok(backend .. ' is running')
+  elseif vim.fn.executable(backend) == 1 then
+    vim.health.warn(backend .. ' is installed but has no running client', { 'Enable it in your LSP configuration' })
   else
-    vim.health.warn('texlab is unavailable; build and forward search need an attached texlab client')
+    vim.health.warn(backend .. ' is unavailable; attach the selected LSP for builds and forward search')
   end
-  local attached = vim.lsp.get_clients({ name = 'texlab', bufnr = 0 })[1]
+  local attached = lsp.clients(vim.api.nvim_get_current_buf())[1]
   if attached then
-    local build = (((attached.settings or {}).texlab or {}).build or {})
+    local settings = backend == 'latex-lsp' and require('tex-tools.lsp.latex').settings(attached)
+      or ((attached.settings or {}).texlab or {})
+    local build = settings.build or {}
     local executable = build.executable or 'latexmk'
     if vim.fn.executable(executable) == 1 then
       vim.health.ok('Compiler is executable: ' .. executable)
@@ -38,17 +42,19 @@ function M.check()
       vim.health.ok('Main file: ' .. info.main_file .. ' (' .. info.main_source .. ')')
       vim.health.info('Build working directory: ' .. info.cwd)
       for _, artifact in ipairs({ { 'PDF', info.pdf_file }, { 'SyncTeX', info.synctex_file } }) do
-        local exists = vim.fn.filereadable(artifact[2]) == 1
+        local exists = artifact[2] and vim.fn.filereadable(artifact[2]) == 1
         if artifact[1] == 'SyncTeX' then
-          exists = exists or vim.fn.filereadable(artifact[2]:gsub('%.gz$', '')) == 1
+          exists = exists or (artifact[2] and vim.fn.filereadable(artifact[2]:gsub('%.gz$', '')) == 1)
         end
         if exists then
           vim.health.ok(artifact[1] .. ': ' .. artifact[2])
-        else
+        elseif artifact[2] then
           vim.health.warn(
             artifact[1] .. ' is missing: ' .. artifact[2],
             { 'Compile with SyncTeX enabled for source/PDF synchronization' }
           )
+        else
+          vim.health.info(artifact[1] .. ' path is managed by the server; compile first')
         end
       end
     else

@@ -77,11 +77,14 @@ function M.log(path)
       return false, err
     end
     local project
-    project, err = require('tex-tools.project').resolve(client)
+    project, err = require('tex-tools.project').info()
     if not project then
       return false, err
     end
-    path = vim.fs.joinpath(project.log_dir, project.stem .. '.log')
+    path = project.log_file
+    if not path then
+      return false, 'No build log reported by the server; compile first'
+    end
   end
   path = vim.fs.abspath(path)
   if vim.fn.filereadable(path) ~= 1 then
@@ -114,7 +117,11 @@ function M.errors(opts)
     end
   end
   local items = vim.diagnostic.toqflist(diagnostics)
-  vim.fn.setqflist({}, ' ', { title = 'tex-tools: texlab diagnostics', items = items })
+  vim.fn.setqflist(
+    {},
+    ' ',
+    { title = 'tex-tools: ' .. require('tex-tools.lsp').backend() .. ' diagnostics', items = items }
+  )
   if #items > 0 and opts.open ~= false then
     vim.cmd.copen()
   end

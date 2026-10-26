@@ -1,4 +1,4 @@
-*tex-tools.txt*  LaTeX editing with Tree-sitter and texlab
+*tex-tools.txt*  LaTeX editing with Tree-sitter and LSP
 
 Structural edits, text objects, navigation, tables and optional conceal.
 Requires Neovim 0.11+ and the `latex` Tree-sitter parser. Follow links with
@@ -33,10 +33,12 @@ Install the parser separately (e.g. `:TSInstall latex`), then call: >lua
     })
 <
 Commands and buffer-local mappings attach to `tex/plaintex` buffers. Set
-`vim.g.maplocalleader` before loading. Configure texlab and its toolchain in
-your LSP setup; editing needs only the parser.
+`vim.g.maplocalleader` before loading. Configure the selected language server
+and toolchain in your LSP setup.
+Local structural editing needs only the parser.
 
 Options and defaults ~
+  `lsp`                 `'texlab'`; or `'latex-lsp'`
   `mappings`            `true`; false keeps commands and <Plug> mappings
   `overwrite_mappings`  `false`; preserve existing global/local keys
   `smart_enter`         `false`; list-aware Insert <CR>, requires mappings
@@ -270,10 +272,20 @@ Cycles/missing/nonliteral includes warn. Macros, conditionals, includeonly and
 TEXINPUTS are not evaluated. Per refresh: 256 file visits, 32 nested includes,
 2 MiB per disk file, 8 MiB total; exceeding a limit returns an error.
 
+With latex-lsp, headings come from `textDocument/documentSymbol`; `!` uses
+server root selection and follows local .tex `documentLink` targets in source
+order. No local TeX parsing or include resolution is used for this outline.
+Titles/ranges follow the server. Limits: 256 file visits, 32 nested includes;
+cyclic or failed includes warn. A selected latex-lsp client is required.
+
 ==============================================================================
 BUILD, LOGS AND CLEANUP                                      *tex-tools-build*
 
-Requires an attached, separately configured texlab client.
+Requires an attached, separately configured client selected by `lsp`.
+Texlab remains the default. With `lsp = 'latex-lsp'`, configure the Neovim
+client name as `latex_lsp` or `latex-lsp`; the plugin does not start servers
+or fall back to another backend. Use `cmd = { 'latex-lsp', '--stdio' }`.
+Server settings use `init_options` or `settings.latex` (also unwrapped).
 
 `:TexToolsBuild`                                              *:TexToolsBuild*
     Save current/main buffers with `:update`, then build the resolved main.
@@ -283,9 +295,9 @@ Requires an attached, separately configured texlab client.
 `:TexToolsInfo`                                                *:TexToolsInfo*
     Show main, compiler, working directory and artifact paths.
 `:TexToolsCancelBuild`                                  *:TexToolsCancelBuild*
-    Cancel builds in the current buffer's texlab server instance.
+    Cancel the current project build (texlab: current server instance).
 `:TexToolsCancelAllBuilds`                          *:TexToolsCancelAllBuilds*
-    Cancel builds in every running texlab instance.
+    Cancel builds in every running instance of the selected backend.
 `:TexToolsBuildStatus`                                  *:TexToolsBuildStatus*
     Show build state, elapsed time, on-save setting and current compiler.
 `:TexToolsBuildOnSave` [on/off/toggle]                  *:TexToolsBuildOnSave*
@@ -303,7 +315,7 @@ Requires an attached, separately configured texlab client.
 `:TexToolsCleanFull`                                      *:TexToolsCleanFull*
     Also remove the PDF. Refuse cleanup during compilation/another cleanup.
 
-Build behavior ~
+Texlab build behavior ~
 Manual builds use the selected main; automatic builds keep texlab's dependency
 root. Save a modified child first or disable `build.onSave` before building
 another main. A save-triggered build does not also send a manual request. One
@@ -313,7 +325,7 @@ leave an incomplete PDF. Status refers to the last build; compiler/profile
 refer to current settings. Main/compiler changes are refused during builds or
 cleanup. No independent `latexmk -pvc` or region compilation is provided.
 
-Artifact discovery ~
+Texlab artifact discovery ~
 Resolve main via root directives, `build.main_file` or `\documentclass`;
 ambiguous roots fail. Output/jobname arguments and explicit texlab directories
 are respected. Latexmk's `-dir-report-only` discovers `.latexmkrc`/`-r` paths;
@@ -321,11 +333,28 @@ other backends may need explicit directories. Discovered log directories sync
 to texlab on attachment, TeX buffer changes and rc saves; explicit overrides
 stay. Omit `-file-line-error` for texlab diagnostics, then rebuild old logs.
 
-Cleanup ~
+Texlab cleanup ~
 Latexmk uses texlab clean requests. Tectonic compile removes exact auxiliary
 files, retaining source, bibliography, `.bbl` and unrelated files; full adds
 the PDF. No directory recursion; leaf symlinks are unlinked. Tectonic project
 build/watch and unsupported compilers return errors.
+
+Latex-lsp behavior ~
+Build, cancel, status and cleanup call `latex.build`, `latex.cancelBuild`,
+`latex.buildStatus`, `latex.cleanAuxiliary` and `latex.cleanArtifacts`.
+The server owns dependency/root discovery, artifact paths, build concurrency,
+cleanup safety and diagnostics. This backend never probes latexmk itself.
+Build saves the current buffer; save other modified dependencies first.
+On-save builds use the server's `build.onSave`. Main selection updates its
+`build.rootFile`; reset clears it. `build.main_file` sets the initial
+override.
+Server project files may override these client defaults.
+
+Info/log/view use the root and PDF/log URIs reported by the server. Artifact
+paths may be absent before a completed build or after cleanup. Output shows
+its completion summary (not a live compiler stream); existing notification
+handlers are preserved. Status and project queries wait up to two seconds
+per LSP request. Builds and SyncTeX commands run asynchronously.
 
 ==============================================================================
 COMPILER PROFILES                                *tex-tools-compiler-profiles*
@@ -360,11 +389,27 @@ success means sent, with asynchronous server application. Other LSP settings
 stay. All buffers sharing the client see changes; files are never rewritten.
 `setup()` only defines profiles; your LSP setup chooses the initial compiler.
 
+Latex-lsp profiles use native server keys instead: required `executable`;
+optional `arguments`, `engine`, `outputDirectory`, `auxiliaryDirectory`,
+`finalOutputDirectory`, `jobName`. Omitted fields reset to server defaults.
+Arguments accept server placeholders `%f`, `%o`, `%j`. Example:
+>lua
+    require('tex-tools').setup({
+      lsp = 'latex-lsp',
+      build = { profiles = {
+        latexmk = { executable = 'latexmk', engine = 'xelatex' },
+        direct = { executable = 'xelatex', outputDirectory = 'build' },
+      } },
+    })
+<
+Validation and effective project configuration belong to the server.
+Profile matching describes client settings; project files may override them.
+
 ==============================================================================
 PDF VIEWING AND INVERSE SEARCH                              *tex-tools-viewer*
 
 `:TexToolsView`                                                *:TexToolsView*
-    Open the resolved PDF without a source jump; requires texlab for paths.
+    Open the resolved PDF without a source jump; requires the selected LSP.
 `:TexToolsForwardSearch`                              *:TexToolsForwardSearch*
     Jump the PDF to the cursor without saving; requires configured SyncTeX.
 `:TexToolsInverseSearch` [skim|zathura]               *:TexToolsInverseSearch*
@@ -382,6 +427,15 @@ needs no SyncTeX file; synchronized search requires compiler/viewer support
 (Tectonic: `--synctex`). Forward search uses texlab settings; explicit mains
 or discovered latexmk paths expand `%p` (PDF), `%f` (source), `%l` (line)
 directly as argv entries.
+
+With latex-lsp, `latex.forwardSearch` returns page/coordinates. Skim receives
+them through AppleScript; Zathura opens the returned page. Auto detects Skim
+in /Applications, then Zathura. Configure Skim/Zathura for forward search;
+generic viewers support View only. The plugin does not run SyncTeX again.
+The Lua `inverse_search_position(page, x, y)` API calls `latex.inverseSearch`
+and jumps to the first returned source location. PDF pages are one-based;
+coordinates are points measured from the top left. Existing source-file
+callbacks work with both backends.
 
 Callbacks survive Neovim restarts; open a local TeX file to register a
 session. Regenerate after executable/plugin/cache path or NVIM_APPNAME
@@ -522,11 +576,17 @@ Build and project ~
 `build()`                                                  *tex-tools.build()*
 `forward_search()`                                *tex-tools.forward_search()*
     `true, request_id` or `false, error`; asynchronous results notify.
+`inverse_search_position(page, x, y)` *tex-tools.inverse_search_position()*
+    Latex-lsp only: query PDF coordinates and jump to the first source result.
+    Returns `true, request_id` or `false, error`; asynchronous errors notify.
 `cancel_build()` / `cancel_all_builds()` / `build_on_save([boolean])`
     `boolean[, result_or_error]`; omitted on-save value toggles.
 `build_status()`
     Snapshot or `nil, error`: phase, uri, on_save, elapsed, result/error when
     known, and current compiler/profile. Returned tables are copies.
+    Latex-lsp queries `latex.buildStatus` and retains native response fields;
+    phase uses native idle/running/success/error/cancelled/timeout strings.
+    on_save reflects client settings; project configuration may override it.
 `compiler([name])`                                      *tex-tools.compiler()*
     Query/switch (`'toggle'` cycles). `true, snapshot` or `false, error`;
     snapshot: profile, executable, args, sorted profiles. Matching compares
@@ -559,7 +619,7 @@ Viewer and outline ~
 ==============================================================================
 HEALTH AND DEVELOPMENT                                      *tex-tools-health*
 
-Run `:checkhealth tex-tools` for Neovim/parser/texlab, main/compiler, artifact
+Run `:checkhealth tex-tools` for Neovim/parser/LSP, main/compiler, artifact
 paths, viewer and RPC checks. It does not start a server, compiler or viewer.
 
                                                        *tex-tools-development*

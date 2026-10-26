@@ -121,6 +121,8 @@ function M.detect(client)
     local name = vim.fs.basename(forward.executable or '')
     if name == 'displayline' then
       method = 'skim'
+    elseif require('tex-tools.lsp').backend() == 'latex-lsp' and vim.fn.isdirectory('/Applications/Skim.app') == 1 then
+      method = 'skim'
     elseif name == 'zathura' or vim.fn.executable('zathura') == 1 then
       method = 'zathura'
     else
@@ -166,6 +168,9 @@ function M.view()
   if not info then
     return false, err
   end
+  if not info.pdf_file then
+    return false, 'No PDF reported by the server; compile first'
+  end
   if vim.fn.filereadable(info.pdf_file) ~= 1 then
     return false, 'PDF does not exist; compile first: ' .. info.pdf_file
   end
@@ -184,6 +189,43 @@ function M.view()
   end
   argv[#argv + 1] = info.pdf_file
   return start(argv, info.cwd)
+end
+
+-- latex-lsp has already run SyncTeX. Consume its page/coordinates directly.
+function M.show_location(client, result)
+  local location = type(result) == 'table' and result.locations and result.locations[1]
+  if not location or type(result.pdfUri) ~= 'string' then
+    return false, 'No PDF location returned by latex-lsp'
+  end
+  local pdf = vim.uri_to_fname(result.pdfUri)
+  local viewer = M.detect(client)
+  if viewer.method == 'skim' then
+    local script = [[on run argv
+tell application "Skim"
+  set doc to open POSIX file (item 1 of argv)
+  set targetPage to page (item 2 of argv as integer) of doc
+  set pageBounds to bounds of targetPage
+  set px to (item 3 of argv as real) + (item 1 of pageBounds)
+  set py to (item 4 of pageBounds) - (item 4 of argv as real)
+  go doc to targetPage at {px, py}
+  activate
+end tell
+end run]]
+    return start({ 'osascript', '-e', script, pdf, tostring(location.page), tostring(location.x), tostring(location.y) })
+  end
+  local argv = { viewer.executable }
+  vim.list_extend(argv, viewer.args)
+  if viewer.method == 'zathura' then
+    local callback, err = M.callback('zathura')
+    if not callback then
+      return false, err
+    end
+    vim.list_extend(argv, { '--synctex-editor-command', callback.shell_command, '--page', tostring(location.page) })
+  else
+    return false, 'Select viewer.method = skim or zathura for latex-lsp forward search'
+  end
+  argv[#argv + 1] = pdf
+  return start(argv)
 end
 
 -- texlab's forwardSearch request cannot express a session main-file override.

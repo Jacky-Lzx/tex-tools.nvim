@@ -90,7 +90,7 @@ function M.attach(client, bufnr)
       callback = function(event)
         local data = event.data or {}
         local source = vim.lsp.get_client_by_id(data.client_id)
-        if source and source.name == 'texlab' then
+        if source and source.name == 'texlab' and require('tex-tools.lsp').matches(source) then
           M.progress(source, data.params)
         end
       end,

@@ -4,6 +4,9 @@ local auxiliary = { '.aux', '.out', '.toc', '.lof', '.lot', '.fls', '.nav', '.sn
 
 function M.clean(full)
   vim.validate('full', full, 'boolean', true)
+  if require('tex-tools.lsp').backend() == 'latex-lsp' then
+    return require('tex-tools.lsp.latex').clean(full)
+  end
   local lsp, manager = require('tex-tools.lsp'), require('tex-tools.build')
   local client, err = lsp.client()
   if not client then

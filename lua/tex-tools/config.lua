@@ -1,6 +1,7 @@
 local M = {}
 
 local defaults = {
+  lsp = 'texlab',
   mappings = true,
   overwrite_mappings = false,
   smart_enter = false,
@@ -13,9 +14,12 @@ local defaults = {
 
 M.options = vim.deepcopy(defaults)
 
-M.profile_fields = { 'executable', 'args', 'auxDirectory', 'logDirectory', 'pdfDirectory', 'filename' }
+local texlab_fields = { 'executable', 'args', 'auxDirectory', 'logDirectory', 'pdfDirectory', 'filename' }
+local latex_fields =
+  { 'executable', 'arguments', 'engine', 'outputDirectory', 'auxiliaryDirectory', 'finalOutputDirectory', 'jobName' }
+M.profile_fields = texlab_fields
 
-local function validate_profiles(profiles)
+local function validate_profiles(profiles, fields)
   vim.validate('build.profiles', profiles, 'table')
   for name, profile in pairs(profiles) do
     assert(
@@ -25,23 +29,32 @@ local function validate_profiles(profiles)
     local key = 'build.profiles.' .. name
     vim.validate(key, profile, 'table')
     for field in pairs(profile) do
-      assert(
-        vim.tbl_contains(M.profile_fields, field),
-        'Unknown compiler profile option: ' .. key .. '.' .. tostring(field)
-      )
+      assert(vim.tbl_contains(fields, field), 'Unknown compiler profile option: ' .. key .. '.' .. tostring(field))
     end
     vim.validate(key .. '.executable', profile.executable, 'string')
     assert(
       profile.executable ~= '' and not profile.executable:find('%z'),
       key .. '.executable must be a nonempty executable path'
     )
-    vim.validate(key .. '.args', profile.args, 'table')
-    assert(vim.islist(profile.args), key .. '.args must be a list')
-    for _, argument in ipairs(profile.args) do
-      vim.validate(key .. '.args entry', argument, 'string')
-      assert(not argument:find('%z'), key .. '.args must not contain NUL bytes')
+    local argkey = fields == latex_fields and 'arguments' or 'args'
+    local arguments = profile[argkey]
+    vim.validate(key .. '.' .. argkey, arguments, 'table', argkey == 'arguments')
+    assert(arguments == nil or vim.islist(arguments), key .. '.' .. argkey .. ' must be a list')
+    for _, argument in ipairs(arguments or {}) do
+      vim.validate(key .. '.' .. argkey .. ' entry', argument, 'string')
+      assert(not argument:find('%z'), key .. '.' .. argkey .. ' must not contain NUL bytes')
     end
-    for _, field in ipairs({ 'auxDirectory', 'logDirectory', 'pdfDirectory', 'filename' }) do
+    for _, field in ipairs({
+      'auxDirectory',
+      'logDirectory',
+      'pdfDirectory',
+      'filename',
+      'engine',
+      'outputDirectory',
+      'auxiliaryDirectory',
+      'finalOutputDirectory',
+      'jobName',
+    }) do
       local value = profile[field]
       if value ~= nil then
         vim.validate(key .. '.' .. field, value, 'string')
@@ -64,6 +77,8 @@ function M.setup(opts)
   opts = opts or {}
   vim.validate('opts', opts, 'table')
   local options = vim.tbl_deep_extend('force', vim.deepcopy(defaults), opts)
+  assert(vim.tbl_contains({ 'texlab', 'latex-lsp' }, options.lsp), 'lsp must be texlab or latex-lsp')
+  local fields = options.lsp == 'latex-lsp' and latex_fields or texlab_fields
   vim.validate('mappings', options.mappings, 'boolean')
   vim.validate('overwrite_mappings', options.overwrite_mappings, 'boolean')
   vim.validate('smart_enter', options.smart_enter, 'boolean')
@@ -77,7 +92,7 @@ function M.setup(opts)
     options.build.main_file == false or (type(options.build.main_file) == 'string' and options.build.main_file ~= ''),
     'build.main_file must be false or a nonempty path'
   )
-  validate_profiles(options.build.profiles)
+  validate_profiles(options.build.profiles, fields)
   vim.validate('viewer', options.viewer, 'table')
   assert(vim.tbl_contains({ 'auto', 'skim', 'zathura', 'generic' }, options.viewer.method), 'Unknown viewer.method')
   assert(
@@ -134,7 +149,7 @@ function M.setup(opts)
   for _, name in ipairs(options.math_environments) do
     vim.validate('math environment', name, 'string')
   end
-  M.options = options
+  M.profile_fields, M.options = fields, options
 end
 
 return M

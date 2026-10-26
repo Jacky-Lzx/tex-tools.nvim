@@ -20,6 +20,9 @@ local function matches(build, profile)
 end
 
 function M.snapshot(client)
+  if require('tex-tools.lsp').backend() == 'latex-lsp' then
+    return require('tex-tools.lsp.latex').compiler_snapshot(client)
+  end
   local build = require('tex-tools.diagnostics').build_settings(client)
   local profiles = require('tex-tools.config').options.build.profiles
   local available = M.names()
@@ -46,6 +49,9 @@ function M.select(name)
   local client, err = require('tex-tools.lsp').client()
   if not client then
     return false, err
+  end
+  if require('tex-tools.lsp').backend() == 'latex-lsp' then
+    return require('tex-tools.lsp.latex').compiler(client, name)
   end
   if name == nil then
     return true, M.snapshot(client)
@@ -105,7 +111,7 @@ function M.command(name)
     return false, snapshot
   end
   local label = snapshot.profile and (snapshot.profile .. ' (' .. snapshot.executable .. ')')
-    or (snapshot.executable .. ' (texlab settings)')
+    or (snapshot.executable .. ' (' .. require('tex-tools.lsp').backend() .. ' settings)')
   vim.notify('Compiler: ' .. label, vim.log.levels.INFO, { title = 'tex-tools' })
   return true, snapshot
 end

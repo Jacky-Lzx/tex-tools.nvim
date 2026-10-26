@@ -154,6 +154,9 @@ end
 
 function M.entries(opts)
   opts = opts or {}
+  if require('tex-tools.lsp').backend() == 'latex-lsp' then
+    return require('tex-tools.lsp.outline').entries(opts)
+  end
   local bufnr = ts.buffer(opts.bufnr)
   if not vim.api.nvim_buf_is_loaded(bufnr) then
     return nil, 'Buffer is not loaded'
@@ -387,7 +390,8 @@ function M.open(opts)
     end
     local row = math.min(entry.row + 1, vim.api.nvim_buf_line_count(target))
     local line = vim.api.nvim_buf_get_lines(target, row - 1, row, false)[1]
-    vim.api.nvim_win_set_cursor(0, { row, math.min(entry.col, #line) })
+    local col = entry.encoding and vim.str_byteindex(line, entry.encoding, entry.col, false) or entry.col
+    vim.api.nvim_win_set_cursor(0, { row, math.min(col, #line) })
     vim.cmd.normal({ 'zv', bang = true })
   end, { buffer = buf, silent = true })
   draw()
