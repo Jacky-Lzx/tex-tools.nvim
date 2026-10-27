@@ -68,10 +68,7 @@ local function rpc(server, code, args, timeout)
   return result, message, disconnected
 end
 
-function M.dispatch(directory, file, line)
-  if type(file) ~= 'string' or file == '' or not line or line < 1 or line % 1 ~= 0 or line == math.huge then
-    return false, 'Expected a source file and a positive line number'
-  end
+local function dispatch(directory, file, line, point)
   file = canonical(file)
   local scan = vim.uv.fs_scandir(directory)
   local matches = {}
@@ -99,8 +96,13 @@ function M.dispatch(directory, file, line)
         if not alive then
           vim.uv.fs_unlink(path)
         else
-          local score, _, disconnected =
-            rpc(record.server, 'return require("tex-tools.inverse").score(...)', { file, record.token }, 500)
+          local score, _, disconnected = rpc(
+            record.server,
+            point and 'return require("tex-tools.inverse").score_pdf(...)'
+              or 'return require("tex-tools.inverse").score(...)',
+            { file, record.token },
+            500
+          )
           if disconnected then
             vim.uv.fs_unlink(path)
           end
@@ -128,8 +130,9 @@ function M.dispatch(directory, file, line)
     -- Recheck eligibility before opening, in case a project closed meanwhile.
     local result, err = rpc(
       match.server,
-      'local file, line, token = ...; if not require("tex-tools.inverse").score(file, token) then return {false} end; return {require("tex-tools.viewer").inverse_search(file, line)}',
-      { file, line, match.token },
+      point and 'return {require("tex-tools.inverse").search_pdf(...)}'
+        or 'local file, line, token = ...; if not require("tex-tools.inverse").score(file, token) then return {false} end; return {require("tex-tools.viewer").inverse_search(file, line)}',
+      point and { file, line, point.x, point.y, match.token } or { file, line, match.token },
       2000
     )
     if result == nil then
@@ -139,7 +142,35 @@ function M.dispatch(directory, file, line)
       return true
     end
   end
-  return false, 'No responsive Neovim session has this source open or a matching texlab workspace'
+  return false,
+    point and 'No responsive Neovim session has registered this PDF; open or forward-search it from tex-tools first'
+      or 'No responsive Neovim session has this source open or a matching texlab workspace'
+end
+
+function M.dispatch(directory, file, line)
+  if type(file) ~= 'string' or file == '' or not line or line < 1 or line % 1 ~= 0 or line == math.huge then
+    return false, 'Expected a source file and a positive line number'
+  end
+  return dispatch(directory, file, line)
+end
+
+function M.dispatch_position(directory, file, page, x, y)
+  local function finite(n)
+    return type(n) == 'number' and n >= 0 and n < math.huge
+  end
+  if
+    type(directory) ~= 'string'
+    or type(file) ~= 'string'
+    or file == ''
+    or not finite(page)
+    or page < 1
+    or page % 1 ~= 0
+    or not finite(x)
+    or not finite(y)
+  then
+    return false, 'Expected a PDF, positive page and finite nonnegative coordinates'
+  end
+  return dispatch(directory, file, page, { x = x, y = y })
 end
 
 return M

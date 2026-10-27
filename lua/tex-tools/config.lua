@@ -95,7 +95,10 @@ function M.setup(opts)
   validate_profiles(options.build.profiles, fields)
   vim.validate('viewer', options.viewer, 'table')
   vim.validate('viewer.focus', options.viewer.focus, 'boolean')
-  assert(vim.tbl_contains({ 'auto', 'skim', 'zathura', 'generic' }, options.viewer.method), 'Unknown viewer.method')
+  assert(
+    vim.tbl_contains({ 'auto', 'skim', 'zathura', 'folio', 'generic' }, options.viewer.method),
+    'Unknown viewer.method'
+  )
   assert(
     options.viewer.executable == false
       or (

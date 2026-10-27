@@ -6,6 +6,24 @@ local function fail(message)
   io.stderr:write('tex-tools inverse search: ' .. tostring(message) .. '\n')
   vim.cmd('cquit 1')
 end
+if arg[1] == '--position' then
+  if arg[2] ~= '--registry' or not arg[3] or #arg ~= 7 then
+    fail('expected --position --registry DIRECTORY PAGE X Y PDF')
+  end
+  local root = vim.fs.dirname(vim.fs.dirname(vim.fs.abspath(debug.getinfo(1, 'S').source:sub(2))))
+  vim.opt.runtimepath:prepend(root)
+  local ok, err = require('tex-tools.inverse_rpc').dispatch_position(
+    arg[3],
+    arg[7],
+    tonumber(arg[4]),
+    tonumber(arg[5]),
+    tonumber(arg[6])
+  )
+  if not ok then
+    fail(err)
+  end
+  vim.cmd('qa!')
+end
 if not server or (server ~= '--registry' and (not line or not file)) then
   fail('expected SERVER LINE FILE')
 end

@@ -94,7 +94,7 @@ local function attach(bufnr)
       {
         nargs = '?',
         complete = function()
-          return { 'skim', 'zathura' }
+          return { 'skim', 'zathura', 'folio' }
         end,
         desc = 'Show the native inverse-search callback',
       },

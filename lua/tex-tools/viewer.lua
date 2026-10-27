@@ -13,8 +13,8 @@ local function join(argv)
 end
 
 function M.callback(kind)
-  if kind ~= 'skim' and kind ~= 'zathura' then
-    return nil, 'Choose skim or zathura for inverse search'
+  if kind ~= 'skim' and kind ~= 'zathura' and kind ~= 'folio' then
+    return nil, 'Choose skim, zathura or folio for inverse search'
   end
   if vim.fn.has('win32') == 1 then
     return nil, 'Generated viewer callbacks currently require POSIX argument quoting'
@@ -33,11 +33,17 @@ function M.callback(kind)
     '-n',
     '-l',
     callback_script,
-    '--registry',
-    inverse.directory(),
-    kind == 'skim' and '%line' or '%{line}',
-    kind == 'skim' and '%file' or '%{input}',
   }
+  if kind == 'folio' then
+    vim.list_extend(argv, { '--position', '--registry', inverse.directory(), '%p', '%x', '%y', '%f' })
+  else
+    vim.list_extend(argv, {
+      '--registry',
+      inverse.directory(),
+      kind == 'skim' and '%line' or '%{line}',
+      kind == 'skim' and '%file' or '%{input}',
+    })
+  end
   -- Skim substitutes into a shell command and escapes double-quote contents.
   -- Single-quoted %file disables its escaping and breaks apostrophe paths.
   -- Zathura instead splits arguments first and substitutes afterwards.
@@ -58,7 +64,8 @@ function M.show_callback(kind)
   if not result then
     return false, err
   end
-  local lines = kind == 'zathura' and { 'Zathura synctex-editor-command:', result.shell_command }
+  local lines = kind == 'folio' and { 'Folio --inverse-search-position:', result.shell_command }
+    or kind == 'zathura' and { 'Zathura synctex-editor-command:', result.shell_command }
     or { 'Skim > Settings > Sync > Preset: Custom', 'Command: ' .. result.command, 'Arguments: ' .. result.arguments }
   lines[#lines + 1] = 'Configure this callback once; it discovers the matching Neovim session after restarts.'
   vim.notify(table.concat(lines, '\n'), vim.log.levels.INFO, { title = 'tex-tools' })
@@ -131,7 +138,8 @@ function M.detect(client)
   end
   local executable = options.executable
   if not executable then
-    executable = method == 'zathura' and 'zathura'
+    executable = method == 'folio' and 'folio'
+      or method == 'zathura' and 'zathura'
       or (method == 'skim' and 'open')
       or (vim.fn.has('mac') == 1 and 'open' or (vim.fn.has('win32') == 1 and 'explorer.exe' or 'xdg-open'))
     if method == 'zathura' and vim.fs.basename(forward.executable or '') == 'zathura' then
@@ -141,7 +149,7 @@ function M.detect(client)
   return { method = method, executable = executable, args = vim.deepcopy(options.args), focus = options.focus }
 end
 
-local function start(argv, cwd)
+function M.start(argv, cwd)
   if vim.fn.executable(argv[1]) ~= 1 then
     return false, 'PDF viewer executable is unavailable: ' .. argv[1]
   end
@@ -176,6 +184,12 @@ function M.view()
     return false, 'PDF does not exist; compile first: ' .. info.pdf_file
   end
   local viewer = M.detect(client)
+  if viewer.method == 'folio' then
+    return require('tex-tools.viewer.folio').show(viewer, client, {
+      pdfUri = vim.uri_from_fname(info.pdf_file),
+      rootUri = vim.uri_from_fname(info.main_file),
+    })
+  end
   local argv = { viewer.executable }
   vim.list_extend(argv, viewer.args)
   if viewer.method == 'zathura' then
@@ -192,7 +206,7 @@ function M.view()
     vim.list_extend(argv, { '-a', 'Skim' })
   end
   argv[#argv + 1] = info.pdf_file
-  return start(argv, info.cwd)
+  return M.start(argv, info.cwd)
 end
 
 -- texquill has already run SyncTeX. Consume its page/coordinates directly.
@@ -203,6 +217,9 @@ function M.show_location(client, result, position)
   end
   local pdf = vim.uri_to_fname(result.pdfUri)
   local viewer = M.detect(client)
+  if viewer.method == 'folio' then
+    return require('tex-tools.viewer.folio').show(viewer, client, result, location)
+  end
   if viewer.method == 'skim' then
     return require('tex-tools.viewer.skim').show(viewer, pdf, location, position)
   end
@@ -218,7 +235,7 @@ function M.show_location(client, result, position)
     return false, 'Select viewer.method = skim or zathura for texquill forward search'
   end
   argv[#argv + 1] = pdf
-  return start(argv)
+  return M.start(argv)
 end
 
 -- texlab's forwardSearch request cannot express a session main-file override.
@@ -240,7 +257,7 @@ function M.forward_search(client)
     for _, value in ipairs(forward.args) do
       argv[#argv + 1] = value:gsub('%%([pfl])', replacements)
     end
-    return start(argv, info.cwd)
+    return M.start(argv, info.cwd)
   end
   return false, 'Configure texlab.forwardSearch executable/args for forward search with a selected main file'
 end

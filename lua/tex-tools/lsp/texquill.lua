@@ -297,7 +297,7 @@ function M.forward_search()
   return true
 end
 
-function M.inverse_search(page, x, y)
+function M.inverse_search(page, x, y, context)
   if
     type(page) ~= 'number'
     or page < 1
@@ -310,19 +310,62 @@ function M.inverse_search(page, x, y)
   then
     return false, 'Use a positive integer page and finite nonnegative PDF coordinates'
   end
-  return execute(
-    'latex.inverseSearch',
-    { uri = vim.uri_from_bufnr(0), page = page, x = x, y = y },
-    function(err, result)
-      if err then
-        notify(err.message or tostring(err), vim.log.levels.ERROR)
-      elseif type(result) == 'table' and result.locations and result.locations[1] then
-        vim.lsp.util.show_document(result.locations[1], 'utf-16', { focus = true })
-      else
-        notify('No source location returned by texquill', vim.log.levels.WARN)
-      end
+  local revision
+  if context then
+    context.inverse_revision = (context.inverse_revision or 0) + 1
+    revision = context.inverse_revision
+  end
+  local function same_uri(a, b)
+    if type(a) ~= 'string' or type(b) ~= 'string' then
+      return false
     end
-  )
+    local function canonical(uri)
+      local file = vim.uri_to_fname(uri)
+      return vim.uv.fs_realpath(file) or vim.fs.normalize(file)
+    end
+    return canonical(a) == canonical(b)
+  end
+  local function callback(err, result)
+    if
+      context
+      and (
+        context.cancelled
+        or context.inverse_revision ~= revision
+        or not vim.api.nvim_buf_is_loaded(context.bufnr)
+        or vim.uri_from_bufnr(context.bufnr) ~= context.source_uri
+        or (context.client.is_stopped and context.client:is_stopped())
+      )
+    then
+      return
+    end
+    if err then
+      notify(err.message or tostring(err), vim.log.levels.ERROR)
+    elseif
+      context
+      and (
+        type(result) ~= 'table'
+        or not same_uri(result.pdfUri, context.pdf_uri)
+        or not same_uri(result.rootUri, context.uri)
+      )
+    then
+      notify('Folio reverse-search result belongs to a different PDF/project', vim.log.levels.WARN)
+    elseif type(result) == 'table' and result.locations and result.locations[1] then
+      vim.lsp.util.show_document(result.locations[1], 'utf-16', { focus = true })
+    else
+      notify('No source location returned by texquill', vim.log.levels.WARN)
+    end
+  end
+  local argument = { uri = context and context.uri or vim.uri_from_bufnr(0), page = page, x = x, y = y }
+  if context then
+    return require('tex-tools.lsp').execute(
+      context.client,
+      'latex.inverseSearch',
+      { argument },
+      callback,
+      context.bufnr
+    )
+  end
+  return execute('latex.inverseSearch', argument, callback)
 end
 
 function M.project_info(client, bufnr)

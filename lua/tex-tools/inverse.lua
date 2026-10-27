@@ -2,6 +2,7 @@ local M = {}
 local record_path, registered_server, token
 local pending, stopping = false, false
 local active = vim.uv.hrtime()
+local pdf_contexts = {}
 
 function M.directory()
   return vim.fs.joinpath(vim.fn.stdpath('cache'), 'tex-tools', 'inverse-search')
@@ -16,6 +17,63 @@ function M.unregister()
     vim.uv.fs_unlink(record_path)
   end
   record_path, registered_server, token = nil, nil, nil
+  for _, context in pairs(pdf_contexts) do
+    context.cancelled = true
+  end
+  pdf_contexts = {}
+end
+
+function M.register_pdf(pdf, client, root_uri, bufnr)
+  if client.name ~= 'texquill' or not vim.api.nvim_buf_is_valid(bufnr) then
+    return false, 'Folio needs an attached texquill source buffer'
+  end
+  local server, err = M.register()
+  if not server then
+    return false, err
+  end
+  local previous = pdf_contexts[canonical(pdf)]
+  if previous then
+    previous.cancelled = true
+  end
+  pdf_contexts[canonical(pdf)] = {
+    client = client,
+    uri = root_uri,
+    pdf_uri = vim.uri_from_fname(canonical(pdf)),
+    bufnr = bufnr,
+    source_uri = vim.uri_from_bufnr(bufnr),
+  }
+  active = vim.uv.hrtime()
+  return true
+end
+
+local function pdf_context(file)
+  local context = pdf_contexts[canonical(file)]
+  if
+    not context
+    or not vim.api.nvim_buf_is_loaded(context.bufnr)
+    or vim.uri_from_bufnr(context.bufnr) ~= context.source_uri
+    or (context.client.is_stopped and context.client:is_stopped())
+    or (context.client.attached_buffers and not context.client.attached_buffers[context.bufnr])
+  then
+    return nil
+  end
+  return context
+end
+
+function M.score_pdf(file, expected_token)
+  if token and token == expected_token and pdf_context(file) then
+    return { priority = 2, depth = 0, active = active }
+  end
+end
+
+function M.search_pdf(file, page, x, y, expected_token)
+  if not M.score_pdf(file, expected_token) then
+    return false, 'No active texquill source session owns this PDF'
+  end
+  if require('tex-tools.lsp').backend() ~= 'texquill' then
+    return false, 'Folio coordinate queries require texquill'
+  end
+  return require('tex-tools.lsp.texquill').inverse_search(page, x, y, pdf_context(file))
 end
 
 function M.register()

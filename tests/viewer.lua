@@ -53,6 +53,101 @@ return function(h)
     eq(true, calls[1].opts.detach)
     eq(nil, package.loaded['tex-tools.viewer'].last_process)
   end)
+  check('Folio consumes server coordinates and honors focus without a second SyncTeX query', function()
+    local client, calls = fixture()
+    client.name, client.server_capabilities =
+      'texquill', { executeCommandProvider = { commands = { 'latex.inverseSearch' } } }
+    tex.setup({ lsp = 'texquill', viewer = { method = 'folio', executable = vim.v.progpath, focus = false } })
+    local pdf = directory .. '/中文 %.pdf'
+    vim.fn.writefile({ 'pdf' }, pdf)
+    local result = {
+      rootUri = vim.uri_from_bufnr(0),
+      pdfUri = vim.uri_from_fname(pdf),
+      locations = { { page = 2, x = 130, y = 220, h = 120, v = 224, width = 300, height = 12 } },
+    }
+    eq(true, require('tex-tools.viewer').show_location(client, result))
+    local argv = calls[1].argv
+    eq('--inverse-search-position', argv[2])
+    assert(argv[3]:find('--position', 1, true) and argv[3]:find('%p', 1, true))
+    eq('--no-focus', argv[4])
+    eq('--synctex-location', argv[5])
+    eq(result.locations[1], vim.json.decode(argv[6]))
+    eq({ '--', pdf }, vim.list_slice(argv, 7))
+    assert(not vim.tbl_contains(argv, '--forward-search'))
+    local inverse = require('tex-tools.inverse')
+    local callback = assert(tex.inverse_search_command('folio'))
+    local stopped = false
+    client.is_stopped = function()
+      return stopped
+    end
+    local record = vim.json.decode(
+      table.concat(
+        vim.fn.readfile(callback.registry .. '/' .. vim.fn.sha256(callback.server .. ':' .. vim.fn.getpid()) .. '.json'),
+        '\n'
+      )
+    )
+    assert(inverse.score_pdf(pdf, record.token))
+    eq(nil, inverse.score_pdf(pdf, 'old-token'))
+    stopped = true
+    eq(nil, inverse.score_pdf(pdf, record.token))
+  end)
+  check('Folio callback routes PDF points through the owning LSP with an unrelated current buffer', function()
+    local client = fixture()
+    client.name, client.server_capabilities =
+      'texquill', { executeCommandProvider = { commands = { 'latex.inverseSearch' } } }
+    tex.setup({ lsp = 'texquill', viewer = { method = 'folio', executable = vim.v.progpath } })
+    local pdf = directory .. "/中文 %x ' | %.pdf"
+    vim.fn.writefile({ 'pdf' }, pdf)
+    local source, bufnr = vim.uri_from_bufnr(0), vim.api.nvim_get_current_buf()
+    local result =
+      { rootUri = source, pdfUri = vim.uri_from_fname(pdf), locations = { { page = 2, x = 130, y = 220 } } }
+    eq(true, require('tex-tools.viewer').show_location(client, result))
+    local requests, callbacks = {}, {}
+    client.request = function(_, method, params, callback, buffer)
+      requests[#requests + 1] = { method = method, params = params, bufnr = buffer }
+      callbacks[#callbacks + 1] = callback
+      return true, #requests
+    end
+    local callback = assert(tex.inverse_search_command('folio'))
+    local argv = vim.deepcopy(callback.argv)
+    argv[1] = vim.fn.exepath('nvim')
+    argv[#argv - 3], argv[#argv - 2], argv[#argv - 1], argv[#argv] = '2', '130.5', '220.25', pdf
+    h.buffer('unrelated', 'text')
+    local completed
+    vim.system(argv, { text = true, env = child_env, clear_env = true }, function(value)
+      completed = value
+    end)
+    assert(
+      vim.wait(10000, function()
+        return completed ~= nil
+      end, 10),
+      'Folio RPC helper timed out'
+    )
+    eq(0, completed.code)
+    eq(1, #requests)
+    eq({ uri = source, page = 2, x = 130.5, y = 220.25 }, requests[1].params.arguments[1])
+    eq(bufnr, requests[1].bufnr)
+    local location =
+      { uri = source, range = { start = { line = 1, character = 0 }, ['end'] = { line = 1, character = 0 } } }
+    callbacks[1](nil, { rootUri = source, pdfUri = result.pdfUri, locations = { location } })
+    eq(source, vim.uri_from_bufnr(0))
+    eq({ 2, 0 }, vim.api.nvim_win_get_cursor(0))
+    eq(true, require('tex-tools.inverse_rpc').dispatch_position(callback.registry, pdf, 2, 1, 2))
+    eq(true, require('tex-tools.inverse_rpc').dispatch_position(callback.registry, pdf, 2, 3, 4))
+    h.buffer('still unrelated', 'text')
+    callbacks[2](nil, { rootUri = source, pdfUri = result.pdfUri, locations = { location } })
+    eq('still unrelated', vim.api.nvim_get_current_line())
+    callbacks[3](
+      nil,
+      { rootUri = source, pdfUri = vim.uri_from_fname(directory .. '/other.pdf'), locations = { location } }
+    )
+    eq('still unrelated', vim.api.nvim_get_current_line())
+    eq(false, require('tex-tools.inverse_rpc').dispatch_position(callback.registry, pdf, 0, 1, 2))
+    eq(
+      false,
+      require('tex-tools.inverse_rpc').dispatch_position(callback.registry, directory .. '/unknown.pdf', 1, 1, 2)
+    )
+  end)
   check('Zathura receives a stable inverse callback without forward flags', function()
     local _, calls = fixture()
     tex.setup({ viewer = { method = 'zathura', executable = vim.v.progpath } })
