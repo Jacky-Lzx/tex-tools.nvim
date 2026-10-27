@@ -3,7 +3,7 @@ return function(h)
   local tex = require('tex-tools')
 
   local cases = {
-    { 'n', ',ler', '<Plug>(TexToolsRenameEnvironment)' },
+    { 'n', ',lEr', '<Plug>(TexToolsRenameEnvironment)' },
     { 'i', ']]', '<Plug>(TexToolsCloseDelimiter)' },
     { 'x', ',lcs', '<Plug>(TexToolsSurroundCommand)' },
     { 'x', 'ae', '<Plug>(TexToolsAroundEnvironment)' },
@@ -42,7 +42,7 @@ return function(h)
       calls = calls + 1
       return '<Ignore>'
     end
-    vim.keymap.set('n', ',ler', callback, {
+    vim.keymap.set('n', ',lEr', callback, {
       buffer = true,
       expr = true,
       silent = true,
@@ -51,14 +51,14 @@ return function(h)
     })
     tex.setup({ overwrite_mappings = true })
     tex.setup({ mappings = false, overwrite_mappings = true })
-    local restored = vim.fn.maparg(',ler', 'n', false, true)
+    local restored = vim.fn.maparg(',lEr', 'n', false, true)
     eq(callback, restored.callback)
     eq('user callback', restored.desc)
     eq(1, restored.expr)
     eq(1, restored.silent)
     eq(1, restored.nowait)
     eq(1, restored.noremap)
-    keys(',ler')
+    keys(',lEr')
     eq(1, calls)
     tex.setup()
   end)
@@ -78,13 +78,13 @@ return function(h)
   test('clearing overwritten mappings preserves later user replacements and deletions', function()
     tex.setup({ mappings = false })
     buffer('x')
-    vim.keymap.set('n', ',ler', 'OLD', { buffer = true })
+    vim.keymap.set('n', ',lEr', 'OLD', { buffer = true })
     vim.keymap.set('n', ']m', 'OLD', { buffer = true })
     tex.setup({ overwrite_mappings = true })
-    vim.keymap.set('n', ',ler', 'NEW', { buffer = true })
+    vim.keymap.set('n', ',lEr', 'NEW', { buffer = true })
     vim.keymap.del('n', ']m', { buffer = true })
     tex.setup({ mappings = false })
-    eq('NEW', vim.fn.maparg(',ler', 'n'))
+    eq('NEW', vim.fn.maparg(',lEr', 'n'))
     eq('', vim.fn.maparg(']m', 'n'))
     tex.setup()
   end)
@@ -92,32 +92,32 @@ return function(h)
   test('clearing mappings preserves user changes to options with the same rhs', function()
     tex.setup({ overwrite_mappings = true })
     buffer('x')
-    vim.keymap.set('n', ',ler', '<Plug>(TexToolsRenameEnvironment)', {
+    vim.keymap.set('n', ',lEr', '<Plug>(TexToolsRenameEnvironment)', {
       buffer = true,
       desc = 'user replacement',
       nowait = true,
     })
     tex.setup({ mappings = false })
-    eq('user replacement', vim.fn.maparg(',ler', 'n', false, true).desc)
+    eq('user replacement', vim.fn.maparg(',lEr', 'n', false, true).desc)
     tex.setup()
   end)
 
   test('overwrite attaches to future TeX buffers and leaves other filetypes alone', function()
     tex.setup({ overwrite_mappings = true })
     buffer('x', 'lua')
-    vim.keymap.set('n', ',ler', 'USER', { buffer = true })
-    eq('USER', vim.fn.maparg(',ler', 'n'))
+    vim.keymap.set('n', ',lEr', 'USER', { buffer = true })
+    eq('USER', vim.fn.maparg(',lEr', 'n'))
     vim.bo.filetype = 'plaintex'
-    eq('<Plug>(TexToolsRenameEnvironment)', vim.fn.maparg(',ler', 'n'))
+    eq('<Plug>(TexToolsRenameEnvironment)', vim.fn.maparg(',lEr', 'n'))
     tex.setup({ mappings = false })
-    eq('USER', vim.fn.maparg(',ler', 'n'))
+    eq('USER', vim.fn.maparg(',lEr', 'n'))
     tex.setup()
   end)
 
   test('overwrite does not enable mappings or smart Enter implicitly', function()
     tex.setup({ mappings = false, overwrite_mappings = true, smart_enter = true })
     buffer('x')
-    eq('', vim.fn.maparg(',ler', 'n'))
+    eq('', vim.fn.maparg(',lEr', 'n'))
     eq('', vim.fn.maparg('<CR>', 'i'))
     assert(vim.fn.maparg('<Plug>(TexToolsRenameEnvironment)', 'n') ~= '')
     tex.setup({ overwrite_mappings = true })
@@ -141,18 +141,18 @@ return function(h)
   test('overwrite restores mappings in their original buffers after leader changes', function()
     tex.setup({ mappings = false })
     local first = buffer('first')
-    vim.keymap.set('n', ',ler', 'FIRST', { buffer = true })
+    vim.keymap.set('n', ',lEr', 'FIRST', { buffer = true })
     local second = buffer('second')
-    vim.keymap.set('n', ',ler', 'SECOND', { buffer = true })
+    vim.keymap.set('n', ',lEr', 'SECOND', { buffer = true })
     tex.setup({ overwrite_mappings = true })
     vim.g.maplocalleader = ';'
     local ok, err = pcall(function()
       tex.setup({ mappings = false })
       vim.api.nvim_buf_call(first, function()
-        eq('FIRST', vim.fn.maparg(',ler', 'n'))
+        eq('FIRST', vim.fn.maparg(',lEr', 'n'))
       end)
       vim.api.nvim_buf_call(second, function()
-        eq('SECOND', vim.fn.maparg(',ler', 'n'))
+        eq('SECOND', vim.fn.maparg(',lEr', 'n'))
       end)
     end)
     vim.g.maplocalleader = ','
@@ -163,11 +163,11 @@ return function(h)
   test('FileType replay does not reapply overwrite after a user replaces a key', function()
     tex.setup({ overwrite_mappings = true })
     local bufnr = buffer('x')
-    vim.keymap.set('n', ',ler', 'LATER', { buffer = true })
+    vim.keymap.set('n', ',lEr', 'LATER', { buffer = true })
     vim.api.nvim_exec_autocmds('FileType', { group = 'TexTools', buffer = bufnr })
-    eq('LATER', vim.fn.maparg(',ler', 'n'))
+    eq('LATER', vim.fn.maparg(',lEr', 'n'))
     tex.setup()
-    eq('LATER', vim.fn.maparg(',ler', 'n'))
+    eq('LATER', vim.fn.maparg(',lEr', 'n'))
   end)
 
   test('overwrite smart Enter restores an existing expression callback', function()
@@ -187,11 +187,11 @@ return function(h)
 
   test('overwrite option rejects invalid values without changing installed mappings', function()
     buffer('x')
-    local before = vim.fn.maparg(',ler', 'n')
+    local before = vim.fn.maparg(',lEr', 'n')
     local ok, err = pcall(tex.setup, { overwrite_mappings = 'yes' })
     eq(false, ok)
     assert(err:find('overwrite_mappings', 1, true))
     eq(false, require('tex-tools.config').options.overwrite_mappings)
-    eq(before, vim.fn.maparg(',ler', 'n'))
+    eq(before, vim.fn.maparg(',lEr', 'n'))
   end)
 end

@@ -62,8 +62,8 @@ column is the suffix in `<Plug>(TexTools{Action})`.
   Key             Action ~
   `lcr` / `lcd`   RenameCommand / UnwrapCommand
   `lcs`           SurroundCommand (also Visual)
-  `ler` / `let`   RenameEnvironment / ToggleEnvironmentStar
-  `les` / `led`   SurroundEnvironment (also Visual) / UnwrapEnvironment
+  `lEr` / `lEt`   RenameEnvironment / ToggleEnvironmentStar
+  `lEs` / `lEd`   SurroundEnvironment (also Visual) / UnwrapEnvironment
   `lm`            JumpEnvironment
   `lf`            ToggleMathDelimiters
   `ldc` / `ldd`   ChangeMathDelimiters / UnwrapMathDelimiters

@@ -76,8 +76,8 @@ applies to every key.
 | ------------------------------- | --------------------------------------------------- |
 | `<localleader>lcr` / `lcd`      | Rename / unwrap a command                           |
 | `<localleader>lcs`              | Surround a line or Visual selection with a command  |
-| `<localleader>ler` / `let`      | Rename an environment / toggle its star             |
-| `<localleader>les` / `led`      | Surround lines with / unwrap an environment         |
+| `<localleader>lEr` / `lEt`      | Rename an environment / toggle its star             |
+| `<localleader>lEs` / `lEd`      | Surround lines with / unwrap an environment         |
 | `<localleader>lm`               | Jump between environment begin/end markers          |
 | `<localleader>lf`               | Switch dollar/backslash math delimiters             |
 | `<localleader>ldc` / `ldd`      | Change / remove math brackets                       |

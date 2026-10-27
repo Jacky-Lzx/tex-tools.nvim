@@ -275,7 +275,7 @@ end)
 
 test('FileType replay skips registration until explicit setup reconfigures it', function()
   local bufnr = buffer('x')
-  vim.keymap.set('n', ',ler', 'USER', { buffer = bufnr })
+  vim.keymap.set('n', ',lEr', 'USER', { buffer = bufnr })
   local original, registrations = vim.api.nvim_buf_create_user_command, 0
   vim.api.nvim_buf_create_user_command = function(...)
     registrations = registrations + 1
@@ -291,14 +291,14 @@ test('FileType replay skips registration until explicit setup reconfigures it', 
     tex.setup({ mappings = false })
     assert(registrations > 0)
     eq('', vim.fn.maparg(',lcd', 'n'))
-    eq('USER', vim.fn.maparg(',ler', 'n'))
+    eq('USER', vim.fn.maparg(',lEr', 'n'))
     registrations = 0
     replay()
     eq(0, registrations)
     tex.setup()
     assert(registrations > 0)
     assert(vim.fn.maparg(',lcd', 'n') ~= '')
-    eq('USER', vim.fn.maparg(',ler', 'n'))
+    eq('USER', vim.fn.maparg(',lEr', 'n'))
   end)
   vim.api.nvim_buf_create_user_command = original
   tex.setup()
@@ -307,18 +307,18 @@ end)
 
 test('disabled default mappings still provide Plug mappings', function()
   buffer('x')
-  assert(vim.fn.maparg(',ler', 'n') ~= '')
+  assert(vim.fn.maparg(',lEr', 'n') ~= '')
   tex.setup({ mappings = false })
-  eq('', vim.fn.maparg(',ler', 'n'))
+  eq('', vim.fn.maparg(',lEr', 'n'))
   assert(vim.fn.maparg('<Plug>(TexToolsRenameEnvironment)', 'n') ~= '')
   tex.setup()
 end)
 
 test('preserve existing user mappings', function()
   buffer('x', 'lua')
-  vim.keymap.set('n', ',ler', '<Nop>', { buffer = true })
+  vim.keymap.set('n', ',lEr', '<Nop>', { buffer = true })
   vim.bo.filetype = 'tex'
-  eq('<Nop>', vim.fn.maparg(',ler', 'n'))
+  eq('<Nop>', vim.fn.maparg(',lEr', 'n'))
 end)
 
 test('texlab requests use the attached client and correct UTF-16 position', function()

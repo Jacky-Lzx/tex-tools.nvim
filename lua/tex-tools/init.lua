@@ -535,7 +535,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      '<localleader>led',
+      '<localleader>lEd',
       'UnwrapEnvironment',
       function()
         action('environment', 'unwrap')
@@ -543,7 +543,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      '<localleader>les',
+      '<localleader>lEs',
       'SurroundEnvironment',
       function()
         action('environment', 'surround')
@@ -551,7 +551,7 @@ local function attach(bufnr)
     },
     {
       'x',
-      '<localleader>les',
+      '<localleader>lEs',
       'SurroundEnvironment',
       function()
         action('environment', 'surround_visual')
@@ -567,7 +567,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      '<localleader>ler',
+      '<localleader>lEr',
       'RenameEnvironment',
       function()
         action('environment', 'rename')
@@ -575,7 +575,7 @@ local function attach(bufnr)
     },
     {
       'n',
-      '<localleader>let',
+      '<localleader>lEt',
       'ToggleEnvironmentStar',
       function()
         action('environment', 'toggle_star')

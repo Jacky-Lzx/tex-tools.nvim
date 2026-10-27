@@ -12,7 +12,7 @@ return function(h)
     },
     {
       name = 'environment rename',
-      key = ',ler',
+      key = ',lEr',
       value = 'theorem',
       source = '\\begin{quote}first\\end{quote}\n\\begin{center}second\\end{center}\n\\begin{flushleft}third\\end{flushleft}',
       expected = '\\begin{theorem}first\\end{theorem}\n\\begin{theorem}second\\end{theorem}\n\\begin{theorem}third\\end{theorem}',
@@ -51,13 +51,13 @@ return function(h)
     { 'command', ',lcd', '\\textbf{first}\n\\emph{second}', 'first\nsecond' },
     {
       'inline environment',
-      ',led',
+      ',lEd',
       '\\begin{quote}first\\end{quote}\n\\begin{center}second\\end{center}',
       'first\nsecond',
     },
     {
       'standalone environment',
-      ',led',
+      ',lEd',
       '\\begin{quote}\nfirst\n\\end{quote}\n\\begin{center}\nsecond\n\\end{center}',
       'first\nsecond',
     },
@@ -77,7 +77,7 @@ return function(h)
   local toggles = {
     {
       'environment star',
-      ',let',
+      ',lEt',
       '\\begin{quote}first\\end{quote}\n\\begin{center*}second\\end{center*}',
       '\\begin{quote*}first\\end{quote*}\n\\begin{center}second\\end{center}',
     },
