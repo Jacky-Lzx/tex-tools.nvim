@@ -13,8 +13,8 @@ local function join(argv)
 end
 
 function M.callback(kind)
-  if kind ~= 'skim' and kind ~= 'zathura' and kind ~= 'folio' then
-    return nil, 'Choose skim, zathura or folio for inverse search'
+  if kind ~= 'skim' and kind ~= 'zathura' and kind ~= 'pagewing' then
+    return nil, 'Choose skim, zathura or pagewing for inverse search'
   end
   if vim.fn.has('win32') == 1 then
     return nil, 'Generated viewer callbacks currently require POSIX argument quoting'
@@ -34,7 +34,7 @@ function M.callback(kind)
     '-l',
     callback_script,
   }
-  if kind == 'folio' then
+  if kind == 'pagewing' then
     vim.list_extend(argv, { '--position', '--registry', inverse.directory(), '%p', '%x', '%y', '%f' })
   else
     vim.list_extend(argv, {
@@ -64,7 +64,7 @@ function M.show_callback(kind)
   if not result then
     return false, err
   end
-  local lines = kind == 'folio' and { 'Folio --inverse-search-position:', result.shell_command }
+  local lines = kind == 'pagewing' and { 'Pagewing --inverse-search-position:', result.shell_command }
     or kind == 'zathura' and { 'Zathura synctex-editor-command:', result.shell_command }
     or { 'Skim > Settings > Sync > Preset: Custom', 'Command: ' .. result.command, 'Arguments: ' .. result.arguments }
   lines[#lines + 1] = 'Configure this callback once; it discovers the matching Neovim session after restarts.'
@@ -138,7 +138,7 @@ function M.detect(client)
   end
   local executable = options.executable
   if not executable then
-    executable = method == 'folio' and 'folio'
+    executable = method == 'pagewing' and 'pagewing'
       or method == 'zathura' and 'zathura'
       or (method == 'skim' and 'open')
       or (vim.fn.has('mac') == 1 and 'open' or (vim.fn.has('win32') == 1 and 'explorer.exe' or 'xdg-open'))
@@ -184,8 +184,8 @@ function M.view()
     return false, 'PDF does not exist; compile first: ' .. info.pdf_file
   end
   local viewer = M.detect(client)
-  if viewer.method == 'folio' then
-    return require('tex-tools.viewer.folio').show(viewer, client, {
+  if viewer.method == 'pagewing' then
+    return require('tex-tools.viewer.pagewing').show(viewer, client, {
       pdfUri = vim.uri_from_fname(info.pdf_file),
       rootUri = vim.uri_from_fname(info.main_file),
     })
@@ -217,8 +217,8 @@ function M.show_location(client, result, position)
   end
   local pdf = vim.uri_to_fname(result.pdfUri)
   local viewer = M.detect(client)
-  if viewer.method == 'folio' then
-    return require('tex-tools.viewer.folio').show(viewer, client, result, location)
+  if viewer.method == 'pagewing' then
+    return require('tex-tools.viewer.pagewing').show(viewer, client, result, location)
   end
   if viewer.method == 'skim' then
     return require('tex-tools.viewer.skim').show(viewer, pdf, location, position)
@@ -232,7 +232,7 @@ function M.show_location(client, result, position)
     end
     vim.list_extend(argv, { '--synctex-editor-command', callback.shell_command, '--page', tostring(location.page) })
   else
-    return false, 'Select viewer.method = skim or zathura for texquill forward search'
+    return false, 'Select viewer.method = skim, zathura or pagewing for texquill forward search'
   end
   argv[#argv + 1] = pdf
   return M.start(argv)

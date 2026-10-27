@@ -25,7 +25,7 @@ end
 
 function M.register_pdf(pdf, client, root_uri, bufnr)
   if client.name ~= 'texquill' or not vim.api.nvim_buf_is_valid(bufnr) then
-    return false, 'Folio needs an attached texquill source buffer'
+    return false, 'Pagewing needs an attached texquill source buffer'
   end
   local server, err = M.register()
   if not server then
@@ -71,7 +71,7 @@ function M.search_pdf(file, page, x, y, expected_token)
     return false, 'No active texquill source session owns this PDF'
   end
   if require('tex-tools.lsp').backend() ~= 'texquill' then
-    return false, 'Folio coordinate queries require texquill'
+    return false, 'Pagewing coordinate queries require texquill'
   end
   return require('tex-tools.lsp.texquill').inverse_search(page, x, y, pdf_context(file))
 end

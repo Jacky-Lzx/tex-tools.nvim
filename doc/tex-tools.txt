@@ -412,15 +412,15 @@ PDF VIEWING AND INVERSE SEARCH                              *tex-tools-viewer*
     Open the resolved PDF without a source jump; requires the selected LSP.
 `:TexToolsForwardSearch`                              *:TexToolsForwardSearch*
     Jump the PDF to the cursor without saving; requires configured SyncTeX.
-`:TexToolsInverseSearch` [skim|zathura|folio]         *:TexToolsInverseSearch*
+`:TexToolsInverseSearch` [skim|zathura|pagewing]         *:TexToolsInverseSearch*
     Show a stable callback. For Skim, copy Command/Arguments into Settings >
     Sync > Custom once. Zathura launched via View receives it automatically.
 
 Viewer defaults ~
-  `viewer.method`      `'auto'`; also `skim`, `zathura`, `folio`, `generic`
+  `viewer.method`      `'auto'`; also `skim`, `zathura`, `pagewing`, `generic`
   `viewer.executable`  `false`; executable override (Skim overrides `open`)
   `viewer.args`        `{}`; extra argv entries before the PDF path
-  `viewer.focus`      `true`; let Skim/Folio take focus on View/texquill search
+  `viewer.focus`      `true`; allow viewer focus on View/texquill search
 
 Auto detects Skim via texlab displayline, then Zathura via texlab/PATH, then
 the system opener. Generic openers do not configure synchronization. Viewing
@@ -436,17 +436,23 @@ controls Skim View and texquill forward search; texlab forward search uses
 its own executable/args. Early texquill searches wait up to 10 seconds for
 LspAttach, retaining the source position. Zathura opens the returned page.
 Auto detects Skim in /Applications, then Zathura. Configure Skim/Zathura for
-forward search, or explicitly select Folio; generic viewers support View only. The plugin does not run
-SyncTeX again.
-Folio requires the texquill backend and supports full coordinates/highlights.
-Set `viewer = { method = 'folio', executable = '/path/to/folio', focus = false }`.
+forward search, or explicitly select Pagewing. Generic viewers support View
+only. The plugin does not run SyncTeX again.
+Pagewing requires the texquill backend and supports full coordinates/highlights.
+Set the viewer explicitly: >lua
+  viewer = {
+    method = 'pagewing',
+    executable = '/path/to/pagewing',
+    focus = false,
+  }
+<
 View and ForwardSearch automatically configure its coordinate callback. PDF
 Ctrl/Cmd+click queries the same TeXquill client that opened that PDF, even if
 another buffer is currently selected. A registry chooses the owning session;
 stopped clients, replaced requests and results for another PDF/root cannot
 navigate the editor. Run View/ForwardSearch after restarting Neovim or the LSP.
 The viewer's local SyncTeX process is not used in this mode. Coordinates remain
-unrotated physical PDF points; Folio handles zoom, crop and page rotation.
+unrotated physical PDF points; Pagewing handles zoom, crop and page rotation.
 The Lua `inverse_search_position(page, x, y)` API calls `latex.inverseSearch`
 and jumps to the first returned source location. PDF pages are one-based;
 coordinates are points measured from the top left. Existing source-file

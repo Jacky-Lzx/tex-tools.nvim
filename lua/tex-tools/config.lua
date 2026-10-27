@@ -96,7 +96,7 @@ function M.setup(opts)
   vim.validate('viewer', options.viewer, 'table')
   vim.validate('viewer.focus', options.viewer.focus, 'boolean')
   assert(
-    vim.tbl_contains({ 'auto', 'skim', 'zathura', 'folio', 'generic' }, options.viewer.method),
+    vim.tbl_contains({ 'auto', 'skim', 'zathura', 'pagewing', 'generic' }, options.viewer.method),
     'Unknown viewer.method'
   )
   assert(

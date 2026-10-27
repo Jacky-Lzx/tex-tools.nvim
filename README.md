@@ -50,28 +50,28 @@ vim.lsp.enable("texquill")
 require("tex-tools").setup({ lsp = "texquill" })
 ```
 
-Set `viewer = { focus = false }` to keep focus in Neovim when opening Skim/Folio
+Set `viewer = { focus = false }` to keep focus in Neovim when opening Skim/Pagewing
 or performing forward search with texquill. The default is `true`.
 
-For [Folio](https://github.com/Jacky-Lzx/pdf-viewer), configure:
+For [Pagewing](https://github.com/Jacky-Lzx/pdf-viewer), configure:
 
 ```lua
 require('tex-tools').setup({
   lsp = 'texquill',
-  viewer = { method = 'folio', executable = '/path/to/folio', focus = false },
+  viewer = { method = 'pagewing', executable = '/path/to/pagewing', focus = false },
 })
 ```
 
 Compile successfully, then use `:TexToolsView` or `:TexToolsForwardSearch`.
-Ctrl/Cmd+click in Folio sends PDF coordinates back to the owning Neovim session,
+Ctrl/Cmd+click in Pagewing sends PDF coordinates back to the owning Neovim session,
 which uses its existing TeXquill client for reverse search. Both directions use
-server queries; Folio does not run another SyncTeX query in this mode. After
+server queries; Pagewing does not run another SyncTeX query in this mode. After
 restarting Neovim or its LSP, run View/ForwardSearch again to associate the PDF.
 
 The texquill backend delegates builds, cancellation, status, root selection,
 artifact cleanup and SyncTeX queries to `latex.*` server commands. The outline
 uses LSP symbols and document links. PDF/log paths come from server build
-results, so compile before viewing them. Folio and Skim consume returned page/coordinates;
+results, so compile before viewing them. Pagewing and Skim consume returned page/coordinates;
 Zathura opens the returned page. Source callbacks remain available for both.
 Use native `vim.lsp.buf` actions for completion, rename, formatting and code
 actions; local structural edits remain available in this plugin.

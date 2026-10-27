@@ -53,11 +53,11 @@ return function(h)
     eq(true, calls[1].opts.detach)
     eq(nil, package.loaded['tex-tools.viewer'].last_process)
   end)
-  check('Folio consumes server coordinates and honors focus without a second SyncTeX query', function()
+  check('Pagewing consumes server coordinates and honors focus without a second SyncTeX query', function()
     local client, calls = fixture()
     client.name, client.server_capabilities =
       'texquill', { executeCommandProvider = { commands = { 'latex.inverseSearch' } } }
-    tex.setup({ lsp = 'texquill', viewer = { method = 'folio', executable = vim.v.progpath, focus = false } })
+    tex.setup({ lsp = 'texquill', viewer = { method = 'pagewing', executable = vim.v.progpath, focus = false } })
     local pdf = directory .. '/中文 %.pdf'
     vim.fn.writefile({ 'pdf' }, pdf)
     local result = {
@@ -75,7 +75,7 @@ return function(h)
     eq({ '--', pdf }, vim.list_slice(argv, 7))
     assert(not vim.tbl_contains(argv, '--forward-search'))
     local inverse = require('tex-tools.inverse')
-    local callback = assert(tex.inverse_search_command('folio'))
+    local callback = assert(tex.inverse_search_command('pagewing'))
     local stopped = false
     client.is_stopped = function()
       return stopped
@@ -91,11 +91,11 @@ return function(h)
     stopped = true
     eq(nil, inverse.score_pdf(pdf, record.token))
   end)
-  check('Folio callback routes PDF points through the owning LSP with an unrelated current buffer', function()
+  check('Pagewing callback routes PDF points through the owning LSP with an unrelated current buffer', function()
     local client = fixture()
     client.name, client.server_capabilities =
       'texquill', { executeCommandProvider = { commands = { 'latex.inverseSearch' } } }
-    tex.setup({ lsp = 'texquill', viewer = { method = 'folio', executable = vim.v.progpath } })
+    tex.setup({ lsp = 'texquill', viewer = { method = 'pagewing', executable = vim.v.progpath } })
     local pdf = directory .. "/中文 %x ' | %.pdf"
     vim.fn.writefile({ 'pdf' }, pdf)
     local source, bufnr = vim.uri_from_bufnr(0), vim.api.nvim_get_current_buf()
@@ -108,7 +108,7 @@ return function(h)
       callbacks[#callbacks + 1] = callback
       return true, #requests
     end
-    local callback = assert(tex.inverse_search_command('folio'))
+    local callback = assert(tex.inverse_search_command('pagewing'))
     local argv = vim.deepcopy(callback.argv)
     argv[1] = vim.fn.exepath('nvim')
     argv[#argv - 3], argv[#argv - 2], argv[#argv - 1], argv[#argv] = '2', '130.5', '220.25', pdf
@@ -121,7 +121,7 @@ return function(h)
       vim.wait(10000, function()
         return completed ~= nil
       end, 10),
-      'Folio RPC helper timed out'
+      'Pagewing RPC helper timed out'
     )
     eq(0, completed.code)
     eq(1, #requests)

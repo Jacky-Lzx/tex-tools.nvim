@@ -348,7 +348,7 @@ function M.inverse_search(page, x, y, context)
         or not same_uri(result.rootUri, context.uri)
       )
     then
-      notify('Folio reverse-search result belongs to a different PDF/project', vim.log.levels.WARN)
+      notify('Pagewing reverse-search result belongs to a different PDF/project', vim.log.levels.WARN)
     elseif type(result) == 'table' and result.locations and result.locations[1] then
       vim.lsp.util.show_document(result.locations[1], 'utf-16', { focus = true })
     else
