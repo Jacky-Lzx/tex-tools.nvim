@@ -481,7 +481,8 @@ Opt in; native 'conceallevel' / 'concealcursor' control display: >lua
 Categories (all true when enabled) ~
   `accents`          Single-letter accents: `\'{e}` -> é, `\"o` -> ö
   `ligatures`        `\ae{}`, `\OE{}`, `\ss{}`, dashes and quotes
-  `cites`            Hide command/notes; keep keys in [] or ()
+  `cites`            Hide command/notes; keep keys in <>
+  `refs`             Hide reference commands; keep keys in []
   `fancy`            Dots, `\colon`, `\slash`, `\_`, `\item`
   `spacing`          Hide spacing/phantom macros; `~` becomes a space
   `math_bounds`      Hide matched formula markers
@@ -497,7 +498,8 @@ built-in/custom symbols. See `lua/tex-tools/conceal_symbols.lua` for defaults.
 Fractions, scripts, headings and unknown constructs stay source. Math symbols
 are math-only; text accents/ligatures apply in math only inside `\text{...}`.
 Comments, literals, definitions, paths, labels and citation-key spelling are
-protected. No macro expansion or font emulation. Buffer text and window
+protected. Reference/citation inlay hints keep their existing style.
+No macro expansion or font emulation. Buffer text and window
 options stay unchanged; disable overlapping legacy/VimTeX conceal rules.
 Visible-line rendering is cached; pending/missing parses retain source.
 `conceal.max_line_length=10000` caps bytes per line; 0 removes the limit.

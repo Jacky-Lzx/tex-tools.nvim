@@ -70,8 +70,18 @@ local function validate_profiles(profiles, fields)
   end
 end
 
-local conceal_categories =
-  { 'accents', 'ligatures', 'cites', 'fancy', 'spacing', 'math_bounds', 'math_delimiters', 'styles', 'math_symbols' }
+local conceal_categories = {
+  'accents',
+  'ligatures',
+  'cites',
+  'refs',
+  'fancy',
+  'spacing',
+  'math_bounds',
+  'math_delimiters',
+  'styles',
+  'math_symbols',
+}
 
 function M.setup(opts)
   opts = opts or {}

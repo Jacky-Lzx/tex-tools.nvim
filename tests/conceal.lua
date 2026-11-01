@@ -63,7 +63,8 @@ return function(h)
       [=[\ae{} \OE{} \ss{} --- -- ``hi'' !` ?` ,, \dj{}\DJ{}\lq{}\rq{}]=],
       'æ Œ ß — – “hi” ¡ ¿ „ đĐ‘’',
     },
-    { 'cites', [=[\cite[see][p.2]{a--b,c} \citep{k} \parencite{k}]=], '[a--b,c] (k) (k)' },
+    { 'cites', [=[\cite[see][p.2]{a--b,c} \citep{k} \parencite{k}]=], '<a--b,c> <k> <k>' },
+    { 'refs', [=[\ref{sec:math} \eqref{eq:x} \cref{a--b,c} \pageref*{p}]=], '[sec:math] [eq:x] [a--b,c] [p]' },
     { 'fancy', [=[\dots \ldots \colon \slash \_ \item[Label] body]=], '… … : / _ ○[Label] body' },
     { 'spacing', [=[a\,b\;c\!d~e\ f\quad g\hspace{1em}h\phantom{hidden}i]=], 'abcd e f ghi' },
     { 'math_bounds', [=[$x$ \(y\) $$z$$ \[w\]]=], 'x y z w' },
@@ -85,6 +86,10 @@ return function(h)
   end
 
   for _, source in ipairs({
+    [=[\ref{unfinished]=],
+    [=[\verb|\ref{a--b}|]=],
+    [=[\newcommand{\foo}{\ref{a--b}}]=],
+    [=[% \ref{a--b}]=],
     [=[% \ae{} --- $x$ \textbf{source}]=],
     [=[\begin{verbatim}\ae ---\end{verbatim}]=],
     [=[\begin{lstlisting}\ae ---\end{lstlisting}]=],
@@ -97,7 +102,7 @@ return function(h)
     [=[\lstinline[language=TeX]|\ae ---|]=],
     [=[\mintinline{tex}{\ae ---}]=],
     [=[\url{https://a--b/x_1}]=],
-    [=[\label{a--b} \ref{a--b}]=],
+    [=[\label{a--b}]=],
     [=[\includegraphics[width=1--2]{a--b.pdf}]=],
     [=[\textbf{unfinished ---]=],
     [=[$unfinished]=],
@@ -123,6 +128,7 @@ return function(h)
       accents = [=[\'{e}]=],
       ligatures = '---',
       cites = [=[\cite{k}]=],
+      refs = [=[\ref{k}]=],
       fancy = [=[\dots]=],
       spacing = [=[\quad]=],
       math_bounds = '$x$',
@@ -137,6 +143,25 @@ return function(h)
       fixture(source, options)
       eq(source, screen(1))
     end
+  end)
+
+  check('reference conceal preserves inline hints and key spelling', function()
+    local source = [=[\ref{sec:math} \cite{shannon1948}]=]
+    local bufnr = fixture(source)
+    local ns = vim.api.nvim_create_namespace('reference-hint-test')
+    vim.api.nvim_buf_set_extmark(bufnr, ns, 0, source:find('}', 1, true) - 1, {
+      virt_text = { { ' → 2, p. 2', 'LspInlayHint' } },
+      virt_text_pos = 'inline',
+    })
+    vim.api.nvim_buf_set_extmark(bufnr, ns, 0, source:find('}', source:find('}', 1, true) + 1, true) - 1, {
+      virt_text = { { ' → 3', 'LspInlayHint' } },
+      virt_text_pos = 'inline',
+    })
+    eq('[sec:math → 2, p. 2] <shannon1948 → 3>', screen(1))
+    eq(source, h.content())
+    tex.setup({ conceal = { refs = false } })
+    eq([=[\ref{sec:math → 2, p. 2} <shannon1948 → 3>]=], screen(1))
+    vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
   end)
 
   check('edits invalidate cached decorations', function()

@@ -110,7 +110,6 @@ local unsafe_commands = {
 local protected_types = {
   begin = true,
   ['end'] = true,
-  label_reference = true,
   label_reference_range = true,
   acronym_reference = true,
   glossary_entry_reference = true,
@@ -170,7 +169,7 @@ local function inspect(root, bufnr, row, col)
       if info.math == nil then
         info.math = false
       end
-    elseif kind == 'citation' then
+    elseif kind == 'citation' or kind == 'label_reference' then
       info.containers[#info.containers + 1] = node
       info.key = not at_start
     end
@@ -262,15 +261,15 @@ local function collect(bufnr, root, top, bottom, options)
         local kind = node:type()
         local bare = command_name(node, bufnr)
         local cr, cc = node:range()
-        if kind == 'citation' and options.cites and not node:has_error() then
-          local sr, sc, er, ec = group_edges(node, 'keys')
+        if
+          (kind == 'citation' and options.cites or kind == 'label_reference' and options.refs)
+          and not node:has_error()
+        then
+          local sr, sc, er, ec = group_edges(node, kind == 'citation' and 'keys' or 'names')
           if sr then
-            -- Some parsers expose the citation command as an anonymous field.
-            bare = bare or ts.text(node:child(0), bufnr):sub(2):gsub('%*$', '')
-            local parens = bare == 'citep' or bare == 'parencite' or bare == 'autocite'
             add(cr, cc, sr, sc, '')
-            add(sr, sc, sr, sc + 1, parens and '(' or '[')
-            add(er, ec - 1, er, ec, parens and ')' or ']')
+            add(sr, sc, sr, sc + 1, kind == 'citation' and '<' or '[')
+            add(er, ec - 1, er, ec, kind == 'citation' and '>' or ']')
           end
         elseif options.styles and styles[bare] then
           local field = kind == 'text_mode' and 'content' or 'arg'
