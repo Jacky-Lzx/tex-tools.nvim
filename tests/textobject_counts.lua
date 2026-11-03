@@ -131,6 +131,118 @@ return function(h)
     end)
   end
 
+  local function visual_text()
+    return table.concat(
+      vim.fn.getregion(vim.fn.getpos('v'), vim.fn.getpos('.'), {
+        type = vim.fn.mode(),
+        exclusive = vim.o.selection == 'exclusive',
+      }),
+      '\n'
+    )
+  end
+
+  for _, selection in ipairs({ 'inclusive', 'exclusive' }) do
+    for _, reverse in ipairs({ false, true }) do
+      test('Visual environments expand with ' .. selection .. ', reverse=' .. tostring(reverse), function()
+        vim.o.selection = selection
+        local case = cases[1]
+        buffer(case.source)
+        at('中文')
+        keys('vae')
+        eq(case.outer[1], visual_text())
+        for count = 2, 3 do
+          if reverse then
+            keys('o')
+          end
+          keys('ae')
+          eq('v', vim.fn.mode())
+          eq(case.outer[count], visual_text())
+        end
+        -- Running out of parents must leave the largest selection active.
+        vim.notify = function() end
+        keys('ae')
+        eq('v', vim.fn.mode())
+        eq(case.outer[3], visual_text())
+        keys('y')
+        eq(case.outer[3], vim.fn.getreg('"'))
+      end)
+    end
+
+    test('Visual environment bodies expand and switch to around with ' .. selection, function()
+      vim.o.selection = selection
+      local case = cases[1]
+      buffer(case.source)
+      at('中文')
+      keys('vie')
+      eq(case.inner[1], visual_text())
+      keys('ie')
+      eq(case.inner[2], visual_text())
+      keys('ie')
+      eq(case.inner[3], visual_text())
+      keys('<Esc>')
+      at('中文')
+      keys('vie')
+      keys('ae')
+      eq(case.outer[1], visual_text())
+      keys('2ae')
+      eq(case.outer[3], visual_text())
+      keys('<Esc>')
+      at('中文')
+      keys('vae')
+      vim.notify = function() end
+      keys('9ae')
+      eq('v', vim.fn.mode())
+      eq(case.outer[1], visual_text())
+      keys('ae')
+      eq(case.outer[2], visual_text())
+      keys('<Esc>')
+    end)
+
+    test('Visual environment expansion contains both selection endpoints with ' .. selection, function()
+      vim.o.selection = selection
+      buffer('\\begin{quote}\n\\begin{center}one\\end{center}\n\\begin{center}two\\end{center}\n\\end{quote}')
+      at('one')
+      keys('vj')
+      keys('ae')
+      eq(content(), visual_text())
+      keys('<Esc>')
+    end)
+
+    test('multiline same-name environments expand with ' .. selection, function()
+      vim.o.selection = selection
+      buffer('\\begin{quote}\n  \\begin{quote}\n    中文\n  \\end{quote}\n\\end{quote}')
+      at('中文')
+      keys('vaeae')
+      eq(content(), visual_text())
+      keys('<Esc>')
+      at('中文')
+      keys('vieie')
+      eq('  \\begin{quote}\n    中文\n  \\end{quote}', visual_text())
+      keys('<Esc>')
+    end)
+
+    test('linewise selections expand to environments with ' .. selection, function()
+      vim.o.selection = selection
+      buffer('\\begin{quote}\n\\begin{center}\n中文\n\\end{center}\n\\end{quote}')
+      at('中文')
+      keys('Vaeae')
+      eq(content(), visual_text())
+      keys('<Esc>')
+    end)
+
+    test('Visual ie works on markers and counts empty bodies with ' .. selection, function()
+      vim.o.selection = selection
+      buffer('\\begin{quote}before \\begin{center}中文\\end{center} after\\end{quote}')
+      at('center')
+      keys('viey')
+      eq('中文', vim.fn.getreg('"'))
+      buffer('\\begin{quote}before \\begin{center}\\end{center} after\\end{quote}')
+      at('center')
+      keys('v2iey')
+      eq('before \\begin{center}\\end{center} after', vim.fn.getreg('"'))
+    end)
+  end
+
   test('operator and motion counts multiply to select the requested depth', function()
     buffer('before \\one{\\two{\\three{\\four{中文}}}} after')
     at('中文')

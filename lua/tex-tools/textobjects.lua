@@ -11,6 +11,17 @@ local function depth(opts)
   return count
 end
 
+local function parent_environment(env)
+  local node = env.node:parent()
+  while node and not ts.environment(node) do
+    node = node:parent()
+  end
+  if not node then
+    return nil, 'Not enough enclosing LaTeX environments'
+  end
+  return environment.from_node(node, env.bufnr)
+end
+
 ---Return a zero-based, byte-column, end-exclusive environment range.
 function M.environment_range(inner, opts)
   local count, message = depth(opts)
@@ -22,14 +33,7 @@ function M.environment_range(inner, opts)
     return nil, err
   end
   for _ = 2, count do
-    local node = env.node:parent()
-    while node and not ts.environment(node) do
-      node = node:parent()
-    end
-    if not node then
-      return nil, 'Not enough enclosing LaTeX environments'
-    end
-    env, err = environment.from_node(node, env.bufnr)
+    env, err = parent_environment(env)
     if not env then
       return nil, err
     end
@@ -86,11 +90,68 @@ function M.range(kind, inner, opts)
   return range
 end
 
+local function visual_environment(kind)
+  local mode = vim.fn.mode()
+  return kind == 'environment' and (mode == 'v' or mode == 'V')
+end
+
+local function before_or_equal(ar, ac, br, bc)
+  return ar < br or (ar == br and ac <= bc)
+end
+
+local function selection_range(kind, inner, count)
+  if not visual_environment(kind) then
+    return M.range(kind, inner, { count = count })
+  end
+  local requested, err = depth({ count = count })
+  if not requested then
+    return nil, err
+  end
+  -- Use the actual selected bytes, including reversed/exclusive selections.
+  -- The cursor alone may sit in a sibling or just beyond an end marker.
+  local anchor, cursor = vim.fn.getpos('v'), vim.fn.getpos('.')
+  local opts = { type = vim.fn.mode(), exclusive = vim.o.selection == 'exclusive' }
+  local regions = vim.fn.getregionpos(anchor, cursor, opts)
+  if #regions == 0 then
+    return nil, 'Select nonempty text'
+  end
+  local first, last = regions[1][1], regions[#regions][1]
+  local selected = vim.fn.getregion(anchor, cursor, opts)
+  local sr, sc, er = first[2] - 1, math.max(0, first[3] - 1), last[2] - 1
+  local ec = math.max(0, last[3] - 1) + #selected[#selected]
+  local env
+  env, err = environment.current({ pos = { sr, sc } })
+  while env do
+    local outer = { env.node:range() }
+    if before_or_equal(outer[1], outer[2], sr, sc) and before_or_equal(er, ec, outer[3], outer[4]) then
+      local range, message = outer, nil
+      if inner then
+        range, message = environment.body_range(env)
+      end
+      -- Keep ie usable on a begin/end marker. Grow only when the existing
+      -- selection already covers the target; empty bodies still count a level.
+      local covered = range
+        and before_or_equal(sr, sc, range[1], range[2])
+        and before_or_equal(range[3], range[4], er, ec)
+      if not covered then
+        requested = requested - 1
+        if requested == 0 then
+          return range, message
+        end
+      end
+    end
+    env, err = parent_environment(env)
+  end
+  return nil, err
+end
+
 function M.select(kind, inner, count)
-  local range, err = M.range(kind, inner, { count = count })
+  local range, err = selection_range(kind, inner, count)
   if not range then
     -- Cancel an operator instead of letting it consume a fallback motion.
-    vim.api.nvim_feedkeys(vim.keycode('<Esc>'), 'n', false)
+    if not visual_environment(kind) then
+      vim.api.nvim_feedkeys(vim.keycode('<Esc>'), 'n', false)
+    end
     return false, err
   end
   local sr, sc, er, ec = unpack(range)
@@ -129,10 +190,12 @@ end
 ---Expression mapping: cancel before a failed operator creates an empty edit.
 function M.mapping(kind, inner, count)
   count = count == nil and 1 or count
-  local range, err = M.range(kind, inner, { count = count })
+  local range, err = selection_range(kind, inner, count)
   if not range then
     vim.schedule_wrap(vim.notify)(err, vim.log.levels.WARN, { title = 'tex-tools' })
-    return vim.keycode('<Esc>')
+    -- A command also consumes a Visual count; an empty/Ignore RHS can leave it
+    -- pending and drop the selection when the next input is processed.
+    return vim.keycode(visual_environment(kind) and '<Cmd>lua do end<CR>' or '<Esc>')
   end
   -- Selection changes mode, so execute it after leaving expression textlock.
   -- Re-query at execution. Native dot replays this RHS; read its live count

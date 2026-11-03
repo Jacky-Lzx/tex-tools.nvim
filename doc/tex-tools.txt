@@ -197,6 +197,8 @@ Visual/operator-pending mode; e.g. `dai`, `cii`, `y2ia`.
   `at` / `it`       Table cell / without edge whitespace
 
 Counts climb enclosing objects of the same kind; `2d2ac` selects depth four.
+In Visual mode, repeating `ae` or `ie` expands to a larger enclosing range;
+`vaeae` selects the parent environment. At the outermost level, selection stays.
 Sections climb heading levels; cells accept only count 1. Empty inner objects
 or missing depths cancel without changing text, registers or the prior repeat.
 Item objects stay at the nearest list level (`2ai` selects its parent); blank
