@@ -16,6 +16,22 @@ function M.check()
       { 'Install latex with your parser manager (:TSInstall latex)' }
     )
   end
+  local formulas = require('tex-tools.config').formula_options()
+  if formulas.enabled then
+    for _, tool in ipairs({ formulas.latex, formulas.dvipng }) do
+      if vim.fn.executable(tool) == 1 then
+        vim.health.ok('Formula tool: ' .. tool)
+      else
+        vim.health.warn('Formula tool unavailable: ' .. tool)
+      end
+    end
+    local loaded, image = pcall(require, 'image_tools')
+    if loaded and type(image.float) == 'function' then
+      vim.health.ok('image-tools float API is available')
+    else
+      vim.health.warn('Formula display requires image-tools.nvim with float() support')
+    end
+  end
   local lsp = require('tex-tools.lsp')
   local backend = lsp.backend()
   local clients = lsp.clients()

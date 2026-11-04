@@ -657,4 +657,73 @@ Set `TEX_TOOLS_TEST_PARSER=/path/to/latex.so` if needed. Tests use a real
 parser, texlab doubles and a stdio LSP fixture; PDF/compiler integration needs
 your local toolchain. Installation and overview: `README.md`.
 
+
+FORMULA PREVIEWS                                           *tex-tools-formula*
+
+formula_preview defaults to false. A table accepts:
+  enabled=false          Automatic previews (manual commands remain available).
+  delay=100              Automatic delay in milliseconds; manual preview bypasses it.
+  latex="latex"          DVI compiler executable.
+  dvipng="dvipng"        Transparent PNG renderer executable.
+  density=360            Raster DPI; logical size uses a fixed 180-DPI baseline.
+  foreground="auto"      Normal foreground or a #RRGGBB color.
+  preamble               Explicit standalone packages/macros; defaults to
+                         \usepackage{amsmath,amssymb}.
+  timeout=5000           Timeout in milliseconds for each compiler process.
+  concurrency=2          Maximum simultaneous formula workers.
+  max_lines=64           Maximum selected formula line span.
+  max_bytes=16384        Maximum formula source bytes.
+  cache                  Defaults to stdpath("cache")/tex-tools/formulas.
+  max_cache_entries=128  Unused PNG eviction threshold.
+  max_cache_bytes=134217728  Unused PNG byte budget (128 MiB).
+  layout={}              Overrides for image-tools float layout: position,
+                         right_padding, max_width, max_height, border.
+
+Requires Neovim >= 0.12, the latex Tree-sitter parser, image-tools.nvim with its
+public float() API, latex, dvipng and amsmath/amssymb. Image-tools is optional;
+standalone detection and compilation APIs do not load it. With lazy.nvim use
+the configured image-tools plugin name in tex-tools dependencies when enabled.
+Markdown formulas remain owned by image-tools.
+
+:TexToolsFormulaPreview                                   *:TexToolsFormulaPreview*
+    Preview the cursor formula or first formula covering its line.
+:TexToolsFormulaClose                                     *:TexToolsFormulaClose*
+    Close the current float and cancel pending compilation/delay.
+:TexToolsFormulaToggle                                    *:TexToolsFormulaToggle*
+    Toggle automatic formula previews.
+:TexToolsFormulaReload                                    *:TexToolsFormulaReload*
+    Reload the selected formula using current compiler/color settings.
+:TexToolsFormulaInfo                                      *:TexToolsFormulaInfo*
+    Inspect enabled state, stage, selected source, PNG dimensions and last error.
+:TexToolsFormulaClearCache                                *:TexToolsFormulaClearCache*
+    Close this preview and remove unused formula PNGs. Leased files survive.
+
+tex-tools owns source selection, compile cancellation and PNG cache leases.
+Image-tools owns float layout, terminal uploads and display leases. Only public
+image-tools APIs are used. Source edits/reconfiguration reject late results;
+unchanged multiline formulas retain their pending/visible preview. PNG output
+is cached by source, preamble, executables, density and resolved foreground.
+Cache budgets are soft while files are leased by displays or active workers.
+
+Compilation uses a standalone article and the configured preamble. It does not
+inherit project preambles, macros, packages or equation counters. Shell escape
+is disabled; private temporary workspaces are cleaned after completion/cancel.
+Missing executables and invalid TeX appear in :TexToolsFormulaInfo; manual
+commands also report errors. Automatic previews keep errors silent.
+
+Lua APIs:
+  require('tex-tools').formula_at({bufnr?,pos?})
+    Return source, range and key, or nil,error. pos/range use zero-based rows
+    and byte columns; range ends are exclusive. Comments, literal content,
+    definitions and incomplete formulas are excluded. Custom math_environments
+    are recognized. Detection is read-only.
+  require('tex-tools').render_formula(source,options,callback)
+    Compile independently of image-tools/LSP. options overrides formula_preview
+    settings. Return a cancellation function. callback(error,image) receives
+    path, width/height, display_size and an idempotent release() file lease.
+  require('tex-tools').preview_formula({silent?,reload?})
+  require('tex-tools').close_formula_preview()
+  require('tex-tools').toggle_formula_preview()
+  require('tex-tools').formula_info()
+
  vim:tw=78:ts=4:ft=help:norl:

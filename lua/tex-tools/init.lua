@@ -39,6 +39,42 @@ local function attach(bufnr)
     )
   end
   local commands = {
+    TexToolsFormulaPreview = {
+      function()
+        action('formula', 'preview')
+      end,
+      { desc = 'Preview the formula on the current line' },
+    },
+    TexToolsFormulaClose = {
+      function()
+        action('formula', 'close')
+      end,
+      { desc = 'Close the formula preview and cancel pending compilation' },
+    },
+    TexToolsFormulaToggle = {
+      function()
+        M.toggle_formula_preview()
+      end,
+      { desc = 'Toggle automatic formula previews' },
+    },
+    TexToolsFormulaReload = {
+      function()
+        action('formula', 'preview', { reload = true })
+      end,
+      { desc = 'Reload the current formula preview' },
+    },
+    TexToolsFormulaInfo = {
+      function()
+        vim.notify(vim.inspect(M.formula_info()), vim.log.levels.INFO, { title = 'tex-tools formula' })
+      end,
+      { desc = 'Inspect formula preview state and errors' },
+    },
+    TexToolsFormulaClearCache = {
+      function()
+        require('tex-tools.formula').clear_cache()
+      end,
+      { desc = 'Close the formula preview and remove unused compiled PNGs' },
+    },
     TexToolsOutline = {
       function(args)
         action('outline', 'open', { project = args.bang, query = args.args })
@@ -707,6 +743,9 @@ function M.setup(opts)
     error('tex-tools.nvim requires Neovim 0.11 or newer')
   end
   require('tex-tools.config').setup(opts)
+  if require('tex-tools.config').options.formula_preview.enabled or package.loaded['tex-tools.formula'] then
+    require('tex-tools.formula').setup()
+  end
   local lsp_group = vim.api.nvim_create_augroup('TexToolsLsp', { clear = true })
   vim.api.nvim_create_autocmd('LspAttach', {
     group = lsp_group,
@@ -927,6 +966,44 @@ function M.build_errors(opts)
 end
 function M.clean(full)
   return require('tex-tools.clean').clean(full)
+end
+
+-- Formula compilation is independent of image-tools. Only preview_formula()
+-- uses its optional public image display API.
+function M.formula_at(opts)
+  opts = opts or {}
+  local cursor = opts.pos or { vim.api.nvim_win_get_cursor(0)[1] - 1, vim.api.nvim_win_get_cursor(0)[2] }
+  return require('tex-tools.formula.detect').find(
+    opts.bufnr or vim.api.nvim_get_current_buf(),
+    cursor[1],
+    cursor[2],
+    require('tex-tools.config').formula_options()
+  )
+end
+
+function M.render_formula(source, opts, callback)
+  assert(type(source) == 'string' and source ~= '', 'Formula source must be a nonempty string')
+  assert(type(callback) == 'function', 'Formula rendering requires a callback')
+  local options = require('tex-tools.config').formula_options(opts)
+  assert(#source <= options.max_bytes, 'Formula exceeds formula_preview.max_bytes')
+  assert(#vim.split(source, '\n', { plain = true }) <= options.max_lines, 'Formula exceeds formula_preview.max_lines')
+  return require('tex-tools.formula.render').prepare(source, options, callback)
+end
+
+function M.preview_formula(opts)
+  return require('tex-tools.formula').preview(opts)
+end
+
+function M.close_formula_preview()
+  return require('tex-tools.formula').close()
+end
+
+function M.toggle_formula_preview()
+  return require('tex-tools.formula').toggle()
+end
+
+function M.formula_info()
+  return require('tex-tools.formula').info()
 end
 
 return M

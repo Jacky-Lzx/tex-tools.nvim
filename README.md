@@ -25,6 +25,7 @@ With lazy.nvim:
     smart_enter = false,        -- List-aware Insert-mode Enter.
     conceal = false,            -- Optional LaTeX conceal.
     math_environments = {},     -- Additional math environment names.
+    formula_preview = false,    -- Opt in to formula PNG previews via image-tools.nvim.
   },
 }
 ```
@@ -181,6 +182,51 @@ Read-only Lua queries include `in_math()`, `in_comment()`, `in_subscript()`,
 local in_math = function() return require("tex-tools").in_math() end
 -- Use in_math as a snippet condition.
 ```
+
+
+## Formula previews
+
+tex-tools detects LaTeX formulas with the same Tree-sitter semantics as its
+editing commands, compiles them to transparent PNGs and displays them through
+the public `image_tools.float()` API. Install image-tools.nvim with `float()`
+support, Neovim >= 0.12, `latex`, `dvipng` and amsmath/amssymb. The feature is
+optional and disabled by default; LaTeX editing does not require image-tools.
+
+```lua
+require('tex-tools').setup({
+  formula_preview = {
+    enabled = true,
+    delay = 100,
+    density = 360,
+    preamble = '\\usepackage{amsmath,amssymb}',
+    -- layout = { position = 'bottom_right', right_padding = 2 },
+  },
+})
+```
+
+For lazy.nvim add `dependencies = { 'image-tools.nvim' }` to the tex-tools spec
+when enabling previews, using the name from your image-tools installation.
+Move onto a formula or use `:TexToolsFormulaPreview`. `:TexToolsFormulaClose`
+cancels/cleans the current preview; `:TexToolsFormulaToggle` controls automatic
+previews. `:TexToolsFormulaReload`, `:TexToolsFormulaInfo` and
+`:TexToolsFormulaClearCache` refresh, inspect or clear unused compiled PNGs.
+The cursor selects a covering formula, otherwise the first formula covering its
+line. Comments, inline verbatim, literal environments and incomplete formulas
+are excluded. Movement within one formula retains work; leaving, editing its
+source or changing owner cancels stale work. Manual preview bypasses the delay.
+
+Rendering uses a private standalone article and the configured `preamble`;
+project preambles, custom macros and equation counters are not inherited.
+Higher DPI improves sampling while logical display size stays at a 180-DPI
+baseline. Image-tools owns layout (including scrollbar space/right padding),
+uploads and window resources; tex-tools owns compile workers and PNG leases.
+Markdown formula handling remains in image-tools and is unchanged.
+
+Read-only `formula_at({bufnr?, pos?})` returns source, zero-based byte `range`
+and a content key. `render_formula(source, options, callback)` compiles without
+image-tools or an LSP and returns cancellation; callback receives `(error, image)`.
+An image has `path`, pixel dimensions, `display_size` and idempotent `release()`;
+retain its lease until display closes. See `:help tex-tools-formula` for limits.
 
 ## Development
 

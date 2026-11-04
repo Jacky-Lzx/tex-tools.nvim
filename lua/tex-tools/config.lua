@@ -10,6 +10,7 @@ local defaults = {
   build = { output_lines = 2000, main_file = false, profiles = {} },
   -- Additional math environments defined by your document class or packages.
   math_environments = {},
+  formula_preview = false,
 }
 
 M.options = vim.deepcopy(defaults)
@@ -82,6 +83,64 @@ local conceal_categories = {
   'styles',
   'math_symbols',
 }
+
+local function formula_options(value)
+  local options = vim.tbl_deep_extend('force', {
+    enabled = false,
+    delay = 100,
+    latex = 'latex',
+    dvipng = 'dvipng',
+    density = 360,
+    foreground = 'auto',
+    preamble = '\\usepackage{amsmath,amssymb}',
+    timeout = 5000,
+    max_lines = 64,
+    max_bytes = 16 * 1024,
+    concurrency = 2,
+    max_cache_entries = 128,
+    max_cache_bytes = 128 * 1024 * 1024,
+    cache = vim.fn.stdpath('cache') .. '/tex-tools/formulas',
+    layout = {},
+  }, type(value) == 'table' and value or { enabled = value == true })
+  vim.validate('formula_preview.enabled', options.enabled, 'boolean')
+  for _, field in ipairs({
+    'delay',
+    'density',
+    'timeout',
+    'max_lines',
+    'max_bytes',
+    'concurrency',
+    'max_cache_entries',
+    'max_cache_bytes',
+  }) do
+    local number = options[field]
+    assert(
+      type(number) == 'number' and number % 1 == 0 and number >= (field == 'delay' and 0 or 1),
+      'formula_preview.'
+        .. field
+        .. ' must be '
+        .. (field == 'delay' and 'a non-negative' or 'a positive')
+        .. ' integer'
+    )
+  end
+  for _, field in ipairs({ 'latex', 'dvipng', 'cache' }) do
+    assert(
+      type(options[field]) == 'string' and options[field] ~= '' and not options[field]:find('%z'),
+      'formula_preview.' .. field .. ' must be a nonempty string without NUL'
+    )
+  end
+  vim.validate('formula_preview.preamble', options.preamble, 'string')
+  assert(
+    options.foreground == 'auto' or type(options.foreground) == 'string' and options.foreground:match('^#%x%x%x%x%x%x$'),
+    'formula_preview.foreground must be auto or #RRGGBB'
+  )
+  vim.validate('formula_preview.layout', options.layout, 'table')
+  return options
+end
+
+function M.formula_options(overrides)
+  return formula_options(vim.tbl_deep_extend('force', formula_options(M.options.formula_preview), overrides or {}))
+end
 
 function M.setup(opts)
   opts = opts or {}
@@ -163,6 +222,11 @@ function M.setup(opts)
   for _, name in ipairs(options.math_environments) do
     vim.validate('math environment', name, 'string')
   end
+  assert(
+    type(options.formula_preview) == 'boolean' or type(options.formula_preview) == 'table',
+    'formula_preview must be a boolean or table'
+  )
+  options.formula_preview = formula_options(options.formula_preview)
   M.profile_fields, M.options = fields, options
 end
 
