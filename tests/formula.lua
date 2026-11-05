@@ -246,6 +246,17 @@ return function(t)
       error(err)
     end
   end)
+  test('formula cache keys preserve source and preamble boundaries', function()
+    local render = require('tex-tools.formula.render')
+    local options = config.formula_options({ foreground = '#ffffff', preamble = 'b\nc' })
+    local key = render.key('a', options)
+    eq(64, #key)
+    assert(key:match('^%x+$'))
+    eq(key, render.key('a', vim.deepcopy(options)))
+    assert(key ~= render.key('a\nb', vim.tbl_extend('force', options, { preamble = 'c' })))
+    options.preamble = 'b\0c'
+    assert(render.key('a', options) ~= render.key('a\0b', vim.tbl_extend('force', options, { preamble = 'c' })))
+  end)
   test('formula rendering: real PNG, shared workers, leases and stable DPI sizing', function()
     if vim.fn.executable('latex') == 0 or vim.fn.executable('dvipng') == 0 then
       return
@@ -315,7 +326,14 @@ return function(t)
     local system = vim.system
     local cache = vim.fn.tempname() .. '-formula-workers'
     local requests, callbacks, kills, delivered = {}, {}, 0, 0
-    local options = { cache = cache, concurrency = 1, foreground = '#ffffff' }
+    -- Processes are mocked; use a known executable so TeX need not be installed.
+    local options = {
+      cache = cache,
+      concurrency = 1,
+      foreground = '#ffffff',
+      latex = vim.v.progpath,
+      dvipng = vim.v.progpath,
+    }
     local result
     local function await(predicate)
       assert(vim.wait(3000, predicate, 1), 'Worker test timed out')

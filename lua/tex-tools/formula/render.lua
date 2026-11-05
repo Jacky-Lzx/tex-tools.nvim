@@ -14,7 +14,8 @@ local function color(options)
 end
 
 function M.key(source, options)
-  return vim.fn.sha256(table.concat({
+  -- JSON preserves field boundaries without passing NUL bytes to Vimscript.
+  return vim.fn.sha256(vim.json.encode({
     'tex-tools-formula-v1',
     source,
     options.preamble,
@@ -22,7 +23,7 @@ function M.key(source, options)
     options.dvipng,
     tostring(options.density),
     color(options),
-  }, '\0'))
+  }))
 end
 
 -- Inspect only bounded PNG metadata; image-tools independently validates the
