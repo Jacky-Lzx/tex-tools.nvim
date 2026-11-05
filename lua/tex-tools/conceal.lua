@@ -245,9 +245,26 @@ local function collect(bufnr, root, top, bottom, options)
     local opening, closing = ts.text(first, bufnr), ts.text(last, bufnr)
     if ({ ['$'] = '$', ['$$'] = '$$', ['\\('] = '\\)', ['\\['] = '\\]' })[opening] == closing then
       local sr, sc, er, ec = first:range()
+      local lr, lc, rr, rc = last:range()
+      -- Hide source padding with the bounds, retaining interior/explicit spacing
+      -- and line breaks. Only inspect boundary lines inside the visible range.
+      local opening_line, closing_line = lines[er - top + 1], lines[lr - top + 1]
+      if opening_line then
+        ec = ec + #opening_line:match('^[ \t]*', ec + 1)
+      end
+      if closing_line then
+        local padding = closing_line:sub(1, lc):match('[ \t]*$')
+        lc = lc - #padding
+        local escapes = closing_line:sub(1, lc):match('(\\+)$')
+        if #padding > 0 and escapes and #escapes % 2 == 1 then
+          lc = lc + 1 -- Preserve an escaped space or tab.
+        end
+      end
+      if er == lr then
+        lc = math.max(lc, ec)
+      end
       add(sr, sc, er, ec, '')
-      sr, sc, er, ec = last:range()
-      add(sr, sc, er, ec, '')
+      add(lr, lc, rr, rc, '')
     end
   end
 

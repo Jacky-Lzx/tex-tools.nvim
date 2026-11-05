@@ -68,6 +68,11 @@ return function(h)
     { 'fancy', [=[\dots \ldots \colon \slash \_ \item[Label] body]=], '… … : / _ ○[Label] body' },
     { 'spacing', [=[a\,b\;c\!d~e\ f\quad g\hspace{1em}h\phantom{hidden}i]=], 'abcd e f ghi' },
     { 'math_bounds', [=[$x$ \(y\) $$z$$ \[w\]]=], 'x y z w' },
+    { 'math bound padding', [=[before \( b \) $ x + y $ $$ z $$ \[ w \] after]=], 'before b x + y z w after' },
+    { 'math bound tabs', 'before \\( \tb\t \\) after', 'before b after' },
+    { 'empty padded formulas', [=[before \(   \) $   $ after]=], 'before   after' },
+    { 'math bound text spacing', [=[\( \text{ a b } + c \)]=], ' a b  + c' },
+    { 'explicit math bound spacing', [=[before \(\ b\  \) after]=], 'before  b  after' },
     { 'math_delimiters', [=[$\left\langle x \middle| y \right\rangle$]=], '⟨ x | y ⟩' },
     { 'sized and invisible delimiters', [=[$\bigl(a\bigr) + \left.x\right| + \{z\}$]=], '(a) + x| + {z}' },
     { 'styles', [=[\textbf{bold \emph{nested}} $\mathrm{abc}$]=], 'bold nested abc' },
@@ -106,6 +111,9 @@ return function(h)
     [=[\includegraphics[width=1--2]{a--b.pdf}]=],
     [=[\textbf{unfinished ---]=],
     [=[$unfinished]=],
+    [=[\( unfinished]=],
+    [=[% \( b \)]=],
+    [=[\verb|\( b \)|]=],
     [=[\'{ab} \unknown{source}]=],
   }) do
     check('protected source ' .. source, function()
@@ -131,7 +139,7 @@ return function(h)
       refs = [=[\ref{k}]=],
       fancy = [=[\dots]=],
       spacing = [=[\quad]=],
-      math_bounds = '$x$',
+      math_bounds = [=[\( x \)]=],
       math_symbols = [=[$\alpha$]=],
       math_delimiters = [=[$\left(x\right)$]=],
       styles = [=[\textbf{b}]=],
@@ -143,6 +151,33 @@ return function(h)
       fixture(source, options)
       eq(source, screen(1))
     end
+  end)
+
+  check('multiline math bounds retain line breaks and interior indentation', function()
+    local source = 'before \\[ \t\n  x + y\n\t \\] after'
+    fixture(source)
+    eq('before', screen(1))
+    eq('  x + y', screen(2))
+    eq(' after', screen(3))
+    eq(source, h.content())
+  end)
+
+  check('math bound padding is independent of spacing macros', function()
+    fixture([=[before \( b \) after]=], { spacing = false })
+    eq('before b after', screen(1))
+  end)
+
+  check('multiline math bound padding works with the other edge offscreen', function()
+    local lines = { 'before \\[  x' }
+    vim.list_extend(lines, vim.fn['repeat']({ '  x' }, 100))
+    lines[#lines + 1] = '  y   \\] after'
+    local source = table.concat(lines, '\n')
+    fixture(source)
+    eq('before x', screen(1))
+    vim.api.nvim_win_set_cursor(0, { #lines, 0 })
+    vim.cmd('normal! zt')
+    eq('  y after', screen(1))
+    eq(source, h.content())
   end)
 
   check('reference conceal preserves inline hints and key spelling', function()
