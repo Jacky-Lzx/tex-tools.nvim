@@ -12,7 +12,7 @@ return function(h)
       local ok, err = xpcall(fn, debug.traceback)
       vim.lsp.get_clients, vim.notify, vim.fn.jobstart = clients, notify, jobs
       vim.fn.delete(directory, 'rf')
-      tex.setup()
+      tex.setup({ mappings = true })
       if not ok then
         error(err)
       end
@@ -43,7 +43,10 @@ return function(h)
   end
   check('view uses resolved artifact and never requests forward search', function()
     local _, calls = fixture()
-    tex.setup({ viewer = { method = 'generic', executable = vim.v.progpath, args = { '--test-option' } } })
+    tex.setup({
+      mappings = true,
+      viewer = { method = 'generic', executable = vim.v.progpath, args = { '--test-option' } },
+    })
     eq(false, tex.view())
     eq(0, #calls)
     vim.fn.writefile({ 'pdf' }, directory .. '/main.pdf')
@@ -57,7 +60,11 @@ return function(h)
     local client, calls = fixture()
     client.name, client.server_capabilities =
       'texquill', { executeCommandProvider = { commands = { 'latex.inverseSearch' } } }
-    tex.setup({ lsp = 'texquill', viewer = { method = 'pagewing', executable = vim.v.progpath, focus = false } })
+    tex.setup({
+      mappings = true,
+      lsp = 'texquill',
+      viewer = { method = 'pagewing', executable = vim.v.progpath, focus = false },
+    })
     local pdf = directory .. '/中文 %.pdf'
     vim.fn.writefile({ 'pdf' }, pdf)
     local result = {
@@ -95,7 +102,7 @@ return function(h)
     local client = fixture()
     client.name, client.server_capabilities =
       'texquill', { executeCommandProvider = { commands = { 'latex.inverseSearch' } } }
-    tex.setup({ lsp = 'texquill', viewer = { method = 'pagewing', executable = vim.v.progpath } })
+    tex.setup({ mappings = true, lsp = 'texquill', viewer = { method = 'pagewing', executable = vim.v.progpath } })
     local pdf = directory .. "/中文 %x ' | %.pdf"
     vim.fn.writefile({ 'pdf' }, pdf)
     local source, bufnr = vim.uri_from_bufnr(0), vim.api.nvim_get_current_buf()
@@ -150,7 +157,7 @@ return function(h)
   end)
   check('Zathura receives a stable inverse callback without forward flags', function()
     local _, calls = fixture()
-    tex.setup({ viewer = { method = 'zathura', executable = vim.v.progpath } })
+    tex.setup({ mappings = true, viewer = { method = 'zathura', executable = vim.v.progpath } })
     vim.fn.writefile({ 'pdf' }, directory .. '/main.pdf')
     eq(true, tex.view())
     eq('--synctex-editor-command', calls[1].argv[2])
@@ -161,14 +168,14 @@ return function(h)
   end)
   check('Skim opens PDF independently of source position', function()
     local _, calls = fixture()
-    tex.setup({ viewer = { method = 'skim', executable = vim.v.progpath } })
+    tex.setup({ mappings = true, viewer = { method = 'skim', executable = vim.v.progpath } })
     vim.fn.writefile({ 'pdf' }, directory .. '/main.pdf')
     eq(true, tex.view())
     eq({ vim.v.progpath, '-a', 'Skim', directory .. '/main.pdf' }, calls[1].argv)
   end)
   check('Skim background viewing is opt-in', function()
     local _, calls = fixture()
-    tex.setup({ viewer = { method = 'skim', executable = vim.v.progpath, focus = false } })
+    tex.setup({ mappings = true, viewer = { method = 'skim', executable = vim.v.progpath, focus = false } })
     vim.fn.writefile({ 'pdf' }, directory .. '/main.pdf')
     eq(true, tex.view())
     eq({ vim.v.progpath, '-g', '-a', 'Skim', directory .. '/main.pdf' }, calls[1].argv)
@@ -201,7 +208,7 @@ return function(h)
     vim.fn.writefile({ '#!/bin/sh', 'capture="$1"', 'shift', [[printf '%s\n' "$@" > "$capture"]] }, script)
     vim.fn.setfperm(script, 'rwx------')
     local literal = "quoted ' | $(false) % argument"
-    tex.setup({ viewer = { method = 'generic', executable = script, args = { capture, literal } } })
+    tex.setup({ mappings = true, viewer = { method = 'generic', executable = script, args = { capture, literal } } })
     vim.fn.writefile({ 'pdf' }, directory .. '/main.pdf')
     eq(true, tex.view())
     assert(vim.wait(3000, function()
@@ -211,7 +218,7 @@ return function(h)
   end)
   check('missing executable and unavailable selected forward configuration fail clearly', function()
     local client, calls = fixture()
-    tex.setup({ viewer = { method = 'generic', executable = directory .. '/missing' } })
+    tex.setup({ mappings = true, viewer = { method = 'generic', executable = directory .. '/missing' } })
     vim.fn.writefile({ 'pdf' }, directory .. '/main.pdf')
     eq(false, tex.view())
     eq(0, #calls)

@@ -4,7 +4,7 @@ local image_defaults = { enabled = true, delay = 100, max_lines = 64, max_bytes 
 
 local defaults = {
   lsp = 'texlab',
-  mappings = true,
+  mappings = false,
   overwrite_mappings = false,
   smart_enter = false,
   conceal = false,

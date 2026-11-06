@@ -25,7 +25,7 @@ SETUP                                                        *tex-tools-setup*
 Install the parser separately (e.g. `:TSInstall latex`), then call: >lua
 
     require('tex-tools').setup({
-      mappings = true,
+      mappings = false,
       overwrite_mappings = false,
       smart_enter = false,
       conceal = false,
@@ -39,7 +39,7 @@ Local structural editing needs only the parser.
 
 Options and defaults ~
   `lsp`                 `'texlab'`; or `'texquill'`
-  `mappings`            `true`; false keeps commands and <Plug> mappings
+  `mappings`            `false`; true opts into the suggested key preset
   `overwrite_mappings`  `false`; preserve existing global/local keys
   `smart_enter`         `false`; list-aware Insert <CR>, requires mappings
   `conceal`             `false`; true or a table, see |tex-tools-conceal|
@@ -750,5 +750,12 @@ While automatic previews are active, b:image_tools_preview_owner is 'tex-tools'.
 This prevents image-tools from running its own document selection. Display uses
 only image_tools.float()/close(); imports and resource refactoring stay there.
 Disabling both automatic preview types relinquishes this buffer ownership.
+
+
+COMMAND OWNERSHIP
+
+TexTools commands are plugin-owned buffer commands. Same-name user commands
+are preserved and registration reports the conflict. Repeated setup refreshes
+only commands still owned by tex-tools. Define personal aliases separately.
 
  vim:tw=78:ts=4:ft=help:norl:

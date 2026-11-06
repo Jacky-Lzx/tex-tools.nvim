@@ -76,7 +76,7 @@ return function(h)
       if directory then
         vim.fn.delete(directory, 'rf')
       end
-      tex.setup()
+      tex.setup({ mappings = true })
       if not ok then
         error(err)
       end
@@ -128,7 +128,10 @@ return function(h)
     eq(2, #notifications)
   end)
   check('managed directories do not hide compiler profile identity', function()
-    tex.setup({ build = { profiles = { latexmk = { executable = 'latexmk', args = { '-pdf', '%f' } } } } })
+    tex.setup({
+      mappings = true,
+      build = { profiles = { latexmk = { executable = 'latexmk', args = { '-pdf', '%f' } } } },
+    })
     eq(true, sync.sync(client, bufnr))
     eq('latexmk', require('tex-tools.compiler').snapshot(client).profile)
   end)

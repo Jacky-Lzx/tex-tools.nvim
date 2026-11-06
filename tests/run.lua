@@ -47,7 +47,7 @@ local function keys(input)
   vim.api.nvim_feedkeys(vim.keycode(input), 'xt', false)
 end
 
-tex.setup()
+tex.setup({ mappings = true })
 
 for _, expression in ipairs({ '$x+1$', '\\(x+1\\)', '$$x+1$$', '\\[x+1\\]' }) do
   test('math delimiters: ' .. expression, function()
@@ -107,11 +107,11 @@ for _, name in ipairs({ 'verbatim', 'lstlisting', 'minted' }) do
 end
 
 test('custom math environments and reset configuration', function()
-  tex.setup({ math_environments = { 'mymath' } })
+  tex.setup({ mappings = true, math_environments = { 'mymath' } })
   buffer('\\begin{mymath*}\nx\n\\end{mymath*}')
   at('x')
   eq(true, tex.in_math())
-  tex.setup()
+  tex.setup({ mappings = true })
   eq(false, tex.in_math())
 end)
 
@@ -263,8 +263,8 @@ end)
 
 test('setup attaches existing buffers and is idempotent', function()
   buffer('x')
-  tex.setup()
-  tex.setup()
+  tex.setup({ mappings = true })
+  tex.setup({ mappings = true })
   assert(vim.api.nvim_buf_get_commands(0, {}).TexToolsBuild)
   eq(2, #vim.api.nvim_get_autocmds({ group = 'TexTools' }))
   buffer('plain', 'plaintex')
@@ -295,13 +295,13 @@ test('FileType replay skips registration until explicit setup reconfigures it', 
     registrations = 0
     replay()
     eq(0, registrations)
-    tex.setup()
+    tex.setup({ mappings = true })
     assert(registrations > 0)
     assert(vim.fn.maparg(',lcd', 'n') ~= '')
     eq('USER', vim.fn.maparg(',lEr', 'n'))
   end)
   vim.api.nvim_buf_create_user_command = original
-  tex.setup()
+  tex.setup({ mappings = true })
   assert(ok, err)
 end)
 
@@ -311,7 +311,7 @@ test('disabled default mappings still provide Plug mappings', function()
   tex.setup({ mappings = false })
   eq('', vim.fn.maparg(',lEr', 'n'))
   assert(vim.fn.maparg('<Plug>(TexToolsRenameEnvironment)', 'n') ~= '')
-  tex.setup()
+  tex.setup({ mappings = true })
 end)
 
 test('preserve existing user mappings', function()

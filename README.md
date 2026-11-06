@@ -20,7 +20,7 @@ With lazy.nvim:
   ft = { "tex", "plaintex" },
   opts = {
     lsp = "texlab",             -- "texlab" or "texquill".
-    mappings = true,
+    mappings = false,
     overwrite_mappings = false, -- Replace conflicting mappings when true.
     smart_enter = false,        -- List-aware Insert-mode Enter.
     conceal = false,            -- Optional LaTeX conceal.
@@ -79,7 +79,9 @@ actions; local structural edits remain available in this plugin.
 
 ## Mappings
 
-Mappings are buffer-local to `tex` and `plaintex` files. Existing mappings are
+Default user mappings are disabled. Bind commands or `<Plug>` endpoints in your
+filetype configuration; `mappings = true` explicitly enables the suggested
+preset below. Preset mappings are buffer-local to `tex` and `plaintex` files. Existing mappings are
 preserved unless `overwrite_mappings = true`. Disabling overwrite restores
 replaced mappings; `mappings = false` disables default keys while keeping
 commands and `<Plug>` mappings available. With `smart_enter = true`, overwrite
@@ -307,3 +309,9 @@ API call. Calling `setup()` in an empty or unrelated-language session does not
 load the controller; `formula_info()` and closing an inactive preview stay cold.
 Automatic previews still initialize when the first TeX buffer attaches. Formula
 compilation and the optional display backend remain deferred to a real preview.
+
+## Command ownership
+
+TexTools commands are plugin-owned and buffer-local. Same-name user commands
+remain untouched and cause a registration error; repeated setup refreshes only
+commands still owned by tex-tools. Keep personal aliases in user configuration.

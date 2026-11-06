@@ -47,6 +47,8 @@ jobs:
           TEX_TOOLS_TEST_PARSER: ${{ runner.temp }}/tex-tools-parser/latex.so
         run: |
           nvim --clean --headless -l tests/lazy.lua
+          nvim --clean --headless -l tests/key_ownership.lua
+          nvim --clean --headless -l tests/command_ownership.lua
           nvim --clean --headless -l tests/run.lua
       - name: Validate help tags
         run: nvim --clean --headless '+helptags doc' +qa

@@ -183,7 +183,7 @@ return function(h)
 
   check('commands and mappings reach the new actions', function()
     local _, calls = fixture()
-    tex.setup()
+    tex.setup({ mappings = true })
     vim.cmd.TexToolsBuildOnSave('on')
     eq(true, tex.build_status().on_save)
     vim.cmd.TexToolsBuildOnSave('off')

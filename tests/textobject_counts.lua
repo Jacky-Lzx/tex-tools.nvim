@@ -322,7 +322,7 @@ return function(h)
   end)
 
   test('custom math environments count while nonmath environments do not', function()
-    tex.setup({ math_environments = { 'custom' } })
+    tex.setup({ mappings = true, math_environments = { 'custom' } })
     buffer(
       '\\begin{document}\\begin{custom*}\\begin{group}\\text{words $中文$}\\end{group}\\end{custom*}\\end{document}'
     )
@@ -332,7 +332,7 @@ return function(h)
       selected('math', false, { count = 2 })
     )
     eq(nil, tex.textobject_range('math', false, { count = 3 }))
-    tex.setup()
+    tex.setup({ mappings = true })
   end)
 
   test('plain bracket pairs in the same syntax scope have distinct depths', function()
@@ -509,6 +509,6 @@ return function(h)
     at('中文')
     keys('v2<Plug>(TexToolsInsideArgument)y')
     eq('\\inner{中文}', vim.fn.getreg('"'))
-    tex.setup()
+    tex.setup({ mappings = true })
   end)
 end

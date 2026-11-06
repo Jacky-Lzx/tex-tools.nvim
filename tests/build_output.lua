@@ -7,7 +7,7 @@ return function(h)
       local ok, err = xpcall(fn, debug.traceback)
       vim.lsp.get_clients, vim.notify = get_clients, notify
       vim.cmd('silent! only!')
-      tex.setup()
+      tex.setup({ mappings = true })
       if not ok then
         error(err)
       end
@@ -44,7 +44,7 @@ return function(h)
   check('output is bounded, strips terminal colors, and is isolated per client', function()
     local first = fixture()
     local second = fixture()
-    tex.setup({ build = { output_lines = 2 } })
+    tex.setup({ mappings = true, build = { output_lines = 2 } })
     manager.attach(first)
     manager.attach(second)
     first.handlers['window/logMessage'](
@@ -169,7 +169,7 @@ return function(h)
     vim.api.nvim_buf_set_name(bufnr, path)
     vim.fn.writefile({ '\\documentclass{article}' }, path)
     vim.bo.modified = false
-    tex.setup()
+    tex.setup({ mappings = true })
     local messages = 0
     local id = vim.lsp.start({
       name = 'texlab',

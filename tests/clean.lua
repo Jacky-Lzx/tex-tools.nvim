@@ -10,7 +10,7 @@ return function(h)
       local ok, err = xpcall(fn, debug.traceback)
       vim.lsp.get_clients, vim.notify, vim.uv.fs_unlink = get_clients, notify, unlink
       vim.fn.delete(directory, 'rf')
-      tex.setup()
+      tex.setup({ mappings = true })
       if not ok then
         error(err)
       end
@@ -115,7 +115,7 @@ return function(h)
     fixture()
     write('document.tex')
     write('document.aux')
-    tex.setup({ build = { main_file = 'document.tex' } })
+    tex.setup({ mappings = true, build = { main_file = 'document.tex' } })
     eq({ true, 1 }, { tex.clean() })
     eq(false, exists('document.aux'))
     eq(true, exists('document.tex'))
@@ -220,7 +220,7 @@ return function(h)
     vim.api.nvim_buf_set_name(bufnr, directory .. '/child.tex')
     vim.bo.modified = false
     vim.fn.writefile({ '\\documentclass{article}' }, directory .. '/main.tex')
-    tex.setup()
+    tex.setup({ mappings = true })
     local messages = {}
     vim.notify = function(message, level)
       messages[#messages + 1] = { message, level }

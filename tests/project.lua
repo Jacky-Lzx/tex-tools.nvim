@@ -10,7 +10,7 @@ return function(h)
       local ok, err = xpcall(fn, debug.traceback)
       vim.lsp.get_clients, vim.notify, vim.ui.input = clients, notify, input
       vim.fn.delete(directory, 'rf')
-      tex.setup()
+      tex.setup({ mappings = true })
       if not ok then
         error(err)
       end
@@ -45,7 +45,7 @@ return function(h)
     eq({ true, directory .. '/main.tex' }, { tex.main_file() })
     eq({ true, directory .. '/book.tex' }, { tex.main_file('book.tex') })
     eq('session', tex.project_info().main_source)
-    tex.setup({ build = { main_file = 'main.tex' } })
+    tex.setup({ mappings = true, build = { main_file = 'main.tex' } })
     eq(directory .. '/book.tex', tex.project_info().main_file)
     eq({ true, directory .. '/main.tex' }, { tex.main_file(false) })
     eq('configuration', tex.project_info().main_source)

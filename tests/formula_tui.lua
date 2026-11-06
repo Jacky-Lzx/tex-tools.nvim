@@ -21,6 +21,7 @@ if not configured then
     auto_preview_delay = 0,
   })
   tex.setup({
+    mappings = true,
     formula_preview = { enabled = true, delay = 0, cache = temporary .. '/formulas', foreground = '#cad3f5' },
     image_preview = { enabled = true, delay = 0 },
   })

@@ -359,7 +359,7 @@ return function(h)
     eq('', vim.fn.maparg(',li', 'i'))
     assert(vim.fn.maparg('<Plug>(TexToolsInsertItem)', 'n') ~= '')
     assert(vim.fn.maparg('<Plug>(TexToolsInsertItem)', 'i') ~= '')
-    tex.setup()
+    tex.setup({ mappings = true })
   end)
 
   test('existing Insert-mode user mapping is preserved', function()

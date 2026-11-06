@@ -8,7 +8,7 @@ return function(t)
   vim.fn.writefile({ 'image' }, root .. '/Figures/中文 image.png')
   local serial = 0
   local function setup(text)
-    tex.setup({ image_preview = { delay = 0 }, formula_preview = { enabled = true, delay = 0 } })
+    tex.setup({ mappings = true, image_preview = { delay = 0 }, formula_preview = { enabled = true, delay = 0 } })
     buffer(text)
     serial = serial + 1
     vim.api.nvim_buf_set_name(0, root .. '/note-' .. serial .. '.tex')
@@ -56,7 +56,7 @@ return function(t)
     eq(root .. '/Figures/中文 image.png', assert(tex.image_at()).path)
     at('and')
     eq(root .. '/Figures/one.png', assert(tex.image_at()).path)
-    tex.setup({ image_preview = { root = root .. '/Figures', max_lines = 1 } })
+    tex.setup({ mappings = true, image_preview = { root = root .. '/Figures', max_lines = 1 } })
     buffer('\\includegraphics{one}')
     eq(root .. '/Figures/one.png', assert(tex.image_at()).path)
     buffer('\\includegraphics\n{one}')
@@ -122,11 +122,11 @@ return function(t)
       eq('tex-tools', vim.b.image_tools_preview_owner)
       vim.bo.filetype = 'rust'
       eq(nil, vim.b.image_tools_preview_owner)
-      tex.setup({ formula_preview = false, image_preview = false })
+      tex.setup({ mappings = true, formula_preview = false, image_preview = false })
     end, debug.traceback)
     renderer.prepare, package.loaded.image_tools = prepare, original
     tex.close_formula_preview()
-    tex.setup()
+    tex.setup({ mappings = true })
     if not ok then
       error(err)
     end
@@ -141,7 +141,7 @@ return function(t)
     }) do
       eq(false, pcall(tex.setup, { image_preview = bad }))
     end
-    tex.setup()
+    tex.setup({ mappings = true })
     vim.fn.delete(root, 'rf')
   end)
 end

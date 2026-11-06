@@ -340,13 +340,13 @@ return function(h)
     at('body')
     keys('y<Plug>(TexToolsInsideItem)')
     eq('body', vim.fn.getreg('"'))
-    tex.setup()
+    tex.setup({ mappings = true })
   end)
 
   test('existing user mappings are preserved', function()
     buffer('\\begin{itemize}\\item body\\end{itemize}')
     vim.keymap.set({ 'x', 'o' }, 'ai', '<Nop>', { buffer = true })
-    tex.setup()
+    tex.setup({ mappings = true })
     for _, mode in ipairs({ 'x', 'o' }) do
       eq('<Nop>', vim.fn.maparg('ai', mode))
     end

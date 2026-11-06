@@ -15,11 +15,11 @@ return function(h)
         profiles[name] =
           { executable = executable, args = name == 'latexmk' and { '-pdf', '%f' } or { '-X', 'compile', '%f' } }
       end
-      tex.setup({ build = { profiles = profiles } })
+      tex.setup({ mappings = true, build = { profiles = profiles } })
       local ok, err = xpcall(fn, debug.traceback)
       vim.lsp.get_clients, vim.notify = get_clients, notify
       vim.fn.delete(directory, 'rf')
-      tex.setup()
+      tex.setup({ mappings = true })
       if not ok then
         error(err)
       end
@@ -109,7 +109,7 @@ return function(h)
     profiles.latexmk.logDirectory = 'logs'
     profiles.latexmk.pdfDirectory = 'pdf'
     profiles.latexmk.filename = 'result.pdf'
-    tex.setup({ build = { profiles = profiles } })
+    tex.setup({ mappings = true, build = { profiles = profiles } })
     local client = fixture()
     eq(true, tex.compiler('latexmk'))
     eq('logs', client.settings.texlab.build.logDirectory)
@@ -128,7 +128,7 @@ return function(h)
     eq('latexmk', select(2, tex.compiler('toggle')).profile)
     eq('tectonic', select(2, tex.compiler('toggle')).profile)
     eq('latexmk', select(2, tex.compiler('toggle')).profile)
-    tex.setup({ build = { profiles = { tectonic = profiles.tectonic } } })
+    tex.setup({ mappings = true, build = { profiles = { tectonic = profiles.tectonic } } })
     eq('tectonic', select(2, tex.compiler('toggle')).profile)
     eq('tectonic', select(2, tex.compiler('toggle')).profile)
   end)
@@ -141,13 +141,13 @@ return function(h)
     eq('tectonic', tex.build_status().profile)
     eq('latexmk', select(2, tex.compiler('toggle')).profile)
     profiles.alias = vim.deepcopy(profiles.latexmk)
-    tex.setup({ build = { profiles = profiles } })
+    tex.setup({ mappings = true, build = { profiles = profiles } })
     eq('alias', select(2, tex.compiler('alias')).profile)
     eq('alias', tex.build_status().profile)
     eq('latexmk', select(2, tex.compiler('latexmk')).profile)
     client.settings.texlab.build = vim.deepcopy(profiles.tectonic)
     eq('tectonic', tex.build_status().profile)
-    tex.setup()
+    tex.setup({ mappings = true })
     eq(nil, tex.build_status().profile)
   end)
 
@@ -173,11 +173,11 @@ return function(h)
     local settings = client.settings
     eq(false, tex.compiler('missing'))
     profiles.tectonic.executable = directory .. '/nonexistent'
-    tex.setup({ build = { profiles = profiles } })
+    tex.setup({ mappings = true, build = { profiles = profiles } })
     eq(false, tex.compiler('tectonic'))
     vim.fn.writefile({ 'not executable' }, profiles.tectonic.executable)
     eq(false, tex.compiler('tectonic'))
-    tex.setup()
+    tex.setup({ mappings = true })
     local ok, err = tex.compiler('toggle')
     eq(false, ok)
     eq(true, err:find('build.profiles', 1, true) ~= nil)
@@ -302,7 +302,7 @@ return function(h)
     profiles.tectonic.auxDirectory = 'tectonic-out'
     profiles.tectonic.logDirectory = 'tectonic-out'
     profiles.tectonic.pdfDirectory = 'tectonic-out'
-    tex.setup({ build = { profiles = profiles } })
+    tex.setup({ mappings = true, build = { profiles = profiles } })
     local source = vim.api.nvim_get_current_buf()
     for _, path in ipairs({ 'latexmk-out', 'tectonic-out' }) do
       vim.fn.mkdir(directory .. '/' .. path)
@@ -348,7 +348,7 @@ return function(h)
     vim.notify = function() end
     profiles.latexmk.logDirectory = 'old-logs'
     profiles.latexmk.filename = 'old.pdf'
-    tex.setup({ build = { profiles = profiles } })
+    tex.setup({ mappings = true, build = { profiles = profiles } })
     local id = vim.lsp.start({
       name = 'texlab',
       root_dir = directory,

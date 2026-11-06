@@ -65,7 +65,7 @@ return function(h)
       if directory then
         vim.fn.delete(directory, 'rf')
       end
-      tex.setup()
+      tex.setup({ mappings = true })
       if not ok then
         error(err)
       end
@@ -132,7 +132,7 @@ return function(h)
       calls[#calls + 1] = argv
       return #calls
     end
-    tex.setup({ viewer = { method = 'generic', executable = vim.v.progpath } })
+    tex.setup({ mappings = true, viewer = { method = 'generic', executable = vim.v.progpath } })
     eq(true, tex.view())
     eq(directory .. '/build/main.pdf', calls[1][2])
     eq(true, tex.forward_search())

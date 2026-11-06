@@ -389,7 +389,7 @@ return function(h)
     at('second')
     keys('.')
     eq('$first$\n$second$', content())
-    tex.setup()
+    tex.setup({ mappings = true })
   end)
 
   test('recording preserves cursor, viewport, registers, and an existing dot mapping', function()

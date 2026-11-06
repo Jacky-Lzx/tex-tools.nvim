@@ -387,9 +387,7 @@ local function attach(bufnr)
       { desc = 'Edit the surrounding table: ' .. entry[2] },
     }
   end
-  for name, command in pairs(commands) do
-    vim.api.nvim_buf_create_user_command(bufnr, name, command[1], command[2])
-  end
+  require('tex-tools.user_command').register(commands, bufnr)
   local maps = {
     {
       'n',
