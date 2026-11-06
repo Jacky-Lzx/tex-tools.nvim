@@ -331,3 +331,7 @@ An explicit subsequent setup recreates resources from fresh defaults/options.
 `build_on_save_enabled(bufnr)` reads the attached client's accepted automatic-build
 setting without sending requests or attaching handlers; it returns `nil` when no
 selected server is attached. `build_on_save(enabled)` changes that setting.
+
+`show_build_status()` presents the selected backend's build status, while
+`build_status()` returns its snapshot. Project APIs can be bound in bibliography
+buffers without installing TeX structural mappings or buffer commands there.

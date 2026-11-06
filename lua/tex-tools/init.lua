@@ -990,6 +990,9 @@ end
 function M.build_status()
   return require('tex-tools.lsp').build_status()
 end
+function M.show_build_status()
+  return require('tex-tools.lsp').show_build_status()
+end
 -- Read accepted client settings without attaching handlers or querying the server.
 function M.build_on_save_enabled(bufnr)
   local lsp = require('tex-tools.lsp')
