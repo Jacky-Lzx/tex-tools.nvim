@@ -990,6 +990,18 @@ end
 function M.build_status()
   return require('tex-tools.lsp').build_status()
 end
+-- Read accepted client settings without attaching handlers or querying the server.
+function M.build_on_save_enabled(bufnr)
+  local lsp = require('tex-tools.lsp')
+  local client = lsp.clients(bufnr or vim.api.nvim_get_current_buf())[1]
+  if not client then
+    return nil
+  end
+  local settings = lsp.backend() == 'texquill' and require('tex-tools.lsp.texquill').settings(client)
+    or (client.settings or {}).texlab
+    or {}
+  return (settings.build or {}).onSave == true
+end
 function M.build_on_save(enabled)
   return require('tex-tools.lsp').build_on_save(enabled)
 end

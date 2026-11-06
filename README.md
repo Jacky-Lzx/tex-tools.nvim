@@ -327,3 +327,7 @@ inverse-search registration, and restores owned buffer mappings/commands and LSP
 handlers. Later user replacements are preserved. Buffers, build output, native
 LSP clients and server-owned builds are retained; disposal is not build cancel.
 An explicit subsequent setup recreates resources from fresh defaults/options.
+
+`build_on_save_enabled(bufnr)` reads the attached client's accepted automatic-build
+setting without sending requests or attaching handlers; it returns `nil` when no
+selected server is attached. `build_on_save(enabled)` changes that setting.

@@ -71,6 +71,19 @@ return function(h)
     return client, calls, bufnr, path
   end
 
+  check('automatic build status reads accepted settings without requests or handlers', function()
+    local client, calls = fixture({ build = { onSave = true } })
+    eq(true, tex.build_on_save_enabled())
+    eq({}, calls)
+    eq({}, client.handlers)
+    client.settings = { latex = { build = { onSave = false } } }
+    eq(false, tex.build_on_save_enabled())
+    vim.lsp.get_clients = function()
+      return {}
+    end
+    eq(nil, tex.build_on_save_enabled())
+  end)
+
   check('selection accepts the texquill client without texlab fallback', function()
     local client = fixture()
     eq(client, lsp.client())
