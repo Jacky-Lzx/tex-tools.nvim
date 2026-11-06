@@ -1,6 +1,7 @@
 local M = {}
 local record_path, registered_server, token
 local pending, stopping = false, false
+local generation = 0
 local active = vim.uv.hrtime()
 local pdf_contexts = {}
 
@@ -144,7 +145,11 @@ function M.track(bufnr)
     return
   end
   pending = true
+  local version = generation
   vim.schedule(function()
+    if version ~= generation then
+      return
+    end
     pending = false
     if stopping then
       return
@@ -196,6 +201,13 @@ function M.score(file, expected_token)
     end
   end
   return depth > 0 and { priority = 1, depth = depth, active = active } or nil
+end
+
+function M.dispose()
+  generation = generation + 1
+  pending = false
+  M.unregister()
+  pcall(vim.api.nvim_del_augroup_by_name, 'TexToolsInverseSession')
 end
 
 return M

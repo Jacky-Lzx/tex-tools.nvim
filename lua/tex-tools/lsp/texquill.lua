@@ -39,12 +39,14 @@ function M.attach(client)
   if attached[client] then
     return
   end
-  attached[client] = true
+  local record = { active = true, handlers = {} }
+  attached[client] = record
   client.handlers = client.handlers or {}
   for _, method in ipairs({ 'latex/buildStarted', 'latex/buildFinished' }) do
-    local previous = client.handlers[method] or vim.lsp.handlers[method]
-    client.handlers[method] = function(err, result, ctx, config)
-      if not err and type(result) == 'table' then
+    local original = client.handlers[method]
+    local previous = original or vim.lsp.handlers[method]
+    local handler = function(err, result, ctx, config)
+      if record.active and not err and type(result) == 'table' then
         local state = require('tex-tools.build').state(client)
         if method == 'latex/buildStarted' then
           state.output_lines = {}
@@ -65,6 +67,8 @@ function M.attach(client)
         return previous(err, result, ctx, config)
       end
     end
+    record.handlers[method] = { previous = original, installed = handler }
+    client.handlers[method] = handler
   end
   local main = require('tex-tools.config').options.build.main_file
   if main then
@@ -464,6 +468,21 @@ function M.compiler(client, name)
     return false, err
   end
   return true, M.compiler_snapshot(client)
+end
+
+function M.dispose()
+  for _, request in pairs(vim.tbl_extend('force', {}, pending_forward)) do
+    request.cancel()
+  end
+  for client, record in pairs(attached) do
+    record.active = false
+    for method, entry in pairs(record.handlers) do
+      if client.handlers[method] == entry.installed then
+        client.handlers[method] = entry.previous
+      end
+    end
+  end
+  attached = setmetatable({}, { __mode = 'k' })
 end
 
 return M

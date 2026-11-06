@@ -2,17 +2,30 @@ local M = {}
 -- Keep snapshots in Lua: user mappings may contain Lua callbacks.
 local installed = {}
 
-local group = vim.api.nvim_create_augroup('TexToolsMappings', { clear = true })
-vim.api.nvim_create_autocmd('BufWipeout', {
-  group = group,
-  callback = function(event)
-    installed[event.buf] = nil
-  end,
-})
+local group
+function M.setup()
+  if group then
+    return
+  end
+  group = vim.api.nvim_create_augroup('TexToolsMappings', { clear = true })
+  vim.api.nvim_create_autocmd('BufWipeout', {
+    group = group,
+    callback = function(event)
+      installed[event.buf] = nil
+    end,
+  })
+end
+M.setup()
 
 function M.clear(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    installed[bufnr] = nil
+    return
+  end
   vim.api.nvim_buf_call(bufnr, function()
-    for _, map in ipairs(installed[bufnr] or {}) do
+    local maps = installed[bufnr] or {}
+    for index = #maps, 1, -1 do
+      local map = maps[index]
       local current = vim.fn.maparg(map.lhs, map.mode, false, true)
       -- Leave mappings changed by users or other plugins after attach alone.
       if vim.deep_equal(current, map.current) then
@@ -27,6 +40,7 @@ function M.clear(bufnr)
 end
 
 function M.set(bufnr, modes, lhs, rhs, opts, overwrite)
+  M.setup()
   vim.api.nvim_buf_call(bufnr, function()
     for _, mode in ipairs(type(modes) == 'table' and modes or { modes }) do
       local previous = vim.fn.maparg(lhs, mode, false, true)
@@ -44,6 +58,16 @@ function M.set(bufnr, modes, lhs, rhs, opts, overwrite)
       end
     end
   end)
+end
+
+function M.dispose()
+  for _, buf in ipairs(vim.tbl_keys(installed)) do
+    M.clear(buf)
+  end
+  if group then
+    vim.api.nvim_del_augroup_by_id(group)
+    group = nil
+  end
 end
 
 return M

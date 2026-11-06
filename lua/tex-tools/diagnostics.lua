@@ -104,9 +104,12 @@ function M.schedule(client, bufnr)
     end
     return
   end
-  pending[client] = { bufnr = bufnr }
+  local request = { bufnr = bufnr }
+  pending[client] = request
   vim.schedule(function()
-    local request = pending[client]
+    if pending[client] ~= request then
+      return
+    end
     pending[client] = nil
     if vim.lsp.get_client_by_id(client.id) ~= client then
       return
@@ -141,6 +144,23 @@ function M.attach(client, bufnr)
     })
   end
   M.schedule(client, bufnr)
+end
+
+function M.dispose()
+  pending = setmetatable({}, { __mode = 'k' })
+  installed = false
+  pcall(vim.api.nvim_del_augroup_by_name, 'TexToolsDiagnostics')
+  for client, record in pairs(managed) do
+    if raw_build(client).logDirectory == record.value then
+      local settings = vim.deepcopy(client.settings)
+      settings.texlab.build.logDirectory = record.original
+      client.settings = settings
+      if client.initialized then
+        pcall(client.notify, client, 'workspace/didChangeConfiguration', { settings = settings })
+      end
+    end
+  end
+  managed = setmetatable({}, { __mode = 'k' })
 end
 
 return M

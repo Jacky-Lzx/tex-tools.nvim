@@ -3,6 +3,7 @@
 local M = {}
 local state, timer, group
 local enabled, images_enabled = false, false
+local generation = 0
 local last_error
 
 local function options()
@@ -274,6 +275,8 @@ function M.clear_cache()
 end
 
 function M.setup()
+  generation = generation + 1
+  local version = generation
   M.close()
   enabled, images_enabled = options().enabled, image_options().enabled
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
@@ -303,7 +306,7 @@ function M.setup()
       M.own(event.buf)
       if vim.bo[event.buf].buftype == '' then
         vim.schedule(function()
-          if vim.api.nvim_get_current_buf() == event.buf then
+          if generation == version and vim.api.nvim_get_current_buf() == event.buf then
             M.refresh()
           end
         end)
@@ -323,7 +326,26 @@ function M.setup()
       M.refresh()
     end,
   })
-  vim.schedule(M.refresh)
+  vim.schedule(function()
+    if generation == version then
+      M.refresh()
+    end
+  end)
+end
+
+function M.dispose()
+  generation = generation + 1
+  M.close()
+  enabled, images_enabled, last_error = false, false, nil
+  if group then
+    vim.api.nvim_del_augroup_by_id(group)
+    group = nil
+  end
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.b[buf].image_tools_preview_owner == 'tex-tools' then
+      vim.b[buf].image_tools_preview_owner = nil
+    end
+  end
 end
 
 return M

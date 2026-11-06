@@ -62,9 +62,13 @@ function M.attach(client, bufnr)
   client.handlers = client.handlers or {}
   if not state.output_wrapper then
     local previous = client.handlers['window/logMessage']
+    state.output_previous = previous
+    local record = { active = true }
+    state.output_record = record
     state.output_wrapper = function(err, params, ctx, config)
       if
-        not err
+        record.active
+        and not err
         and type(params) == 'table'
         and params.type == vim.lsp.protocol.MessageType.Log
         and type(params.message) == 'string'
@@ -115,6 +119,22 @@ function M.snapshot(client)
     result.elapsed = ((state.finished_at or vim.uv.hrtime()) - state.started_at) / 1e9
   end
   return result
+end
+
+function M.dispose()
+  installed = false
+  pcall(vim.api.nvim_del_augroup_by_name, 'TexToolsBuild')
+  for client, state in pairs(states) do
+    if state.output_record then
+      state.output_record.active = false
+    end
+    state.output_version = (state.output_version or 0) + 1
+    state.output_scheduled = nil
+    if client.handlers and client.handlers['window/logMessage'] == state.output_wrapper then
+      client.handlers['window/logMessage'] = state.output_previous
+    end
+    state.output_wrapper, state.output_previous, state.output_record, state.diagnostics_attached = nil, nil, nil, nil
+  end
 end
 
 return M

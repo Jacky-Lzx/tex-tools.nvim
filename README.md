@@ -315,3 +315,15 @@ compilation and the optional display backend remain deferred to a real preview.
 TexTools commands are plugin-owned and buffer-local. Same-name user commands
 remain untouched and cause a registration error; repeated setup refreshes only
 commands still owned by tex-tools. Keep personal aliases in user configuration.
+
+## Setup contract
+
+`setup(nil)` uses defaults. Configuration must be a table; caller-owned tables
+are copied before use. Invalid configuration types do not replace live handlers
+or commands. Repeating setup must not accumulate automatic registrations.
+
+`dispose()` closes previews, invalidates delayed work, releases conceal and
+inverse-search registration, and restores owned buffer mappings/commands and LSP
+handlers. Later user replacements are preserved. Buffers, build output, native
+LSP clients and server-owned builds are retained; disposal is not build cancel.
+An explicit subsequent setup recreates resources from fresh defaults/options.

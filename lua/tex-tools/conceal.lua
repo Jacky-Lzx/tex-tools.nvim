@@ -541,4 +541,12 @@ function M.attach(bufnr, options)
   end
 end
 
+function M.dispose()
+  buffers, windows, pending = {}, {}, {}
+  registered = false
+  vim.api.nvim_set_decoration_provider(namespace, {})
+  pcall(vim.api.nvim_del_augroup_by_name, 'TexToolsConceal')
+  vim.cmd.redraw()
+end
+
 return M

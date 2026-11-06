@@ -48,6 +48,7 @@ jobs:
         run: |
           nvim --clean --headless -l tests/lazy.lua
           nvim --clean --headless -l tests/key_ownership.lua
+          nvim --clean --headless -l tests/setup_contract.lua
           nvim --clean --headless -l tests/command_ownership.lua
           nvim --clean --headless -l tests/run.lua
       - name: Validate help tags

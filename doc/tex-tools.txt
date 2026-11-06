@@ -509,6 +509,14 @@ Visible-line rendering is cached; pending/missing parses retain source.
 ==============================================================================
 LUA API                                                        *tex-tools-api*
 
+Lifecycle: setup(opts) starts from fresh defaults and copies caller tables.
+Invalid configuration is rejected before replacing live resources. dispose()
+is safe when cold or repeated; it closes previews, invalidates delayed work,
+releases conceal and inverse-search registration, and restores owned buffer
+commands/mappings and LSP handlers. Later user replacements are preserved.
+Buffers, output, native clients, and server-owned builds remain available.
+Subsequent explicit setup recreates resources; disposal is not build cancel.
+
 Functions in `require('tex-tools')` are available without `setup()`.
 Edits/jumps return `true` or `false, error`; omitted names may open async
 prompts. Queries do not notify. Ranges are zero-based, byte-based,

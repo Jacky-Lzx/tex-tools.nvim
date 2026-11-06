@@ -1,5 +1,6 @@
 local M = {}
 local generation = 0
+local attached = {}
 local function formula()
   return require('tex-tools.formula').ensure()
 end
@@ -21,12 +22,12 @@ local function attach(bufnr)
   local mappings = require('tex-tools.mappings')
   mappings.clear(bufnr)
   local enter_plug = '<Plug>(TexToolsSmartEnter)'
-  vim.keymap.set('i', enter_plug, M.smart_enter, {
+  mappings.set(bufnr, 'i', enter_plug, M.smart_enter, {
     buffer = bufnr,
     expr = true,
     replace_keycodes = false,
     desc = 'tex-tools: SmartEnter',
-  })
+  }, true)
   local options = require('tex-tools.config').options
   if options.formula_preview.enabled or options.image_preview.enabled then
     formula()
@@ -387,7 +388,7 @@ local function attach(bufnr)
       { desc = 'Edit the surrounding table: ' .. entry[2] },
     }
   end
-  require('tex-tools.user_command').register(commands, bufnr)
+  attached[bufnr] = require('tex-tools.user_command').register(commands, bufnr)
   local maps = {
     {
       'n',
@@ -736,7 +737,7 @@ local function attach(bufnr)
       plug_options.expr = true
       plug_options.replace_keycodes = false
     end
-    vim.keymap.set(map[1], plug, map[4], plug_options)
+    mappings.set(bufnr, map[1], plug, map[4], plug_options, true)
     if options.mappings and map[2] then
       mappings.set(
         bufnr,
@@ -751,7 +752,32 @@ local function attach(bufnr)
   vim.b[bufnr].tex_tools_generation = generation
 end
 
+function M.dispose()
+  generation = generation + 1
+  for _, name in ipairs({ 'TexTools', 'TexToolsLsp', 'TexToolsInverseTracking' }) do
+    pcall(vim.api.nvim_del_augroup_by_name, name)
+  end
+  for _, name in ipairs({ 'formula', 'conceal', 'inverse', 'diagnostics', 'build', 'lsp.texquill', 'mappings' }) do
+    local module = package.loaded['tex-tools.' .. name]
+    if module and module.dispose then
+      module.dispose()
+    end
+  end
+  for buf, commands in pairs(attached) do
+    if vim.api.nvim_buf_is_valid(buf) then
+      for _, cleanup in pairs(commands) do
+        cleanup()
+      end
+      vim.b[buf].tex_tools_generation = nil
+    end
+  end
+  attached = {}
+  require('tex-tools.config').setup()
+end
+
 function M.setup(opts)
+  assert(opts == nil or type(opts) == 'table', 'tex-tools.nvim: setup expects a table')
+  opts = vim.deepcopy(opts or {})
   if vim.fn.has('nvim-0.11') == 0 then
     error('tex-tools.nvim requires Neovim 0.11 or newer')
   end
@@ -788,6 +814,12 @@ function M.setup(opts)
     end,
   })
   local group = vim.api.nvim_create_augroup('TexTools', { clear = true })
+  vim.api.nvim_create_autocmd('BufWipeout', {
+    group = group,
+    callback = function(event)
+      attached[event.buf] = nil
+    end,
+  })
   vim.api.nvim_create_autocmd('FileType', {
     group = group,
     pattern = { 'tex', 'plaintex' },

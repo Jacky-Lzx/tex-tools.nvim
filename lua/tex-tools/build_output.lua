@@ -5,7 +5,11 @@ function M.changed(state)
     return
   end
   state.output_scheduled = true
+  local version = state.output_version
   vim.schedule(function()
+    if version ~= state.output_version then
+      return
+    end
     state.output_scheduled = nil
     local bufnr = state.output_buffer
     if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
