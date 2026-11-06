@@ -345,17 +345,17 @@ function M.open(opts)
   end
   vim.keymap.set('n', 'q', function()
     vim.api.nvim_win_close(win, true)
-  end, { buffer = buf, silent = true })
+  end, { buffer = buf, silent = true, desc = 'Close LaTeX outline' })
   vim.keymap.set('n', 'r', function()
     refresh()
-  end, { buffer = buf, silent = true })
+  end, { buffer = buf, silent = true, desc = 'Refresh LaTeX outline' })
   vim.keymap.set('n', 'f', function()
     vim.ui.input({ prompt = 'Outline filter (empty clears): ', default = opts.query or '' }, function(query)
       if query ~= nil then
         refresh(query)
       end
     end)
-  end, { buffer = buf, silent = true })
+  end, { buffer = buf, silent = true, desc = 'Filter LaTeX outline' })
   vim.keymap.set('n', '<CR>', function()
     local index = vim.api.nvim_win_get_cursor(win)[1] - first + 1
     local entry = snapshot.entries[index]
@@ -393,7 +393,7 @@ function M.open(opts)
     local col = entry.encoding and vim.str_byteindex(line, entry.encoding, entry.col, false) or entry.col
     vim.api.nvim_win_set_cursor(0, { row, math.min(col, #line) })
     vim.cmd.normal({ 'zv', bang = true })
-  end, { buffer = buf, silent = true })
+  end, { buffer = buf, silent = true, desc = 'Jump to LaTeX outline entry' })
   draw()
   return true, buf
 end
