@@ -301,3 +301,9 @@ For texquill (requires latexmk and SyncTeX):
 TEX_TOOLS_TEXQUILL=/path/to/texquill \
   nvim --clean --headless -i NONE -l tests/live_texquill.lua
 ```
+
+Preview controller setup waits for the first TeX buffer or an explicit preview
+API call. Calling `setup()` in an empty or unrelated-language session does not
+load the controller; `formula_info()` and closing an inactive preview stay cold.
+Automatic previews still initialize when the first TeX buffer attaches. Formula
+compilation and the optional display backend remain deferred to a real preview.

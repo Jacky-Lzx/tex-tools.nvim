@@ -175,6 +175,13 @@ local function compile(captured)
   end
 end
 
+function M.ensure()
+  if not group then
+    M.setup()
+  end
+  return M
+end
+
 function M.preview(request)
   if not group then
     M.setup()

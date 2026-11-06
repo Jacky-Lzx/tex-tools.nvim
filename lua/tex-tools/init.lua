@@ -1,5 +1,8 @@
 local M = {}
 local generation = 0
+local function formula()
+  return require('tex-tools.formula').ensure()
+end
 
 local function action(module, method, ...)
   local ok, err = require('tex-tools.' .. module)[method](...)
@@ -25,6 +28,9 @@ local function attach(bufnr)
     desc = 'tex-tools: SmartEnter',
   })
   local options = require('tex-tools.config').options
+  if options.formula_preview.enabled or options.image_preview.enabled then
+    formula()
+  end
   if options.conceal or package.loaded['tex-tools.conceal'] then
     require('tex-tools.conceal').attach(bufnr, options.conceal)
   end
@@ -752,11 +758,9 @@ function M.setup(opts)
     error('tex-tools.nvim requires Neovim 0.11 or newer')
   end
   require('tex-tools.config').setup(opts)
-  if
-    require('tex-tools.config').options.formula_preview.enabled
-    or require('tex-tools.config').options.image_preview.enabled
-    or package.loaded['tex-tools.formula']
-  then
+  -- Reconfigure an existing controller immediately, but leave a cold controller
+  -- unloaded until a TeX buffer attaches or a preview API is used.
+  if package.loaded['tex-tools.formula'] then
     require('tex-tools.formula').setup()
   end
   local lsp_group = vim.api.nvim_create_augroup('TexToolsLsp', { clear = true })
@@ -1016,23 +1020,33 @@ end
 
 function M.preview(opts)
   opts = vim.tbl_extend('force', opts or {}, { selection = 'all' })
-  return require('tex-tools.formula').preview(opts)
+  return formula().preview(opts)
 end
 
 function M.preview_formula(opts)
-  return require('tex-tools.formula').preview(opts)
+  return formula().preview(opts)
 end
 
 function M.close_formula_preview()
-  return require('tex-tools.formula').close()
+  local controller = package.loaded['tex-tools.formula']
+  return not controller or controller.close()
 end
 
 function M.toggle_formula_preview()
-  return require('tex-tools.formula').toggle()
+  return formula().toggle()
 end
 
 function M.formula_info()
-  return require('tex-tools.formula').info()
+  local controller = package.loaded['tex-tools.formula']
+  if controller then
+    return controller.info()
+  end
+  local options = require('tex-tools.config').options
+  return {
+    enabled = generation > 0 and options.formula_preview.enabled or false,
+    images_enabled = generation > 0 and options.image_preview.enabled or false,
+    stage = 'idle',
+  }
 end
 
 return M
