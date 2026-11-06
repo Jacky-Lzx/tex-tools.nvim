@@ -726,4 +726,29 @@ Lua APIs:
   require('tex-tools').toggle_formula_preview()
   require('tex-tools').formula_info()
 
+
+IMAGE PREVIEWS                                      *tex-tools-image-preview*
+
+Image previews default to enabled; set image_preview=false to disable them.
+The optional image-tools backend is loaded only to display a selected image.
+TexToolsPreview or require('tex-tools').preview({silent?,reload?}) previews the
+cursor image/formula, otherwise the first reference covering the current line.
+TexToolsFormulaPreview remains formula-only. The shared formula toggle controls
+automatic image/formula previews; formula_info() includes kind/images_enabled.
+
+image_preview accepts enabled, delay (100 ms), max_lines (64), max_bytes (16384),
+root (string/function) and layout (image-tools float overrides). image_at({bufnr?,
+pos?}) returns path/source/range/kind/key without requiring image-tools. Positions
+and ranges use zero-based byte coordinates. Recognition requires the latex parser.
+Literal includegraphics commands support stars, multiline options, detokenize,
+preceding literal graphicspath directories and omitted PDF/PNG/JPG/JPEG suffixes.
+Comments, inline verbatim, literal environments, command definitions, unresolved
+macros and filenames split over lines are excluded. Paths use root, b:vimtex.root,
+or the document directory; graphicspath declarations in other files are not read.
+
+While automatic previews are active, b:image_tools_preview_owner is 'tex-tools'.
+This prevents image-tools from running its own document selection. Display uses
+only image_tools.float()/close(); imports and resource refactoring stay there.
+Disabling both automatic preview types relinquishes this buffer ownership.
+
  vim:tw=78:ts=4:ft=help:norl:

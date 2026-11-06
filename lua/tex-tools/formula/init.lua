@@ -1,20 +1,55 @@
--- One controller owns formula selection and compilation. image-tools is an
--- optional display backend, called only through its public float()/close() API.
+-- One controller owns LaTeX image/formula selection and formula compilation.
+-- image-tools is an optional display backend, called through public float()/close().
 local M = {}
 local state, timer, group
-local enabled = false
+local enabled, images_enabled = false, false
 local last_error
 
 local function options()
   return require('tex-tools.config').options.formula_preview
 end
-local function selected()
-  return require('tex-tools.formula.detect').find(
-    vim.api.nvim_get_current_buf(),
-    vim.api.nvim_win_get_cursor(0)[1] - 1,
-    vim.api.nvim_win_get_cursor(0)[2],
-    options()
-  )
+local function image_options()
+  return require('tex-tools.config').options.image_preview
+end
+
+local function is_tex(buf)
+  return vim.tbl_contains({ 'tex', 'latex', 'plaintex' }, vim.bo[buf].filetype)
+end
+
+function M.own(buf)
+  local owner = vim.b[buf].image_tools_preview_owner
+  if owner == nil or owner == 'tex-tools' then
+    vim.b[buf].image_tools_preview_owner = is_tex(buf) and (enabled or images_enabled) and 'tex-tools' or nil
+  end
+end
+
+local function selected(selection, automatic)
+  local buf, cursor = vim.api.nvim_get_current_buf(), vim.api.nvim_win_get_cursor(0)
+  local formula, image, err
+  if selection ~= 'image' and (not automatic or enabled) then
+    formula, err = require('tex-tools.formula.detect').find(buf, cursor[1] - 1, cursor[2], options())
+  end
+  if selection ~= 'formula' and (not automatic or images_enabled) then
+    image, err = require('tex-tools.image.detect').find(buf, cursor[1] - 1, cursor[2], image_options())
+  end
+  if formula then
+    formula.kind = 'formula'
+  end
+  if formula and image then
+    local ts = require('tex-tools.treesitter')
+    if ts.contains(image.range, cursor[1] - 1, cursor[2]) then
+      return image
+    end
+    if ts.contains(formula.range, cursor[1] - 1, cursor[2]) then
+      return formula
+    end
+    if
+      image.range[1] < formula.range[1] or image.range[1] == formula.range[1] and image.range[2] < formula.range[2]
+    then
+      return image
+    end
+  end
+  return formula or image, err
 end
 
 local function stop_timer()
@@ -54,8 +89,8 @@ local function current(captured)
   then
     return false
   end
-  local snapshot = selected()
-  return snapshot and snapshot.key == captured.key or false
+  local snapshot = selected(captured.selection, captured.automatic)
+  return snapshot and snapshot.kind == captured.kind and snapshot.key == captured.key or false
 end
 
 local function fail(captured, err)
@@ -82,8 +117,8 @@ local function compile(captured)
     M.close()
     return
   end
-  captured.stage = 'compiling'
-  captured.cancel = require('tex-tools.formula.render').prepare(captured.source, options(), function(err, image)
+  captured.stage = captured.kind == 'image' and 'preparing' or 'compiling'
+  local function deliver(err, image)
     if not current(captured) then
       if image then
         image.release()
@@ -104,10 +139,10 @@ local function compile(captured)
       return
     end
     backend.close()
-    local request = vim.tbl_extend('force', options().layout, {
+    local request = vim.tbl_extend('force', (captured.kind == 'image' and image_options() or options()).layout, {
       path = image.path,
       display_size = image.display_size,
-      title = ' Formula ',
+      title = captured.kind == 'image' and ' Image ' or ' Formula ',
       is_valid = function()
         return current(captured)
       end,
@@ -132,7 +167,12 @@ local function compile(captured)
       return
     end
     captured.view, captured.stage = view, 'ready'
-  end)
+  end
+  if captured.kind == 'image' then
+    deliver(nil, { path = captured.path, release = function() end })
+  else
+    captured.cancel = require('tex-tools.formula.render').prepare(captured.source, options(), deliver)
+  end
 end
 
 function M.preview(request)
@@ -140,12 +180,13 @@ function M.preview(request)
     M.setup()
   end
   request = request or {}
-  local snapshot, err = selected()
+  local selection = request.selection or 'formula'
+  local snapshot, err = selected(selection, request.automatic)
   if not snapshot then
     M.close()
     return false, err
   end
-  if state and current(state) and not request.reload then
+  if state and state.kind == snapshot.kind and state.key == snapshot.key and current(state) and not request.reload then
     if not request.automatic then
       state.silent = request.silent == true
       if timer then
@@ -161,12 +202,15 @@ function M.preview(request)
     win = vim.api.nvim_get_current_win(),
     silent = request.silent == true,
     stage = 'waiting',
+    selection = selection,
+    automatic = request.automatic == true,
   })
   state, last_error = captured, nil
-  if request.automatic and options().delay > 0 then
+  local delay = (captured.kind == 'image' and image_options() or options()).delay
+  if request.automatic and delay > 0 then
     timer = vim.defer_fn(function()
       compile(captured)
-    end, options().delay)
+    end, delay)
   else
     compile(captured)
   end
@@ -174,10 +218,15 @@ function M.preview(request)
 end
 
 function M.refresh()
-  if not enabled then
+  M.own(vim.api.nvim_get_current_buf())
+  if not enabled and not images_enabled then
     return
   end
-  M.preview({ automatic = true, silent = true })
+  if not is_tex(vim.api.nvim_get_current_buf()) then
+    M.close()
+    return
+  end
+  M.preview({ automatic = true, silent = true, selection = 'all' })
 end
 
 function M.toggle()
@@ -185,7 +234,11 @@ function M.toggle()
     M.setup()
   end
   enabled = not enabled
-  if enabled then
+  images_enabled = enabled and image_options().enabled
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    M.own(buf)
+  end
+  if enabled or images_enabled then
     M.refresh()
   else
     M.close()
@@ -196,6 +249,8 @@ end
 function M.info()
   return {
     enabled = enabled,
+    images_enabled = images_enabled,
+    kind = state and state.kind,
     stage = state and (state.view and state.view:status().stage or state.stage) or (last_error and 'failed' or 'idle'),
     source = state and state.source,
     path = state and state.image and state.image.path,
@@ -213,17 +268,41 @@ end
 
 function M.setup()
   M.close()
-  enabled = options().enabled
+  enabled, images_enabled = options().enabled, image_options().enabled
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    M.own(buf)
+  end
   group = vim.api.nvim_create_augroup('TexToolsFormula', { clear = true })
-  vim.api.nvim_create_autocmd(
-    { 'CursorMoved', 'CursorMovedI', 'TextChanged', 'TextChangedI', 'BufEnter', 'WinEnter' },
-    {
-      group = group,
-      callback = function()
-        M.refresh()
-      end,
-    }
-  )
+  vim.api.nvim_create_autocmd({
+    'CursorMoved',
+    'CursorMovedI',
+    'TextChanged',
+    'TextChangedI',
+    'BufEnter',
+    'WinEnter',
+    'CursorHold',
+    'CursorHoldI',
+  }, {
+    group = group,
+    callback = function()
+      M.refresh()
+    end,
+  })
+  -- Rendering can set FileType inside an autocmd window. Claim source buffers
+  -- immediately, but never close/reselect a view from a temporary render buffer.
+  vim.api.nvim_create_autocmd('FileType', {
+    group = group,
+    callback = function(event)
+      M.own(event.buf)
+      if vim.bo[event.buf].buftype == '' then
+        vim.schedule(function()
+          if vim.api.nvim_get_current_buf() == event.buf then
+            M.refresh()
+          end
+        end)
+      end
+    end,
+  })
   vim.api.nvim_create_autocmd({ 'BufLeave', 'WinLeave', 'VimSuspend', 'ExitPre', 'VimLeavePre' }, {
     group = group,
     callback = function()

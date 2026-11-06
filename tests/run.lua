@@ -525,6 +525,7 @@ dofile('tests/skim.lua')({ test = test, eq = eq })
 dofile('tests/forward_startup.lua')({ test = test, eq = eq, buffer = buffer })
 
 dofile('tests/formula.lua')({ test = test, eq = eq, buffer = buffer, at = at })
+dofile('tests/image.lua')({ test = test, eq = eq, buffer = buffer, at = at })
 
 local function color(text, code)
   if vim.env.NO_COLOR and vim.env.NO_COLOR ~= '' then

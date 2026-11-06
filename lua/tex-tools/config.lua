@@ -1,5 +1,7 @@
 local M = {}
 
+local image_defaults = { enabled = true, delay = 100, max_lines = 64, max_bytes = 16 * 1024, layout = {} }
+
 local defaults = {
   lsp = 'texlab',
   mappings = true,
@@ -11,6 +13,7 @@ local defaults = {
   -- Additional math environments defined by your document class or packages.
   math_environments = {},
   formula_preview = false,
+  image_preview = vim.deepcopy(image_defaults),
 }
 
 M.options = vim.deepcopy(defaults)
@@ -227,6 +230,29 @@ function M.setup(opts)
     'formula_preview must be a boolean or table'
   )
   options.formula_preview = formula_options(options.formula_preview)
+  assert(
+    type(options.image_preview) == 'boolean' or type(options.image_preview) == 'table',
+    'image_preview must be a boolean or table'
+  )
+  options.image_preview = vim.tbl_deep_extend(
+    'force',
+    vim.deepcopy(image_defaults),
+    type(options.image_preview) == 'table' and options.image_preview or { enabled = options.image_preview }
+  )
+  vim.validate('image_preview.enabled', options.image_preview.enabled, 'boolean')
+  vim.validate('image_preview.layout', options.image_preview.layout, 'table')
+  for _, name in ipairs({ 'delay', 'max_lines', 'max_bytes' }) do
+    local value = options.image_preview[name]
+    assert(
+      type(value) == 'number' and value % 1 == 0 and value >= (name == 'delay' and 0 or 1),
+      'Invalid image_preview.' .. name
+    )
+  end
+  local root = options.image_preview.root
+  assert(
+    root == nil or type(root) == 'string' or type(root) == 'function',
+    'image_preview.root must be a string or function'
+  )
   M.profile_fields, M.options = fields, options
 end
 

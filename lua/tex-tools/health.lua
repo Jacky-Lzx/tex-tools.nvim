@@ -25,11 +25,13 @@ function M.check()
         vim.health.warn('Formula tool unavailable: ' .. tool)
       end
     end
+  end
+  if formulas.enabled or require('tex-tools.config').options.image_preview.enabled then
     local loaded, image = pcall(require, 'image_tools')
     if loaded and type(image.float) == 'function' then
       vim.health.ok('image-tools float API is available')
     else
-      vim.health.warn('Formula display requires image-tools.nvim with float() support')
+      vim.health.warn('Preview display requires image-tools.nvim with float() support')
     end
   end
   local lsp = require('tex-tools.lsp')

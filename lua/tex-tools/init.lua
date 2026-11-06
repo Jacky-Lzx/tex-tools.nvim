@@ -38,7 +38,16 @@ local function attach(bufnr)
       options.overwrite_mappings
     )
   end
+  if package.loaded['tex-tools.formula'] then
+    require('tex-tools.formula').own(bufnr)
+  end
   local commands = {
+    TexToolsPreview = {
+      function()
+        M.preview()
+      end,
+      { desc = 'Preview the image or formula on the current line' },
+    },
     TexToolsFormulaPreview = {
       function()
         action('formula', 'preview')
@@ -743,7 +752,11 @@ function M.setup(opts)
     error('tex-tools.nvim requires Neovim 0.11 or newer')
   end
   require('tex-tools.config').setup(opts)
-  if require('tex-tools.config').options.formula_preview.enabled or package.loaded['tex-tools.formula'] then
+  if
+    require('tex-tools.config').options.formula_preview.enabled
+    or require('tex-tools.config').options.image_preview.enabled
+    or package.loaded['tex-tools.formula']
+  then
     require('tex-tools.formula').setup()
   end
   local lsp_group = vim.api.nvim_create_augroup('TexToolsLsp', { clear = true })
@@ -988,6 +1001,22 @@ function M.render_formula(source, opts, callback)
   assert(#source <= options.max_bytes, 'Formula exceeds formula_preview.max_bytes')
   assert(#vim.split(source, '\n', { plain = true }) <= options.max_lines, 'Formula exceeds formula_preview.max_lines')
   return require('tex-tools.formula.render').prepare(source, options, callback)
+end
+
+function M.image_at(opts)
+  opts = opts or {}
+  local cursor = opts.pos or { vim.api.nvim_win_get_cursor(0)[1] - 1, vim.api.nvim_win_get_cursor(0)[2] }
+  return require('tex-tools.image.detect').find(
+    opts.bufnr or vim.api.nvim_get_current_buf(),
+    cursor[1],
+    cursor[2],
+    require('tex-tools.config').options.image_preview
+  )
+end
+
+function M.preview(opts)
+  opts = vim.tbl_extend('force', opts or {}, { selection = 'all' })
+  return require('tex-tools.formula').preview(opts)
 end
 
 function M.preview_formula(opts)

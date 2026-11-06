@@ -22,6 +22,7 @@ if not configured then
   })
   tex.setup({
     formula_preview = { enabled = true, delay = 0, cache = temporary .. '/formulas', foreground = '#cad3f5' },
+    image_preview = { enabled = true, delay = 0 },
   })
 end
 vim.cmd('enew!')
@@ -112,8 +113,8 @@ local function poll()
       vim.api.nvim_buf_set_lines(0, 4, 5, false, { '\\includegraphics{' .. original_path .. '}' })
       move(5)
       step = 7
-    elseif step == 7 and image.status().window then
-      assert(not tex.formula_info().window, 'Image reference retained the formula float')
+    elseif step == 7 and win and info.kind == 'image' then
+      assert(not image.status().window, 'image-tools still owns LaTeX image selection')
       assert(image.status().terminal_cache.uploads == 2, 'Image reference did not share generated PNG pixels')
       image.close()
       tex.close_formula_preview()

@@ -43,6 +43,8 @@ local function inline_literal(bufnr, row, col)
   return false
 end
 
+M.inline_literal = inline_literal
+
 function M.find(bufnr, row, col, options)
   local ft = vim.bo[bufnr].filetype
   if ft ~= 'tex' and ft ~= 'plaintex' and ft ~= 'latex' then

@@ -184,6 +184,46 @@ local in_math = function() return require("tex-tools").in_math() end
 ```
 
 
+## Image previews
+
+LaTeX image and formula previews share one selection controller. Image previews
+are enabled by default (`image_preview = false` disables them); the optional
+image-tools.nvim backend loads only after an image is selected. Formula previews
+remain opt-in. tex-tools owns cursor/range selection, local path resolution and
+formula compilation; image-tools owns layout, conversion, uploads and display.
+
+`:TexToolsPreview` / `require('tex-tools').preview()` selects the reference under
+the cursor, falling back to the first image/formula covering the line. Literal
+`\includegraphics` supports multiline commands/options, starred forms and
+`\detokenize` filenames. Comments, literal environments, inline verbatim,
+definitions, dynamic macros and split filenames are excluded. Preceding literal
+`\graphicspath` directories and omitted PDF/PNG/JPG/JPEG extensions are resolved.
+The default base is the document directory (or an existing `b:vimtex.root`);
+`image_preview.root` accepts a string/function for a project-specific base.
+
+```lua
+require('tex-tools').setup({
+  image_preview = { enabled = true, delay = 100, max_lines = 64, max_bytes = 16384 },
+  formula_preview = { enabled = true },
+})
+```
+
+`image_preview.layout` overrides image-tools float settings. `image_at({bufnr?,
+pos?})` returns a read-only snapshot with `path`, `source`, zero-based byte
+`range`, `kind` and a file-version `key`, without loading image-tools. A LaTeX
+Tree-sitter parser is required; recognition does not fall back to plain paths.
+Images do not inherit the document's preamble or expand macros. References in
+other included files are not searched for graphicspath declarations.
+
+While automatic previews are active, tex-tools sets
+`b:image_tools_preview_owner = 'tex-tools'`, preventing a second image-tools
+controller from selecting LaTeX references. Disabling both preview types releases
+ownership. The existing formula toggle controls the shared automatic controller;
+`formula_info()` additionally reports `kind` and `images_enabled`.
+Use `TexToolsPreview` for unified manual previews; `TexToolsFormulaPreview` remains
+formula-only. Image insertion, asset inspection and reference rewriting remain
+in image-tools.
+
 ## Formula previews
 
 tex-tools detects LaTeX formulas with the same Tree-sitter semantics as its
