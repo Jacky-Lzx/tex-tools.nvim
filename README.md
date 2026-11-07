@@ -335,3 +335,10 @@ selected server is attached. `build_on_save(enabled)` changes that setting.
 `show_build_status()` presents the selected backend's build status, while
 `build_status()` returns its snapshot. Project APIs can be bound in bibliography
 buffers without installing TeX structural mappings or buffer commands there.
+
+## Health and inspection
+
+`:checkhealth tex-tools` reports missing requirements for configured features.
+An idle server or a project that has not been compiled does not produce warnings.
+`:TexToolsInfo` provides project, build, viewer and inverse-search details.
+Inspection does not start LSP/RPC services, compile documents or load image renderers.

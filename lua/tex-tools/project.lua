@@ -238,7 +238,9 @@ function M.command(path)
 end
 
 function M.info()
-  local client, err = require('tex-tools.lsp').client()
+  local lsp = require('tex-tools.lsp')
+  local client = lsp.clients(vim.api.nvim_get_current_buf())[1]
+  local err = 'No ' .. lsp.backend() .. ' client attached to this buffer'
   if not client then
     return nil, err
   end
