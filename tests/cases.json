@@ -6,6 +6,20 @@
   "defaults": {},
   "cases": [
     {
+      "name": "docs",
+      "suite": "unit",
+      "command": [
+        "{python}",
+        "tests/docs_checks.py",
+        "--nvim",
+        "{nvim}"
+      ],
+      "files": [
+        "tests/docs_checks.py"
+      ],
+      "timeout": 60
+    },
+    {
       "name": "runner-contracts",
       "suite": "unit",
       "command": [

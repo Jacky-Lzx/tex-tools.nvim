@@ -1,4 +1,44 @@
-*tex-tools.txt*  LaTeX editing with Tree-sitter and LSP
+*tex-tools.txt*	LaTeX structural editing, navigation and language-server build workflows.
+
+==============================================================================
+CONTENTS                                                           *tex-tools*
+
+  Quick start         |tex-tools-quickstart|
+  Commands            |tex-tools-commands|
+  Options             |tex-tools-options|
+  Lua API             |tex-tools-api|
+  Lifecycle           |tex-tools-lifecycle|
+  Troubleshooting     |tex-tools-troubleshooting|
+
+==============================================================================
+QUICK START                                             *tex-tools-quickstart*
+
+Requires Neovim 0.11+. Requires the latex Tree-sitter parser. Configure texlab
+or texquill separately for compilation and forward search. Media previews
+optionally use image-tools.nvim.
+
+>lua
+    require("tex-tools").setup({ lsp = "texlab", mappings = false })
+<
+
+The example above selects a small working setup. Full defaults, options and
+feature contracts are documented in this reference. Public installation and
+package-manager examples are in README.md.
+
+==============================================================================
+TROUBLESHOOTING                                    *tex-tools-troubleshooting*
+
+Check the minimum Neovim version and feature dependencies first. Run
+:checkhealth tex-tools to inspect availability. Global mappings shown in the
+README are configuration examples unless explicitly documented as plugin
+defaults. Keep one owner for each overridden UI or mapping.
+
+==============================================================================
+OPTIONS                                                    *tex-tools-options*
+
+Options are passed to require("tex-tools").setup(opts). The quick start is an
+example, not a dump of defaults. Detailed configuration and examples follow
+below.
 
 Structural edits, text objects, navigation, tables and optional conceal.
 Requires Neovim 0.11+ and the `latex` Tree-sitter parser. Follow links with
@@ -34,8 +74,8 @@ Install the parser separately (e.g. `:TSInstall latex`), then call: >lua
 <
 Commands and buffer-local mappings attach to `tex/plaintex` buffers. Set
 `vim.g.maplocalleader` before loading. Configure the selected language server
-and toolchain in your LSP setup.
-Local structural editing needs only the parser.
+and toolchain in your LSP setup. Local structural editing needs only the
+parser.
 
 Options and defaults ~
   `lsp`                 `'texlab'`; or `'texquill'`
@@ -82,9 +122,9 @@ column is the suffix in `<Plug>(TexTools{Action})`.
   `]t` / `[t`    NextCell / PreviousCell
 
 Insert `]]` uses `<Plug>(TexToolsCloseDelimiter)`; optional <CR> uses
-`<Plug>(TexToolsSmartEnter)`. Other commands have no default key.
-Text-object <Plug> names use `Around`/`Inside` + `Environment`, `Command`,
-`Argument`, `Math`, `MathDelimiter`, `Item`, `Section` or `Cell`.
+`<Plug>(TexToolsSmartEnter)`. Other commands have no default key. Text-object
+<Plug> names use `Around`/`Inside` + `Environment`, `Command`, `Argument`,
+`Math`, `MathDelimiter`, `Item`, `Section` or `Cell`.
 >lua
 
     vim.keymap.set('n', '<LocalLeader>lr',
@@ -144,11 +184,11 @@ prompt is open cancels the operation. Names omit the backslash.
     first item in an empty list. Supports itemize/enumerate/description.
 
                                                    *tex-tools-command-editing*
-Editing rules ~
-Command names: ASCII letters/@, optional trailing star. Environment names may
-also contain digits, underscores and hyphens. Blockwise/partial-structure
-surrounds and edits that merge control words are refused. Ambiguous fractions,
-comments, literal content and definitions are protected.
+Editing rules ~ Command names: ASCII letters/@, optional trailing star.
+Environment names may also contain digits, underscores and hyphens.
+Blockwise/partial-structure surrounds and edits that merge control words are
+refused. Ambiguous fractions, comments, literal content and definitions are
+protected.
 
                                                      *tex-tools-math-brackets*
 Math brackets ~
@@ -160,26 +200,24 @@ Math brackets ~
   `vert`      `|`         `\lvert \rvert`
   `Vert`      `\|`        `\lVert \rVert`
 
-Plain directional and `\left` / `\right` pairs work in math. Sized pairs may use
-mixed/invisible markers; toggling size needs matching visible markers. Plain
-symmetric bars, fixed sizes and custom macros are excluded. Sizing cannot
-cross alignment cells/rows; unwrap rejects orphaned `\middle` and marker
-comments. Jumps land on sizing commands where present.
+Plain directional and `\left` / `\right` pairs work in math. Sized pairs may
+use mixed/invisible markers; toggling size needs matching visible markers.
+Plain symmetric bars, fixed sizes and custom macros are excluded. Sizing
+cannot cross alignment cells/rows; unwrap rejects orphaned `\middle` and
+marker comments. Jumps land on sizing commands where present.
 
                                                        *tex-tools-smart-enter*
-List Enter ~
-`smart_enter=true` splits a nonempty item at the cursor, keeping its suffix
-and nested content. Empty/unsupported contexts use native Enter. One undo
-removes the insertion and immediately typed text. For completion integration,
-call |tex-tools.smart_enter()| in its fallback branch.
+List Enter ~ `smart_enter=true` splits a nonempty item at the cursor, keeping
+its suffix and nested content. Empty/unsupported contexts use native Enter.
+One undo removes the insertion and immediately typed text. For completion
+integration, call |tex-tools.smart_enter()| in its fallback branch.
 
                                                             *tex-tools-repeat*
-Repeat ~
-Cursor-based rename, unwrap, star toggles, math edits and conversions support
-|.|, reusing prompt answers. `[count].` stops at an invalid target and shares
-one undo. Surrounds/list input do not register structural repeats. Failed
-edits preserve the previous repeat; API edits register it only in the current
-buffer in Normal mode. Text-object operators keep native repeats.
+Repeat ~ Cursor-based rename, unwrap, star toggles, math edits and conversions
+support |.|, reusing prompt answers. `[count].` stops at an invalid target and
+shares one undo. Surrounds/list input do not register structural repeats.
+Failed edits preserve the previous repeat; API edits register it only in the
+current buffer in Normal mode. Text-object operators keep native repeats.
 
 ==============================================================================
 TEXT OBJECTS                                           *tex-tools-textobjects*
@@ -198,12 +236,13 @@ Visual/operator-pending mode; e.g. `dai`, `cii`, `y2ia`.
 
 Counts climb enclosing objects of the same kind; `2d2ac` selects depth four.
 In Visual mode, repeating `ae` or `ie` expands to a larger enclosing range;
-`vaeae` selects the parent environment. At the outermost level, selection stays.
-Sections climb heading levels; cells accept only count 1. Empty inner objects
-or missing depths cancel without changing text, registers or the prior repeat.
-Item objects stay at the nearest list level (`2ai` selects its parent); blank
-gaps use the preceding item. Whole-line `ai` is linewise, including its final
-newline/trailing comment, but excluding following blank/comment lines.
+`vaeae` selects the parent environment. At the outermost level, selection
+stays. Sections climb heading levels; cells accept only count 1. Empty inner
+objects or missing depths cancel without changing text, registers or the prior
+repeat. Item objects stay at the nearest list level (`2ai` selects its
+parent); blank gaps use the preceding item. Whole-line `ai` is linewise,
+including its final newline/trailing comment, but excluding following
+blank/comment lines.
 
 ==============================================================================
 NAVIGATION                                              *tex-tools-navigation*
@@ -283,11 +322,11 @@ cyclic or failed includes warn. A selected texquill client is required.
 ==============================================================================
 BUILD, LOGS AND CLEANUP                                      *tex-tools-build*
 
-Requires an attached, separately configured client selected by `lsp`.
-Texlab remains the default. With `lsp = 'texquill'`, configure the Neovim
-client name as `texquill`; the plugin does not start servers
-or fall back to another backend. Use `cmd = { 'texquill', '--stdio' }`.
-Server settings use `init_options` or `settings.latex` (also unwrapped).
+Requires an attached, separately configured client selected by `lsp`. Texlab
+remains the default. With `lsp = 'texquill'`, configure the Neovim client name
+as `texquill`; the plugin does not start servers or fall back to another
+backend. Use `cmd = { 'texquill', '--stdio' }`. Server settings use
+`init_options` or `settings.latex` (also unwrapped).
 
 `:TexToolsBuild`                                              *:TexToolsBuild*
     Save current/main buffers with `:update`, then build the resolved main.
@@ -317,46 +356,44 @@ Server settings use `init_options` or `settings.latex` (also unwrapped).
 `:TexToolsCleanFull`                                      *:TexToolsCleanFull*
     Also remove the PDF. Refuse cleanup during compilation/another cleanup.
 
-Texlab build behavior ~
-Manual builds use the selected main; automatic builds keep texlab's dependency
-root. Save a modified child first or disable `build.onSave` before building
-another main. A save-triggered build does not also send a manual request. One
-manual build per client; native |LspProgress| handlers are preserved.
-Automatic progress completion does not imply success. A failed compiler may
-leave an incomplete PDF. Status refers to the last build; compiler/profile
-refer to current settings. Main/compiler changes are refused during builds or
-cleanup. No independent `latexmk -pvc` or region compilation is provided.
+Texlab build behavior ~ Manual builds use the selected main; automatic builds
+keep texlab's dependency root. Save a modified child first or disable
+`build.onSave` before building another main. A save-triggered build does not
+also send a manual request. One manual build per client; native |LspProgress|
+handlers are preserved. Automatic progress completion does not imply success.
+A failed compiler may leave an incomplete PDF. Status refers to the last
+build; compiler/profile refer to current settings. Main/compiler changes are
+refused during builds or cleanup. No independent `latexmk -pvc` or region
+compilation is provided.
 
-Texlab artifact discovery ~
-Resolve main via root directives, `build.main_file` or `\documentclass`;
-ambiguous roots fail. Output/jobname arguments and explicit texlab directories
-are respected. Latexmk's `-dir-report-only` discovers `.latexmkrc`/`-r` paths;
-other backends may need explicit directories. Discovered log directories sync
-to texlab on attachment, TeX buffer changes and rc saves; explicit overrides
-stay. Omit `-file-line-error` for texlab diagnostics, then rebuild old logs.
+Texlab artifact discovery ~ Resolve main via root directives,
+`build.main_file` or `\documentclass`; ambiguous roots fail. Output/jobname
+arguments and explicit texlab directories are respected. Latexmk's
+`-dir-report-only` discovers `.latexmkrc`/`-r` paths; other backends may need
+explicit directories. Discovered log directories sync to texlab on attachment,
+TeX buffer changes and rc saves; explicit overrides stay. Omit
+`-file-line-error` for texlab diagnostics, then rebuild old logs.
 
-Texlab cleanup ~
-Latexmk uses texlab clean requests. Tectonic compile removes exact auxiliary
-files, retaining source, bibliography, `.bbl` and unrelated files; full adds
-the PDF. No directory recursion; leaf symlinks are unlinked. Tectonic project
-build/watch and unsupported compilers return errors.
+Texlab cleanup ~ Latexmk uses texlab clean requests. Tectonic compile removes
+exact auxiliary files, retaining source, bibliography, `.bbl` and unrelated
+files; full adds the PDF. No directory recursion; leaf symlinks are unlinked.
+Tectonic project build/watch and unsupported compilers return errors.
 
-Latex-lsp behavior ~
-Build, cancel, status and cleanup call `latex.build`, `latex.cancelBuild`,
-`latex.buildStatus`, `latex.cleanAuxiliary` and `latex.cleanArtifacts`.
-The server owns dependency/root discovery, artifact paths, build concurrency,
-cleanup safety and diagnostics. This backend never probes latexmk itself.
-Build saves the current buffer; save other modified dependencies first.
-On-save builds use the server's `build.onSave`. Main selection updates its
-`build.rootFile`; reset clears it. `build.main_file` sets the initial
-override.
-Server project files may override these client defaults.
+Latex-lsp behavior ~ Build, cancel, status and cleanup call `latex.build`,
+`latex.cancelBuild`, `latex.buildStatus`, `latex.cleanAuxiliary` and
+`latex.cleanArtifacts`. The server owns dependency/root discovery, artifact
+paths, build concurrency, cleanup safety and diagnostics. This backend never
+probes latexmk itself. Build saves the current buffer; save other modified
+dependencies first. On-save builds use the server's `build.onSave`. Main
+selection updates its `build.rootFile`; reset clears it. `build.main_file`
+sets the initial override. Server project files may override these client
+defaults.
 
 Info/log/view use the root and PDF/log URIs reported by the server. Artifact
 paths may be absent before a completed build or after cleanup. Output shows
 its completion summary (not a live compiler stream); existing notification
-handlers are preserved. Status and project queries wait up to two seconds
-per LSP request. Builds and SyncTeX commands run asynchronously.
+handlers are preserved. Status and project queries wait up to two seconds per
+LSP request. Builds and SyncTeX commands run asynchronously.
 
 ==============================================================================
 COMPILER PROFILES                                *tex-tools-compiler-profiles*
@@ -404,8 +441,8 @@ Arguments accept server placeholders `%f`, `%o`, `%j`. Example:
       } },
     })
 <
-Validation and effective project configuration belong to the server.
-Profile matching describes client settings; project files may override them.
+Validation and effective project configuration belong to the server. Profile
+matching describes client settings; project files may override them.
 
 ==============================================================================
 PDF VIEWING AND INVERSE SEARCH                              *tex-tools-viewer*
@@ -414,7 +451,7 @@ PDF VIEWING AND INVERSE SEARCH                              *tex-tools-viewer*
     Open the resolved PDF without a source jump; requires the selected LSP.
 `:TexToolsForwardSearch`                              *:TexToolsForwardSearch*
     Jump the PDF to the cursor without saving; requires configured SyncTeX.
-`:TexToolsInverseSearch` [skim|zathura|pagewing]         *:TexToolsInverseSearch*
+`:TexToolsInverseSearch` [skim|zathura|pagewing]      *:TexToolsInverseSearch*
     Show a stable callback. For Skim, copy Command/Arguments into Settings >
     Sync > Custom once. Zathura launched via View receives it automatically.
 
@@ -434,31 +471,27 @@ directly as argv entries.
 With texquill, `latex.forwardSearch` returns page/coordinates. Skim receives
 them through AppleScript, waits for startup, and shows its native source-line
 indicator. Set `viewer.focus = false` to keep focus in Neovim. This option
-controls Skim View and texquill forward search; texlab forward search uses
-its own executable/args. Early texquill searches wait up to 10 seconds for
+controls Skim View and texquill forward search; texlab forward search uses its
+own executable/args. Early texquill searches wait up to 10 seconds for
 LspAttach, retaining the source position. Zathura opens the returned page.
 Auto detects Skim in /Applications, then Zathura. Configure Skim/Zathura for
 forward search, or explicitly select Pagewing. Generic viewers support View
-only. The plugin does not run SyncTeX again.
-Pagewing requires the texquill backend and supports full coordinates/highlights.
-Set the viewer explicitly: >lua
-  viewer = {
-    method = 'pagewing',
-    executable = '/path/to/pagewing',
-    focus = false,
-  }
+only. The plugin does not run SyncTeX again. Pagewing requires the texquill
+backend and supports full coordinates/highlights. Set the viewer explicitly:
+>lua viewer = { method = 'pagewing', executable = '/path/to/pagewing', focus =
+false, }
 <
 View and ForwardSearch automatically configure its coordinate callback. PDF
 Ctrl/Cmd+click queries the same TeXquill client that opened that PDF, even if
 another buffer is currently selected. A registry chooses the owning session;
 stopped clients, replaced requests and results for another PDF/root cannot
-navigate the editor. Run View/ForwardSearch after restarting Neovim or the LSP.
-The viewer's local SyncTeX process is not used in this mode. Coordinates remain
-unrotated physical PDF points; Pagewing handles zoom, crop and page rotation.
-The Lua `inverse_search_position(page, x, y)` API calls `latex.inverseSearch`
-and jumps to the first returned source location. PDF pages are one-based;
-coordinates are points measured from the top left. Existing source-file
-callbacks work with both backends.
+navigate the editor. Run View/ForwardSearch after restarting Neovim or the
+LSP. The viewer's local SyncTeX process is not used in this mode. Coordinates
+remain unrotated physical PDF points; Pagewing handles zoom, crop and page
+rotation. The Lua `inverse_search_position(page, x, y)` API calls
+`latex.inverseSearch` and jumps to the first returned source location. PDF
+pages are one-based; coordinates are points measured from the top left.
+Existing source-file callbacks work with both backends.
 
 Callbacks survive Neovim restarts; open a local TeX file to register a
 session. Regenerate after executable/plugin/cache path or NVIM_APPNAME
@@ -500,11 +533,11 @@ built-in/custom symbols. See `lua/tex-tools/conceal_symbols.lua` for defaults.
 Fractions, scripts, headings and unknown constructs stay source. Math symbols
 are math-only; text accents/ligatures apply in math only inside `\text{...}`.
 Comments, literals, definitions, paths, labels and citation-key spelling are
-protected. Reference/citation inlay hints keep their existing style.
-No macro expansion or font emulation. Buffer text and window
-options stay unchanged; disable overlapping legacy/VimTeX conceal rules.
-Visible-line rendering is cached; pending/missing parses retain source.
-`conceal.max_line_length=10000` caps bytes per line; 0 removes the limit.
+protected. Reference/citation inlay hints keep their existing style. No macro
+expansion or font emulation. Buffer text and window options stay unchanged;
+disable overlapping legacy/VimTeX conceal rules. Visible-line rendering is
+cached; pending/missing parses retain source. `conceal.max_line_length=10000`
+caps bytes per line; 0 removes the limit.
 
 ==============================================================================
 LUA API                                                        *tex-tools-api*
@@ -520,11 +553,9 @@ Subsequent explicit setup recreates resources; disposal is not build cancel.
 Functions in `require('tex-tools')` are available without `setup()`.
 Edits/jumps return `true` or `false, error`; omitted names may open async
 prompts. Queries do not notify. Ranges are zero-based, byte-based,
-end-exclusive:
-`{start_row, start_byte, end_row, end_byte}`.
-Query opts: `{bufnr, pos={row,col}}`;
-default current cursor, explicit pos required for another buffer. Missing
-parser/invalid positions return `false/nil, error`.
+end-exclusive: `{start_row, start_byte, end_row, end_byte}`. Query opts:
+`{bufnr, pos={row,col}}`; default current cursor, explicit pos required for
+another buffer. Missing parser/invalid positions return `false/nil, error`.
 
 Context queries ~
 
@@ -538,7 +569,8 @@ Context queries ~
     position before a closing brace, even in empty groups.
 `in_numerator([opts])`                              *tex-tools.in_numerator()*
 `in_denominator([opts])`                          *tex-tools.in_denominator()*
-    Nearest `\frac` / `\dfrac` / `\tfrac` part with two complete braced arguments.
+    Nearest `\frac` / `\dfrac` / `\tfrac` part with two complete braced
+        arguments.
 `in_table_cell([opts])`                            *tex-tools.in_table_cell()*
     Body cells in tabular[*]/tabularx, array, matrix (plain/p/b/B/v/V/small),
     cases,
@@ -570,7 +602,7 @@ Editing and navigation ~
 `unwrap_math_delimiters()`                *tex-tools.unwrap_math_delimiters()*
 `toggle_math_delimiter_size()`        *tex-tools.toggle_math_delimiter_size()*
 `toggle_fraction()` / `convert_math(target)` / `toggle_math_mode()`
-    Cursor-based counterparts of |tex-tools-commands|.
+Cursor-based counterparts of |tex-tools-commands|.
 `surround_command([name [, opts]])`             *tex-tools.surround_command()*
 `surround_environment([name [, opts]])`     *tex-tools.surround_environment()*
     One-based inclusive `opts.line1/line2` (default current line). Commands
@@ -585,17 +617,16 @@ Editing and navigation ~
 `jump_environment_start(direction [, count])`
 `jump_math(direction [, count])`                       *tex-tools.jump_math()*
 `jump_cell(direction [, count])` / `shift_section(direction [, count])`
-    Direction: 1 next/demote, -1 previous/promote; count positive, default 1.
+Direction: 1 next/demote, -1 previous/promote; count positive, default 1.
 `textobject_range(kind, inner [, opts])`        *tex-tools.textobject_range()*
     Range or `nil, error`; kind: environment/command/argument/math/delimiter/
     section/item/cell; inner: boolean. opts also accepts positive `count`.
 `select_textobject(kind, inner [, count])`     *tex-tools.select_textobject()*
     Enter Visual mode. Use <Plug> mappings for operators to preserve repeat.
 `insert_item()`                                      *tex-tools.insert_item()*
-`close_delimiter()` / `close_delimiter_keys()`
-    Insert an item/closing marker; `_keys()` returns encoded Insert keys.
-`table_edit(operation)`
-    `insert_row`, `delete_row`, `insert_column` or `delete_column`.
+`close_delimiter()` / `close_delimiter_keys()` Insert an item/closing marker;
+`_keys()` returns encoded Insert keys. `table_edit(operation)` `insert_row`,
+`delete_row`, `insert_column` or `delete_column`.
 `smart_enter()`                                      *tex-tools.smart_enter()*
     Return encoded keys for an Insert expression mapping: >lua
 
@@ -609,39 +640,35 @@ Build and project ~
 `build()`                                                  *tex-tools.build()*
 `forward_search()`                                *tex-tools.forward_search()*
     `true, request_id` or `false, error`; asynchronous results notify.
-`inverse_search_position(page, x, y)` *tex-tools.inverse_search_position()*
+`inverse_search_position(page, x, y)`    *tex-tools.inverse_search_position()*
     Latex-lsp only: query PDF coordinates and jump to the first source result.
     Returns `true, request_id` or `false, error`; asynchronous errors notify.
 `cancel_build()` / `cancel_all_builds()` / `build_on_save([boolean])`
-    `boolean[, result_or_error]`; omitted on-save value toggles.
-`build_status()`
-    Snapshot or `nil, error`: phase, uri, on_save, elapsed, result/error when
-    known, and current compiler/profile. Returned tables are copies.
-    Latex-lsp queries `latex.buildStatus` and retains native response fields;
-    phase uses native idle/running/success/error/cancelled/timeout strings.
-    on_save reflects client settings; project configuration may override it.
+`boolean[, result_or_error]`; omitted on-save value toggles. `build_status()`
+Snapshot or `nil, error`: phase, uri, on_save, elapsed, result/error when
+known, and current compiler/profile. Returned tables are copies. Latex-lsp
+queries `latex.buildStatus` and retains native response fields; phase uses
+native idle/running/success/error/cancelled/timeout strings. on_save reflects
+client settings; project configuration may override it.
 `compiler([name])`                                      *tex-tools.compiler()*
     Query/switch (`'toggle'` cycles). `true, snapshot` or `false, error`;
     snapshot: profile, executable, args, sorted profiles. Matching compares
     all six fields; identical matches retain the selected name if possible.
-`main_file([path])` / `project_info()`
-    Main: `true, path` or `false, error`; false resets (path may be nil).
-    Info: snapshot or `nil, error`.
-`build_output()` / `build_log([path])` / `build_errors([opts])`
-    `true, buffer/path/count` or `false, error`.
-    Errors opts: errors_only=false, open=true; open=false only fills quickfix.
-`clean([full])`
-    `true, request_id` (latexmk), `true, removed_count` (Tectonic), or
-    `false, error`; full defaults false.
+`main_file([path])` / `project_info()` Main: `true, path` or `false, error`;
+false resets (path may be nil). Info: snapshot or `nil, error`.
+`build_output()` / `build_log([path])` / `build_errors([opts])` `true,
+buffer/path/count` or `false, error`. Errors opts: errors_only=false,
+open=true; open=false only fills quickfix. `clean([full])` `true, request_id`
+(latexmk), `true, removed_count` (Tectonic), or `false, error`; full defaults
+false.
 
 Viewer and outline ~
 
-`view()` / `inverse_search(file, line [, column])`
-    View: `true, job_id` or `false, error`. Inverse: boolean/error; one-based
-    line/byte column, preserving modified buffers.
-`inverse_search_command(kind)`
-    Table or `nil, error`: command, arguments, argv, shell_command, registry,
-    server (informational). RPC starts on demand for local TeX sessions.
+`view()` / `inverse_search(file, line [, column])` View: `true, job_id` or
+`false, error`. Inverse: boolean/error; one-based line/byte column, preserving
+modified buffers. `inverse_search_command(kind)` Table or `nil, error`:
+command, arguments, argv, shell_command, registry, server (informational). RPC
+starts on demand for local TeX sessions.
 `outline([opts])`                                        *tex-tools.outline()*
     `true, panel_buffer` or `false, error`; opts: project=false, query=''.
 `outline_entries([opts])`                        *tex-tools.outline_entries()*
@@ -665,15 +692,17 @@ Set `TEX_TOOLS_TEST_PARSER=/path/to/latex.so` if needed. Tests use a real
 parser, texlab doubles and a stdio LSP fixture; PDF/compiler integration needs
 your local toolchain. Installation and overview: `README.md`.
 
-
 FORMULA PREVIEWS                                           *tex-tools-formula*
 
 formula_preview defaults to false. A table accepts:
-  enabled=false          Automatic previews (manual commands remain available).
-  delay=100              Automatic delay in milliseconds; manual preview bypasses it.
+  enabled=false          Automatic previews (manual commands remain
+      available).
+  delay=100              Automatic delay in milliseconds; manual preview
+      bypasses it.
   latex="latex"          DVI compiler executable.
   dvipng="dvipng"        Transparent PNG renderer executable.
-  density=360            Raster DPI; logical size uses a fixed 180-DPI baseline.
+  density=360            Raster DPI; logical size uses a fixed 180-DPI
+      baseline.
   foreground="auto"      Normal foreground or a #RRGGBB color.
   preamble               Explicit standalone packages/macros; defaults to
                          \usepackage{amsmath,amssymb}.
@@ -687,31 +716,33 @@ formula_preview defaults to false. A table accepts:
   layout={}              Overrides for image-tools float layout: position,
                          right_padding, max_width, max_height, border.
 
-Requires Neovim >= 0.12, the latex Tree-sitter parser, image-tools.nvim with its
-public float() API, latex, dvipng and amsmath/amssymb. Image-tools is optional;
-standalone detection and compilation APIs do not load it. With lazy.nvim use
-the configured image-tools plugin name in tex-tools dependencies when enabled.
-Markdown formulas remain owned by image-tools.
+Requires Neovim >= 0.12, the latex Tree-sitter parser, image-tools.nvim with
+its public float() API, latex, dvipng and amsmath/amssymb. Image-tools is
+optional; standalone detection and compilation APIs do not load it. With
+lazy.nvim use the configured image-tools plugin name in tex-tools dependencies
+when enabled. Markdown formulas remain owned by image-tools.
 
-:TexToolsFormulaPreview                                   *:TexToolsFormulaPreview*
+:TexToolsFormulaPreview                              *:TexToolsFormulaPreview*
     Preview the cursor formula or first formula covering its line.
-:TexToolsFormulaClose                                     *:TexToolsFormulaClose*
+:TexToolsFormulaClose                                  *:TexToolsFormulaClose*
     Close the current float and cancel pending compilation/delay.
-:TexToolsFormulaToggle                                    *:TexToolsFormulaToggle*
+:TexToolsFormulaToggle                                *:TexToolsFormulaToggle*
     Toggle automatic formula previews.
-:TexToolsFormulaReload                                    *:TexToolsFormulaReload*
+:TexToolsFormulaReload                                *:TexToolsFormulaReload*
     Reload the selected formula using current compiler/color settings.
-:TexToolsFormulaInfo                                      *:TexToolsFormulaInfo*
-    Inspect enabled state, stage, selected source, PNG dimensions and last error.
-:TexToolsFormulaClearCache                                *:TexToolsFormulaClearCache*
+:TexToolsFormulaInfo                                    *:TexToolsFormulaInfo*
+    Inspect enabled state, stage, selected source, PNG dimensions and last
+        error.
+:TexToolsFormulaClearCache                        *:TexToolsFormulaClearCache*
     Close this preview and remove unused formula PNGs. Leased files survive.
 
 tex-tools owns source selection, compile cancellation and PNG cache leases.
-Image-tools owns float layout, terminal uploads and display leases. Only public
-image-tools APIs are used. Source edits/reconfiguration reject late results;
-unchanged multiline formulas retain their pending/visible preview. PNG output
-is cached by source, preamble, executables, density and resolved foreground.
-Cache budgets are soft while files are leased by displays or active workers.
+Image-tools owns float layout, terminal uploads and display leases. Only
+public image-tools APIs are used. Source edits/reconfiguration reject late
+results; unchanged multiline formulas retain their pending/visible preview.
+PNG output is cached by source, preamble, executables, density and resolved
+foreground. Cache budgets are soft while files are leased by displays or
+active workers.
 
 Compilation uses a standalone article and the configured preamble. It does not
 inherit project preambles, macros, packages or equation counters. Shell escape
@@ -719,46 +750,45 @@ is disabled; private temporary workspaces are cleaned after completion/cancel.
 Missing executables and invalid TeX appear in :TexToolsFormulaInfo; manual
 commands also report errors. Automatic previews keep errors silent.
 
-Lua APIs:
-  require('tex-tools').formula_at({bufnr?,pos?})
-    Return source, range and key, or nil,error. pos/range use zero-based rows
-    and byte columns; range ends are exclusive. Comments, literal content,
-    definitions and incomplete formulas are excluded. Custom math_environments
-    are recognized. Detection is read-only.
-  require('tex-tools').render_formula(source,options,callback)
-    Compile independently of image-tools/LSP. options overrides formula_preview
-    settings. Return a cancellation function. callback(error,image) receives
-    path, width/height, display_size and an idempotent release() file lease.
-  require('tex-tools').preview_formula({silent?,reload?})
-  require('tex-tools').close_formula_preview()
-  require('tex-tools').toggle_formula_preview()
-  require('tex-tools').formula_info()
+Lua APIs: require('tex-tools').formula_at({bufnr?,pos?}) Return source, range
+and key, or nil,error. pos/range use zero-based rows and byte columns; range
+ends are exclusive. Comments, literal content, definitions and incomplete
+formulas are excluded. Custom math_environments are recognized. Detection is
+read-only. require('tex-tools').render_formula(source,options,callback)
+Compile independently of image-tools/LSP. options overrides formula_preview
+settings. Return a cancellation function. callback(error,image) receives path,
+width/height, display_size and an idempotent release() file lease.
+require('tex-tools').preview_formula({silent?,reload?})
+require('tex-tools').close_formula_preview()
+require('tex-tools').toggle_formula_preview()
+require('tex-tools').formula_info()
 
-
-IMAGE PREVIEWS                                      *tex-tools-image-preview*
+IMAGE PREVIEWS                                       *tex-tools-image-preview*
 
 Image previews default to enabled; set image_preview=false to disable them.
 The optional image-tools backend is loaded only to display a selected image.
-TexToolsPreview or require('tex-tools').preview({silent?,reload?}) previews the
-cursor image/formula, otherwise the first reference covering the current line.
-TexToolsFormulaPreview remains formula-only. The shared formula toggle controls
-automatic image/formula previews; formula_info() includes kind/images_enabled.
+TexToolsPreview or require('tex-tools').preview({silent?,reload?}) previews
+the cursor image/formula, otherwise the first reference covering the current
+line. TexToolsFormulaPreview remains formula-only. The shared formula toggle
+controls automatic image/formula previews; formula_info() includes
+kind/images_enabled.
 
-image_preview accepts enabled, delay (100 ms), max_lines (64), max_bytes (16384),
-root (string/function) and layout (image-tools float overrides). image_at({bufnr?,
-pos?}) returns path/source/range/kind/key without requiring image-tools. Positions
-and ranges use zero-based byte coordinates. Recognition requires the latex parser.
-Literal includegraphics commands support stars, multiline options, detokenize,
-preceding literal graphicspath directories and omitted PDF/PNG/JPG/JPEG suffixes.
-Comments, inline verbatim, literal environments, command definitions, unresolved
-macros and filenames split over lines are excluded. Paths use root, b:vimtex.root,
-or the document directory; graphicspath declarations in other files are not read.
+image_preview accepts enabled, delay (100 ms), max_lines (64), max_bytes
+(16384), root (string/function) and layout (image-tools float overrides).
+image_at({bufnr?, pos?}) returns path/source/range/kind/key without requiring
+image-tools. Positions and ranges use zero-based byte coordinates. Recognition
+requires the latex parser. Literal includegraphics commands support stars,
+multiline options, detokenize, preceding literal graphicspath directories and
+omitted PDF/PNG/JPG/JPEG suffixes. Comments, inline verbatim, literal
+environments, command definitions, unresolved macros and filenames split over
+lines are excluded. Paths use root, b:vimtex.root, or the document directory;
+graphicspath declarations in other files are not read.
 
-While automatic previews are active, b:image_tools_preview_owner is 'tex-tools'.
-This prevents image-tools from running its own document selection. Display uses
-only image_tools.float()/close(); imports and resource refactoring stay there.
-Disabling both automatic preview types relinquishes this buffer ownership.
-
+While automatic previews are active, b:image_tools_preview_owner is
+'tex-tools'. This prevents image-tools from running its own document
+selection. Display uses only image_tools.float()/close(); imports and resource
+refactoring stay there. Disabling both automatic preview types relinquishes
+this buffer ownership.
 
 COMMAND OWNERSHIP
 
@@ -766,4 +796,50 @@ TexTools commands are plugin-owned buffer commands. Same-name user commands
 are preserved and registration reports the conflict. Repeated setup refreshes
 only commands still owned by tex-tools. Define personal aliases separately.
 
- vim:tw=78:ts=4:ft=help:norl:
+==============================================================================
+COMMAND OWNERSHIP                      *tex-tools-reference-command-ownership*
+
+TexTools commands are plugin-owned and buffer-local. Same-name user commands
+remain untouched and cause a registration error; repeated setup refreshes only
+commands still owned by tex-tools. Keep personal aliases in user
+configuration.
+
+==============================================================================
+SETUP CONTRACT                                           *tex-tools-lifecycle*
+                                          *tex-tools-reference-setup-contract*
+
+`setup(nil)` uses defaults. Configuration must be a table; caller-owned tables
+are copied before use. Invalid configuration types do not replace live
+handlers or commands. Repeating setup must not accumulate automatic
+registrations.
+
+`dispose()` closes previews, invalidates delayed work, releases conceal and
+inverse-search registration, and restores owned buffer mappings/commands and
+LSP handlers. Later user replacements are preserved. Buffers, build output,
+native LSP clients and server-owned builds are retained; disposal is not build
+cancel. An explicit subsequent setup recreates resources from fresh
+defaults/options.
+
+`build_on_save_enabled(bufnr)` reads the attached client's accepted
+automatic-build setting without sending requests or attaching handlers; it
+returns `nil` when no selected server is attached. `build_on_save(enabled)`
+changes that setting.
+
+`show_build_status()` presents the selected backend's build status, while
+`build_status()` returns its snapshot. Project APIs can be bound in
+bibliography buffers without installing TeX structural mappings or buffer
+commands there.
+
+==============================================================================
+HEALTH AND INSPECTION              *tex-tools-reference-health-and-inspection*
+
+`:checkhealth tex-tools` reports missing requirements for configured features.
+An idle server or a project that has not been compiled does not produce
+warnings. `:TexToolsInfo` provides project, build, viewer and inverse-search
+details. Inspection does not start LSP/RPC services, compile documents or load
+image renderers.
+
+Test workflow (tests/README.md): registered suites, filtering, required
+fixtures and retained failure evidence.
+
+vim:tw=78:ts=8:noet:ft=help:norl:
