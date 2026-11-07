@@ -237,20 +237,31 @@ function M.refresh()
   M.preview({ automatic = true, silent = true, selection = 'all' })
 end
 
-function M.toggle()
-  if not group then
-    M.setup()
+function M.set_auto_preview(value)
+  require('tex-tools.config').options.auto_preview = value
+  local next_enabled, next_images = value and options().enabled, value and image_options().enabled
+  if enabled == next_enabled and images_enabled == next_images then
+    return enabled
   end
-  enabled = not enabled
-  images_enabled = enabled and image_options().enabled
+  enabled, images_enabled = next_enabled, next_images
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     M.own(buf)
   end
-  if enabled or images_enabled then
+  if group and (enabled or images_enabled) then
     M.refresh()
   else
     M.close()
   end
+  return enabled
+end
+
+function M.toggle()
+  if not group then
+    M.setup()
+  end
+  local value = not enabled
+  require('tex-tools.config').options.formula_preview.enabled = value
+  M.set_auto_preview(value)
   return enabled
 end
 
@@ -278,7 +289,8 @@ function M.setup()
   generation = generation + 1
   local version = generation
   M.close()
-  enabled, images_enabled = options().enabled, image_options().enabled
+  local automatic = require('tex-tools.config').options.auto_preview
+  enabled, images_enabled = automatic and options().enabled, automatic and image_options().enabled
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     M.own(buf)
   end

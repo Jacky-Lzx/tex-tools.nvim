@@ -4,6 +4,7 @@ local image_defaults = { enabled = true, delay = 100, max_lines = 64, max_bytes 
 
 local defaults = {
   lsp = 'texlab',
+  auto_preview = true,
   mappings = false,
   overwrite_mappings = false,
   smart_enter = false,
@@ -229,6 +230,7 @@ function M.setup(opts)
     type(options.formula_preview) == 'boolean' or type(options.formula_preview) == 'table',
     'formula_preview must be a boolean or table'
   )
+  vim.validate('auto_preview', options.auto_preview, 'boolean')
   options.formula_preview = formula_options(options.formula_preview)
   assert(
     type(options.image_preview) == 'boolean' or type(options.image_preview) == 'table',

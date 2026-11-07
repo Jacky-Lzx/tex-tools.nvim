@@ -1081,6 +1081,17 @@ function M.close_formula_preview()
   return not controller or controller.close()
 end
 
+-- Apply a master automatic-preview preference without activating a cold controller.
+function M.set_auto_preview(enabled)
+  vim.validate('automatic preview state', enabled, 'boolean')
+  require('tex-tools.config').options.auto_preview = enabled
+  local controller = package.loaded['tex-tools.formula']
+  if controller then
+    controller.set_auto_preview(enabled)
+  end
+  return enabled
+end
+
 function M.toggle_formula_preview()
   return formula().toggle()
 end
@@ -1092,8 +1103,9 @@ function M.formula_info()
   end
   local options = require('tex-tools.config').options
   return {
-    enabled = generation > 0 and options.formula_preview.enabled or false,
-    images_enabled = generation > 0 and options.image_preview.enabled or false,
+    enabled = generation > 0 and options.auto_preview and options.formula_preview.enabled or false,
+    auto_preview = options.auto_preview,
+    images_enabled = generation > 0 and options.auto_preview and options.image_preview.enabled or false,
     stage = 'idle',
   }
 end

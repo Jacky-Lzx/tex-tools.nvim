@@ -842,4 +842,10 @@ image renderers.
 Test workflow (tests/README.md): registered suites, filtering, required
 fixtures and retained failure evidence.
 
+
+Automatic-preview integration: set_auto_preview(boolean) applies an explicit,
+idempotent state. The image_tools.bootstrap entry and tex-tools facade preserve
+cold controllers. tex-tools setup accepts auto_preview=true (default) as a master
+gate; formula_preview/image_preview retain their individual enabled preferences.
+
 vim:tw=78:ts=8:noet:ft=help:norl:
