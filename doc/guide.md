@@ -306,3 +306,7 @@ API call. Calling `setup()` in an empty or unrelated-language session does not
 load the controller; `formula_info()` and closing an inactive preview stay cold.
 Automatic previews still initialize when the first TeX buffer attaches. Formula
 compilation and the optional display backend remain deferred to a real preview.
+
+## Read-only snippet contexts
+
+`in_environment(names, opts)` checks exact names, including starred and nested environments, outside comments/literal content. `document_class(opts)` returns the class declared in that buffer. Both accept `bufnr`; environment queries also accept a zero-based byte `pos`. Unavailable parsers return an error as the second result.

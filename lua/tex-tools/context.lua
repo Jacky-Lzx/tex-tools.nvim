@@ -179,4 +179,64 @@ function M.in_table_cell(opts)
   return require('tex-tools.table_context').in_cell(opts)
 end
 
+---Check exact environment names (including stars), excluding comments/literals.
+function M.in_environment(names, opts)
+  if type(names) == 'string' then
+    names = { names }
+  end
+  assert(type(names) == 'table' and vim.islist(names), 'Environment names must be a string or list')
+  local wanted = {}
+  for _, name in ipairs(names) do
+    assert(type(name) == 'string', 'Environment names must be strings')
+    wanted[name] = true
+  end
+  local query, err = M.query(opts)
+  if not query then
+    return false, err
+  end
+  local node = query.node
+  while node do
+    if ts.environment(node) then
+      local name = ts.field(ts.field(node, 'begin'), 'name')
+      if name and wanted[ts.text(name, query.bufnr):gsub('^%{', ''):gsub('%}$', '')] then
+        return true
+      end
+    end
+    node = node:parent()
+  end
+  return false
+end
+
+local document_cache
+---Return the current buffer's declared class; nil,error means parser unavailable.
+function M.document_class(opts)
+  local buf = ts.buffer(opts and opts.bufnr)
+  local root, err = ts.root(buf)
+  if not root then
+    return nil, err
+  end
+  local tick = vim.api.nvim_buf_get_changedtick(buf)
+  if not document_cache or document_cache.buf ~= buf or document_cache.tick ~= tick then
+    local class
+    local function visit(node)
+      if ts.comment_types[node:type()] or ts.literal_types[node:type()] then
+        return
+      end
+      if node:type() == 'class_include' then
+        class = ts.text(node, buf):match('\\documentclass%s*%b[]%s*{([^}]+)}')
+          or ts.text(node, buf):match('\\documentclass%s*{([^}]+)}')
+        return
+      end
+      for child in node:iter_children() do
+        visit(child)
+        if class then
+          return
+        end
+      end
+    end
+    visit(root)
+    document_cache = { buf = buf, tick = tick, class = class }
+  end
+  return document_cache.class
+end
 return M

@@ -13,6 +13,30 @@ return function(h)
     end
   end
 
+  test('named environments support nesting, stars, edits and explicit buffers', function()
+    local buf = buffer(
+      '\\documentclass[aspectratio=169]{ctexbeamer}\n\\begin{figure*}\n\\begin{itemize}\n\\item body\n\\end{itemize}\n\\end{figure*}'
+    )
+    at('body')
+    eq(true, tex.in_environment('figure*'))
+    eq(false, tex.in_environment('figure'))
+    eq(true, tex.in_environment({ 'enumerate', 'itemize' }))
+    eq('ctexbeamer', tex.document_class())
+    local pos = vim.api.nvim_win_get_cursor(0)
+    buffer('plain')
+    eq(true, tex.in_environment('figure*', { bufnr = buf, pos = { pos[1] - 1, pos[2] } }))
+    eq('ctexbeamer', tex.document_class({ bufnr = buf }))
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { '\\documentclass{article}', 'body' })
+    eq('article', tex.document_class({ bufnr = buf }))
+    eq(false, tex.in_environment('figure*', { bufnr = buf, pos = { 1, 0 } }))
+  end)
+  test('context queries reject comments and literal content', function()
+    buffer('\\begin{figure}\n% body\n\\end{figure}')
+    at('body')
+    eq(false, tex.in_environment('figure'))
+    buffer('\\begin{verbatim}\n\\documentclass{beamer}\n\\end{verbatim}')
+    eq(nil, tex.document_class())
+  end)
   for _, script in ipairs({ { '_', 'in_subscript' }, { '^', 'in_superscript' } }) do
     for _, value in ipairs({ 'i', '\\alpha', '{中文}', '{}' }) do
       test(script[2] .. ' recognizes payload ' .. value, function()

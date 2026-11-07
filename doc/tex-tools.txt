@@ -559,6 +559,14 @@ another buffer. Missing parser/invalid positions return `false/nil, error`.
 
 Context queries ~
 
+`in_environment(names, [opts])`                     *tex-tools.in_environment()*
+    Exact string or list of environment names, including enclosing/nested
+    environments and stars. Comments and literal content return false.
+`document_class([opts])`                            *tex-tools.document_class()*
+    Declared class in the specified buffer, or nil when none is declared.
+    opts.bufnr selects a buffer; no project or include files are opened.
+
+
 `in_math([opts])`                                        *tex-tools.in_math()*
     Math, including custom environments; `\text{...}` suppresses outer math.
 `in_comment([opts])`                                  *tex-tools.in_comment()*

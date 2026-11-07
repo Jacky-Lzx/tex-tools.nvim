@@ -839,6 +839,13 @@ function M.setup(opts)
 end
 
 -- Small public API for snippet engines and user mappings; no setup side effects.
+function M.in_environment(names, opts)
+  return require('tex-tools.context').in_environment(names, opts)
+end
+function M.document_class(opts)
+  return require('tex-tools.context').document_class(opts)
+end
+
 function M.in_math(opts)
   return require('tex-tools.context').in_math(opts)
 end
