@@ -279,7 +279,12 @@ function M.show_info()
     'PDF: ' .. (info.pdf_file or '(build first)'),
     'SyncTeX: ' .. (info.synctex_file or '(managed by server)'),
   }
-  vim.notify(table.concat(lines, '\n'), vim.log.levels.INFO, { title = 'tex-tools' })
+  local prefix = #table.concat(vim.list_slice(lines, 1, 5), '\n') + 1 + #'Arguments: '
+  vim.notify(table.concat(lines, '\n'), vim.log.levels.INFO, {
+    title = 'tex-tools',
+    markdown = false,
+    spans = { { start = prefix, finish = prefix + #lines[6] - #'Arguments: ', filetype = 'lua' } },
+  })
   return true
 end
 

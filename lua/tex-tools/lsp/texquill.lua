@@ -3,8 +3,8 @@
 local M = {}
 local attached = setmetatable({}, { __mode = 'k' })
 
-local function notify(message, level)
-  vim.notify(message, level or vim.log.levels.INFO, { title = 'tex-tools' })
+local function notify(message, level, filetype)
+  vim.notify(message, level or vim.log.levels.INFO, { title = 'tex-tools', filetype = filetype or 'text' })
 end
 
 function M.settings(client)
@@ -191,7 +191,7 @@ function M.show_build_status()
   if not result then
     return false, err
   end
-  notify(vim.inspect(result))
+  notify(vim.inspect(result), nil, 'lua')
   return true
 end
 
@@ -220,7 +220,8 @@ function M.clean(full)
       local errors = type(result.errors) == 'table' and #result.errors or 0
       notify(
         errors > 0 and vim.inspect(result.errors) or 'Build artifacts cleaned',
-        errors > 0 and vim.log.levels.WARN or vim.log.levels.INFO
+        errors > 0 and vim.log.levels.WARN or vim.log.levels.INFO,
+        errors > 0 and 'lua' or 'text'
       )
     end
   end)

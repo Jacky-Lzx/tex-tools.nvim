@@ -81,7 +81,11 @@ local function attach(bufnr)
     },
     TexToolsFormulaInfo = {
       function()
-        vim.notify(vim.inspect(M.formula_info()), vim.log.levels.INFO, { title = 'tex-tools formula' })
+        vim.notify(
+          vim.inspect(M.formula_info()),
+          vim.log.levels.INFO,
+          { title = 'tex-tools formula', filetype = 'lua' }
+        )
       end,
       { desc = 'Inspect formula preview state and errors' },
     },
