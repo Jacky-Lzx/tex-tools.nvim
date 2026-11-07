@@ -550,12 +550,24 @@ end)
 
 for _, entry in ipairs(tests) do
   messages = {}
+  local existing_buffers = {}
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    existing_buffers[buf] = true
+  end
   local input, notify, get_clients, get_parser =
     vim.ui.input, vim.notify, vim.lsp.get_clients, vim.treesitter.get_parser
   local ok, err = xpcall(entry[2], debug.traceback)
   vim.cmd.stopinsert()
   vim.ui.input, vim.notify, vim.lsp.get_clients, vim.treesitter.get_parser = input, notify, get_clients, get_parser
   vim.o.selection = 'inclusive'
+  -- Each behavior case owns its fixtures. Retaining every old TeX buffer made
+  -- later setup() ownership tests re-register mappings on hundreds of unrelated
+  -- buffers, and leaked buffer-local user overrides into subsequent cases.
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if not existing_buffers[buf] and vim.api.nvim_buf_is_valid(buf) then
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end
+  end
   -- Finish scheduled notifications before the next test installs its own mocks.
   vim.wait(1, function()
     return false

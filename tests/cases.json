@@ -1,0 +1,191 @@
+{
+  "version": 1,
+  "default": [
+    "unit"
+  ],
+  "defaults": {},
+  "cases": [
+    {
+      "name": "runner-contracts",
+      "suite": "unit",
+      "command": [
+        "{python}",
+        "tests/runner_checks.py"
+      ],
+      "files": [
+        "tests/runner_checks.py"
+      ],
+      "timeout": 120
+    },
+    {
+      "name": "lazy",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--clean",
+        "--headless",
+        "-i",
+        "NONE",
+        "-l",
+        "tests/lazy.lua"
+      ],
+      "files": [
+        "tests/lazy.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "key_ownership",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--clean",
+        "--headless",
+        "-i",
+        "NONE",
+        "-l",
+        "tests/key_ownership.lua"
+      ],
+      "files": [
+        "tests/key_ownership.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "setup_contract",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--clean",
+        "--headless",
+        "-i",
+        "NONE",
+        "-l",
+        "tests/setup_contract.lua"
+      ],
+      "files": [
+        "tests/setup_contract.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "command_ownership",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--clean",
+        "--headless",
+        "-i",
+        "NONE",
+        "-l",
+        "tests/command_ownership.lua"
+      ],
+      "files": [
+        "tests/command_ownership.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "run",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--clean",
+        "--headless",
+        "-i",
+        "NONE",
+        "-l",
+        "tests/run.lua"
+      ],
+      "files": [
+        "tests/run.lua"
+      ],
+      "requires": [
+        "env:TEX_TOOLS_TEST_PARSER",
+        "path:$TEX_TOOLS_TEST_PARSER"
+      ],
+      "timeout": 300
+    },
+    {
+      "name": "live_texquill",
+      "suite": "acceptance",
+      "command": [
+        "{nvim}",
+        "--clean",
+        "--headless",
+        "-i",
+        "NONE",
+        "-l",
+        "tests/live_texquill.lua"
+      ],
+      "files": [
+        "tests/live_texquill.lua"
+      ],
+      "requires": [
+        "exe:texquill",
+        "exe:latexmk"
+      ],
+      "timeout": 180
+    },
+    {
+      "name": "live_latexmk",
+      "suite": "acceptance",
+      "command": [
+        "{nvim}",
+        "--clean",
+        "--headless",
+        "-i",
+        "NONE",
+        "-l",
+        "tests/live_latexmk.lua"
+      ],
+      "files": [
+        "tests/live_latexmk.lua"
+      ],
+      "requires": [
+        "exe:texquill",
+        "exe:latexmk"
+      ],
+      "timeout": 180
+    }
+  ],
+  "support": {
+    "tests/editing.lua": "Loaded by tests/run.lua",
+    "tests/navigation_delimiters.lua": "Loaded by tests/run.lua",
+    "tests/delimiter.lua": "Loaded by tests/run.lua",
+    "tests/build.lua": "Loaded by tests/run.lua",
+    "tests/context_details.lua": "Loaded by tests/run.lua",
+    "tests/formula.lua": "Loaded by tests/run.lua",
+    "tests/textobject_counts.lua": "Loaded by tests/run.lua",
+    "tests/latexmk.lua": "Loaded by tests/run.lua",
+    "tests/inverse.lua": "Loaded by tests/run.lua",
+    "tests/repeat.lua": "Loaded by tests/run.lua",
+    "tests/editing_extra.lua": "Loaded by tests/run.lua",
+    "tests/section.lua": "Loaded by tests/run.lua",
+    "tests/list.lua": "Loaded by tests/run.lua",
+    "tests/project.lua": "Loaded by tests/run.lua",
+    "tests/clean.lua": "Loaded by tests/run.lua",
+    "tests/enter.lua": "Loaded by tests/run.lua",
+    "tests/mappings.lua": "Loaded by tests/run.lua",
+    "tests/navigation_structures.lua": "Loaded by tests/run.lua",
+    "tests/skim.lua": "Loaded by tests/run.lua",
+    "tests/diagnostics.lua": "Loaded by tests/run.lua",
+    "tests/lsp_backends.lua": "Loaded by tests/run.lua",
+    "tests/item.lua": "Loaded by tests/run.lua",
+    "tests/outline.lua": "Loaded by tests/run.lua",
+    "tests/command.lua": "Loaded by tests/run.lua",
+    "tests/conceal.lua": "Loaded by tests/run.lua",
+    "tests/forward_startup.lua": "Loaded by tests/run.lua",
+    "tests/table.lua": "Loaded by tests/run.lua",
+    "tests/compiler.lua": "Loaded by tests/run.lua",
+    "tests/build_output.lua": "Loaded by tests/run.lua",
+    "tests/viewer.lua": "Loaded by tests/run.lua",
+    "tests/navigation.lua": "Loaded by tests/run.lua",
+    "tests/image.lua": "Loaded by tests/run.lua",
+    "tests/fixtures/texlab.lua": "Loaded by tests/setup_contract.lua",
+    "tests/run.sh": "Stable shell entry point for tests/run.py"
+  },
+  "manual": {
+    "tests/formula_tui.lua": "Cross-plugin TUI fixture run by image-tools tests/tui/run.py with IMAGE_TOOLS_TEX_ROOT; needs TeX and parser fixtures"
+  }
+}

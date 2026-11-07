@@ -342,3 +342,5 @@ buffers without installing TeX structural mappings or buffer commands there.
 An idle server or a project that has not been compiled does not produce warnings.
 `:TexToolsInfo` provides project, build, viewer and inverse-search details.
 Inspection does not start LSP/RPC services, compile documents or load image renderers.
+
+[Test workflow](tests/README.md): registered suites, filtering, required fixtures and retained failure evidence.

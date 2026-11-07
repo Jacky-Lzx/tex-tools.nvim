@@ -46,10 +46,12 @@ jobs:
         env:
           TEX_TOOLS_TEST_PARSER: ${{ runner.temp }}/tex-tools-parser/latex.so
         run: |
-          nvim --clean --headless -l tests/lazy.lua
-          nvim --clean --headless -l tests/key_ownership.lua
-          nvim --clean --headless -l tests/setup_contract.lua
-          nvim --clean --headless -l tests/command_ownership.lua
-          nvim --clean --headless -l tests/run.lua
+          sh tests/run.sh --output "$RUNNER_TEMP/test-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tests-${{ matrix.neovim }}
+          path: ${{ runner.temp }}/test-results
+          if-no-files-found: ignore
       - name: Validate help tags
         run: nvim --clean --headless '+helptags doc' +qa
