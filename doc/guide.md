@@ -310,3 +310,5 @@ compilation and the optional display backend remain deferred to a real preview.
 ## Read-only snippet contexts
 
 `in_environment(names, opts)` checks exact names, including starred and nested environments, outside comments/literal content. `document_class(opts)` returns the class declared in that buffer. Both accept `bufnr`; environment queries also accept a zero-based byte `pos`. Unavailable parsers return an error as the second result.
+
+Snippet predicates can pass `{ fallback = true }` to `in_math` and `in_environment`. If the structural parser is unavailable, a lexical fallback handles delimiters, configured math environments, comments, literal blocks and nested text/math. Default query error semantics are unchanged.

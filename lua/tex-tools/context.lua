@@ -85,6 +85,10 @@ end
 ---@return boolean, string?
 function M.in_math(opts)
   local query, err = inspect(opts)
+  if not query and err and opts and opts.fallback then
+    local snapshot, fallback_err = require('tex-tools.lexical_context').inspect(opts)
+    return snapshot and snapshot.math or false, fallback_err
+  end
   return query and query.snapshot.math or false, err
 end
 
@@ -192,6 +196,17 @@ function M.in_environment(names, opts)
   end
   local query, err = M.query(opts)
   if not query then
+    if err and opts and opts.fallback then
+      local snapshot, fallback_err = require('tex-tools.lexical_context').inspect(opts)
+      if snapshot then
+        for name in pairs(wanted) do
+          if (snapshot.environments[name] or 0) > 0 then
+            return true
+          end
+        end
+      end
+      return false, fallback_err
+    end
     return false, err
   end
   local node = query.node

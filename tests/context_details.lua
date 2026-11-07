@@ -37,6 +37,33 @@ return function(h)
     buffer('\\begin{verbatim}\n\\documentclass{beamer}\n\\end{verbatim}')
     eq(nil, tex.document_class())
   end)
+
+  test('optional snippet fallback retains math and environment checks without a parser', function()
+    buffer([=[\begin{align*}
+ x + \text{words $y$}
+\end{align*}]=])
+    vim.treesitter.get_parser = function()
+      error('missing parser')
+    end
+    at('x +')
+    local value, err = tex.in_math()
+    eq(false, value)
+    assert(err)
+    eq(true, tex.in_math({ fallback = true }))
+    eq(true, tex.in_environment({ 'align', 'align*' }, { fallback = true }))
+    at('words')
+    eq(false, tex.in_math({ fallback = true }))
+    at('$y$', 2)
+    eq(true, tex.in_math({ fallback = true }))
+    buffer('% $ignored$')
+    at('ignored')
+    eq(false, tex.in_math({ fallback = true }))
+    buffer([=[\begin{verbatim}
+$x$
+\end{verbatim}]=])
+    at('x')
+    eq(false, tex.in_math({ fallback = true }))
+  end)
   for _, script in ipairs({ { '_', 'in_subscript' }, { '^', 'in_superscript' } }) do
     for _, value in ipairs({ 'i', '\\alpha', '{中文}', '{}' }) do
       test(script[2] .. ' recognizes payload ' .. value, function()
